@@ -7835,3 +7835,38 @@ Transformed the crate into a test utility library (`src/lib.rs` with `pub` helpe
 - `cargo test --workspace --all-features`: 2585 passed, 0 failed, 40 ignored
 - `RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets`: 0 warnings
 - `cargo fmt --all -- --check`: clean
+
+---
+
+## Refactoring-Phase R110: Parameter Struct Refactoring
+
+**Date**: 2026-02-23
+**Scope**: Replace `#[allow(clippy::too_many_arguments)]` suppressions with parameter structs
+
+### Summary
+
+Introduced parameter structs to bundle function arguments where `#[allow(clippy::too_many_arguments)]` was previously required. 6 of 8 suppressions removed; 2 retained in `slh_dsa/hypertree.rs` (FIPS 205 spec-faithful recursive functions where parameter structs would obscure the specification correspondence).
+
+### Parameter Structs Introduced
+
+| Struct | File | Replaces | Params |
+|--------|------|----------|--------|
+| `Pkcs12Options` | `crates/hitls-cli/src/pkcs12.rs` | `run()` 9 params | 9 |
+| `CryptoActivationParams` | `crates/hitls-tls/src/connection12/tests.rs` | `activate_write/read_cbc_or_etm()` 8 params each | 7 |
+| `DtlsHandshakeContext` | `crates/hitls-tls/src/connection_dtls12.rs` | `do_full/abbreviated_handshake()` 7 params each | 6 |
+| `ServerFlightParams` | `crates/hitls-tls/src/handshake/server.rs` | `build_server_flight()` 9 params | 8 |
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `crates/hitls-cli/src/pkcs12.rs` | Added `Pkcs12Options` struct, updated `run()` and 4 test call sites |
+| `crates/hitls-cli/src/main.rs` | Updated `Pkcs12` match arm to construct `Pkcs12Options` |
+| `crates/hitls-tls/src/connection12/tests.rs` | Added `CryptoActivationParams`, updated 2 helpers + 6 call sites |
+| `crates/hitls-tls/src/connection_dtls12.rs` | Added `DtlsHandshakeContext`, updated 2 functions + 2 call sites |
+| `crates/hitls-tls/src/handshake/server.rs` | Added `ServerFlightParams`, updated `build_server_flight()` + 2 call sites |
+
+### Build Status
+- `cargo test --workspace --all-features`: 2585 passed, 0 failed, 40 ignored
+- `RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets`: 0 warnings
+- `cargo fmt --all -- --check`: clean

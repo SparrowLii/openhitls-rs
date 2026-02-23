@@ -535,6 +535,42 @@ Created `crates/hitls-utils/src/hex.rs` with canonical `pub fn hex(s: &str) -> V
 
 ---
 
+## Phase R110: Parameter Struct Refactoring
+
+**Date**: 2026-02-23
+**Priority**: Low
+**ARCH_REPORT ref**: §7 — `#[allow(clippy::too_many_arguments)]` suppressions
+
+### Problem
+8 functions across the codebase used `#[allow(clippy::too_many_arguments)]` to suppress clippy warnings for functions with 7–9 parameters. Long parameter lists reduce readability and make call sites error-prone.
+
+### Solution
+Introduced 4 parameter structs to bundle related arguments:
+- `Pkcs12Options` (9 fields) — CLI pkcs12 subcommand options
+- `CryptoActivationParams` (7 fields) — CBC/ETM/AEAD activation for TLS 1.2 record layer tests
+- `DtlsHandshakeContext` (6 fields) — shared DTLS 1.2 handshake state (connections + buffers)
+- `ServerFlightParams` (8 fields) — parsed ClientHello results for TLS 1.3 server flight construction
+
+Kept 2 suppressions in `slh_dsa/hypertree.rs` (`xmss_node`, `hypertree_verify`) — these are FIPS 205 §7 spec-faithful recursive algorithms where parameters map 1:1 to specification variables.
+
+### Execution
+1. `pkcs12.rs` + `main.rs`: `Pkcs12Options` struct, updated `run()` + 4 test sites + 1 caller
+2. `connection12/tests.rs`: `CryptoActivationParams` struct, updated 2 helper fns + 6 call sites
+3. `connection_dtls12.rs`: `DtlsHandshakeContext` struct, updated 2 functions + 1 call site (context constructed once, passed to both)
+4. `handshake/server.rs`: `ServerFlightParams` struct, updated 1 function + 2 call sites
+
+### Impact
+- 5 files modified, 4 structs added
+- 6 of 8 `#[allow(clippy::too_many_arguments)]` suppressions removed
+- Zero public API changes, zero logic changes
+
+### Verification
+- `cargo test --workspace --all-features`: 2585 passed, 0 failed, 40 ignored
+- `RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets`: 0 warnings
+- `cargo fmt --all -- --check`: clean
+
+---
+
 ## Refactoring Queue
 
 The following phases are defined in [ARCH_REPORT.md](ARCH_REPORT.md) §7 and have not yet been started:
@@ -549,7 +585,7 @@ The following phases are defined in [ARCH_REPORT.md](ARCH_REPORT.md) §7 and hav
 | Phase R107 | X.509 Module Decomposition | Medium | **Done** |
 | Phase R108 | Integration Test Modularization | Medium | **Done** |
 | Phase R109 | Test Helper Consolidation | Low | **Done** |
-| Phase R110 | Parameter Struct Refactoring | Low | Pending |
+| Phase R110 | Parameter Struct Refactoring | Low | **Done** |
 | Phase R111 | DRBG State Machine Unification | Low | Pending |
 
 **Recommended execution order**: R107 → R108 → R109 → R110 → R111 → R106

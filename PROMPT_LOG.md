@@ -2181,3 +2181,23 @@ Targeted coverage gaps in connection_info, handshake enums, lib.rs constants, co
 - 54 files changed (1 created, 53 modified). Net ~345 lines removed (661−, 316+).
 - All 2585 workspace tests pass, 0 clippy warnings, formatting clean.
 - Pure mechanical replacement, zero logic changes.
+
+---
+
+## Phase R110: Parameter Struct Refactoring
+
+**Prompt**: Implement Phase R110 — Parameter Struct Refactoring (plan from plan file)
+
+**Scope**: Remove 6 of 8 `#[allow(clippy::too_many_arguments)]` suppressions by introducing parameter structs. Keep 2 in FIPS 205 spec-faithful crypto code.
+
+**Work performed**:
+1. `pkcs12.rs` + `main.rs`: Introduced `Pkcs12Options` struct (9 fields), updated `run()` signature, caller, and 4 test call sites
+2. `connection12/tests.rs`: Introduced `CryptoActivationParams` struct (7 fields), updated `activate_write_cbc_or_etm()` and `activate_read_cbc_or_etm()` + 6 call sites
+3. `connection_dtls12.rs`: Introduced `DtlsHandshakeContext` struct (6 fields), updated `do_full_handshake()` and `do_abbreviated_handshake()` + call site
+4. `handshake/server.rs`: Introduced `ServerFlightParams` struct (8 fields), updated `build_server_flight()` + 2 call sites
+5. `slh_dsa/hypertree.rs`: Kept `#[allow]` — FIPS 205 §7 spec-faithful recursive functions
+
+**Result**:
+- 5 files modified. 6 of 8 suppressions removed, 4 parameter structs introduced.
+- All 2585 workspace tests pass, 0 clippy warnings, formatting clean.
+- Zero public API changes (all affected functions are private or crate-internal).
