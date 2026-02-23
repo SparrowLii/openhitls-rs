@@ -504,6 +504,37 @@ Transformed the `#[cfg(test)] mod tests { ... }` block into:
 
 ---
 
+## Phase R109: Test Helper Consolidation
+
+**Date**: 2026-02-23
+**ARCH_REPORT ref**: §7 — Test Helper Consolidation
+
+### Problem
+~54 duplicate `hex()`/`to_hex()`/`hex_to_bytes()` helper functions scattered across test modules and 4 production files. Identical 5-line functions copy-pasted independently, adding maintenance burden.
+
+### Solution
+Created `crates/hitls-utils/src/hex.rs` with canonical `pub fn hex(s: &str) -> Vec<u8>` and `pub fn to_hex(bytes: &[u8]) -> String`. Replaced all duplicates with imports.
+
+### Execution
+1. Created `hex.rs` (15 lines), added `pub mod hex;` to `lib.rs`
+2. Updated `hitls-crypto/Cargo.toml` (dev-dependency + `sm9`/`fips` features) and `hitls-auth/Cargo.toml` (dependency)
+3. Replaced 4 production call sites: `fips/kat.rs`, `sm9/curve.rs`, `spake2plus/mod.rs`, `keylog.rs`
+4. Replaced interop helper with `pub use hitls_utils::hex::hex;`
+5. Replaced 45 test modules: removed local definitions, added imports, renamed `hex_to_bytes()`→`hex()` and `hex(&bytes)`→`to_hex(&bytes)` where needed
+6. Preserved x25519 special case (`[u8; 32]` return type) as thin delegator
+
+### Impact
+- 1 new file, 53 modified files
+- Net ~345 lines removed (661−, 316+)
+- Zero logic changes, zero public API changes
+
+### Verification
+- `cargo test --workspace --all-features`: 2585 passed, 0 failed, 40 ignored
+- `RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets`: 0 warnings
+- `cargo fmt --all -- --check`: clean
+
+---
+
 ## Refactoring Queue
 
 The following phases are defined in [ARCH_REPORT.md](ARCH_REPORT.md) §7 and have not yet been started:
@@ -517,7 +548,7 @@ The following phases are defined in [ARCH_REPORT.md](ARCH_REPORT.md) §7 and hav
 | Phase R106 | Sync/Async Unification via Macros | Medium | **Done** |
 | Phase R107 | X.509 Module Decomposition | Medium | **Done** |
 | Phase R108 | Integration Test Modularization | Medium | **Done** |
-| Phase R109 | Test Helper Consolidation | Low | Pending |
+| Phase R109 | Test Helper Consolidation | Low | **Done** |
 | Phase R110 | Parameter Struct Refactoring | Low | Pending |
 | Phase R111 | DRBG State Machine Unification | Low | Pending |
 

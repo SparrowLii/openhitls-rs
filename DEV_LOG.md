@@ -7758,6 +7758,46 @@ Split into 4 new submodules with mod.rs retaining re-exports and tests. All `pub
 - `RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets`: 0 warnings
 - `cargo fmt --all -- --check`: clean
 
+## Refactoring-Phase R109: Test Helper Consolidation
+
+**Date**: 2026-02-23
+**Scope**: Consolidate ~54 duplicate `hex()`/`to_hex()`/`hex_to_bytes()` helper functions into `hitls-utils/src/hex.rs`
+
+### Summary
+
+Scattered across the codebase were ~54 identical hex conversion helpers: `fn hex(s: &str) -> Vec<u8>` (decode), `fn to_hex(bytes: &[u8]) -> String` (encode), and `fn hex_to_bytes(s: &str) -> Vec<u8>` (alias). These were copy-pasted into `#[cfg(test)]` modules and 4 production files. Consolidated all into a single `hitls_utils::hex` module.
+
+### New Files
+
+| File | Lines | Contents |
+|------|-------|----------|
+| `crates/hitls-utils/src/hex.rs` | 15 | `pub fn hex()` + `pub fn to_hex()` |
+
+### Files Modified
+
+- **1 new file**: `crates/hitls-utils/src/hex.rs`
+- **53 files modified**: lib.rs, 2 Cargo.toml, 4 production files, 1 interop helper, 45 test modules
+- **Net ~345 lines removed** (661 deletions, 316 insertions)
+
+### Changes by Crate
+
+| Crate | Files | Changes |
+|-------|-------|---------|
+| hitls-utils | 2 | New `hex.rs` module + `lib.rs` export |
+| hitls-crypto | 35 | 2 production (`fips/kat.rs`, `sm9/curve.rs`) + 33 test modules + Cargo.toml |
+| hitls-tls | 7 | 1 production (`keylog.rs`) + 6 test modules |
+| hitls-pki | 3 | 3 test modules |
+| hitls-cli | 2 | 2 test modules |
+| hitls-auth | 2 | 1 production (`spake2plus`) + 1 test module + Cargo.toml |
+| tests/interop | 1 | Re-export via `pub use` |
+
+### Build Status
+- `cargo test --workspace --all-features`: 2585 passed, 0 failed, 40 ignored
+- `RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets`: 0 warnings
+- `cargo fmt --all -- --check`: clean
+
+---
+
 ## Refactoring-Phase R108: Integration Test Modularization
 
 **Date**: 2026-02-23

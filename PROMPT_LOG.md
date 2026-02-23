@@ -2160,3 +2160,24 @@ Targeted coverage gaps in connection_info, handshake enums, lib.rs constants, co
 - 11 files changed (10 created, 1 modified). 128 tests (125 passed + 3 ignored) across 10 files.
 - All 2585 workspace tests pass, 0 clippy warnings, formatting clean.
 - Pure structural reorganization, zero logic changes.
+
+---
+
+## Phase R109: Test Helper Consolidation
+
+**Prompt**: Implement Phase R109 — Test Helper Consolidation (plan from plan file)
+
+**Scope**: Consolidate ~54 duplicate `hex()`/`to_hex()`/`hex_to_bytes()` helper functions into `hitls-utils/src/hex.rs`.
+
+**Work performed**:
+1. Created `crates/hitls-utils/src/hex.rs` (15 lines): `pub fn hex(s: &str) -> Vec<u8>` + `pub fn to_hex(bytes: &[u8]) -> String`
+2. Updated `hitls-crypto/Cargo.toml` (dev-dependency + `sm9`/`fips` features) and `hitls-auth/Cargo.toml` (new dependency)
+3. Replaced 4 production call sites: `fips/kat.rs`, `sm9/curve.rs`, `spake2plus/mod.rs`, `crypt/keylog.rs`
+4. Replaced interop helper (`tests/interop/src/lib.rs`) with `pub use hitls_utils::hex::hex;`
+5. Replaced 45 test module helpers across hitls-crypto (33), hitls-tls (6), hitls-pki (3), hitls-cli (2), hitls-auth (1)
+6. Preserved x25519 `[u8; 32]` special case as thin delegator to shared function
+
+**Result**:
+- 54 files changed (1 created, 53 modified). Net ~345 lines removed (661−, 316+).
+- All 2585 workspace tests pass, 0 clippy warnings, formatting clean.
+- Pure mechanical replacement, zero logic changes.
