@@ -8073,3 +8073,37 @@ Added 15 unit tests across 6 files:
 - `cargo test --workspace --all-features`: 2674 passed, 0 failed, 40 ignored
 - `RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets`: 0 warnings
 - `cargo fmt --all -- --check`: clean
+
+## Phase T110: McEliece + FrodoKEM + XMSS Internal Module Tests (+15 tests, 2,674→2,689)
+
+**Date**: 2026-02-23
+**Scope**: Close D10 (Low) — Three PQC families (Classic McEliece, FrodoKEM, XMSS) had internal modules with zero direct unit tests. All coverage was indirect through high-level keygen/encaps/sign roundtrip tests. This phase adds 15 dedicated unit tests covering parameter invariants, GF polynomial evaluation, Benes network, bit matrix operations, lattice PKE, address encoding, hash determinism, and base-W extraction.
+
+### Summary
+
+Added 15 unit tests across 11 files in 3 PQC families:
+
+- **McEliece** (5 tests): params invariants (mt=m*t, k=n-mt, cipher_bytes), GfPoly eval + degree tracking, Benes cbits roundtrip, BitMatrix set/get/clear
+- **FrodoKEM** (4 tests): q_mask/packed_len, pk/ct/sk size invariants, matrix add/sub roundtrip, PKE encrypt/decrypt roundtrip
+- **XMSS** (6 tests): address set/get + type clearing, params sig_bytes/OID, hasher PRF determinism + F/H/h_msg lengths, base_w nibble extraction
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `crates/hitls-crypto/src/mceliece/params.rs` | Added ALL_PARAM_IDS + 1 test |
+| `crates/hitls-crypto/src/mceliece/poly.rs` | Added 2 tests |
+| `crates/hitls-crypto/src/mceliece/benes.rs` | Added 1 test |
+| `crates/hitls-crypto/src/mceliece/matrix.rs` | Added 1 test |
+| `crates/hitls-crypto/src/frodokem/params.rs` | Added 2 tests |
+| `crates/hitls-crypto/src/frodokem/matrix.rs` | Added 1 test |
+| `crates/hitls-crypto/src/frodokem/pke.rs` | Added 1 test |
+| `crates/hitls-crypto/src/xmss/address.rs` | Added 2 tests |
+| `crates/hitls-crypto/src/xmss/params.rs` | Added 1 test |
+| `crates/hitls-crypto/src/xmss/hash.rs` | Added 2 tests |
+| `crates/hitls-crypto/src/xmss/wots.rs` | Added 1 test |
+
+### Build Status
+- `cargo test --workspace --all-features`: 2689 passed, 0 failed, 40 ignored
+- `RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets`: 0 warnings
+- `cargo fmt --all -- --check`: clean

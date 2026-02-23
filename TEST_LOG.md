@@ -9,12 +9,12 @@
 
 | Metric | Value |
 |--------|-------|
-| **Total tests** | **2,674** (40 ignored) |
-| **Test growth** | 1,104 → 2,674 (+142% since baseline) |
+| **Total tests** | **2,689** (40 ignored) |
+| **Test growth** | 1,104 → 2,689 (+144% since baseline) |
 | **Crates covered** | 8/8 (100% crate-level coverage) |
 | **Fuzz targets** | 10 (with 66 seed corpus files) |
 | **Wycheproof vectors** | 5,000+ (15 test groups) |
-| **Zero failures** | All 2,674 tests pass, clippy clean, fmt clean |
+| **Zero failures** | All 2,689 tests pass, clippy clean, fmt clean |
 
 ### Test Growth Timeline
 
@@ -53,6 +53,7 @@ Phase T106  2,634     +10   DTLS loss simulation & resilience tests (*)
 Phase T107  2,644     +10   TLCP double certificate validation tests (*)
 Phase T108  2,659     +15   SM9 tower field (Fp2/Fp4/Fp12) unit tests (*)
 Phase T109  2,674     +15   SLH-DSA internal module unit tests (*)
+Phase T110  2,689     +15   McEliece + FrodoKEM + XMSS internal tests (*)
 ```
 
 (*) Testing-only phases (no new features, pure test coverage)
@@ -80,7 +81,7 @@ Phase T109  2,674     +15   SLH-DSA internal module unit tests (*)
 | Crate | Tests | Ignored | % of Total | Focus |
 |-------|------:|--------:|:----------:|-------|
 | hitls-tls | 1,199 | 0 | 45.4% | TLS 1.3/1.2/DTLS/TLCP/DTLCP handshake, record, extensions, callbacks |
-| hitls-crypto | 682 | 31 | 25.5% | 48 algorithm modules + hardware acceleration |
+| hitls-crypto | 697 | 31 | 25.9% | 48 algorithm modules + hardware acceleration |
 | hitls-pki | 349 | 1 | 13.4% | X.509, PKCS#8/12, CMS (5 content types) |
 | hitls-integration | 149 | 3 | 5.6% | Cross-crate TCP loopback, error scenarios, concurrency |
 | hitls-cli | 117 | 5 | 4.5% | 14 CLI commands (dgst, x509, genpkey, etc.) |
@@ -90,7 +91,7 @@ Phase T109  2,674     +15   SLH-DSA internal module unit tests (*)
 | hitls-types | 26 | 0 | 1.0% | Enum definitions, error types |
 | Wycheproof | 15 | 0 | 0.6% | 5,000+ vectors across 15 test groups |
 | Doc-tests | 2 | 0 | 0.1% | API documentation examples |
-| **Total** | **2,659** | **40** | **100%** | |
+| **Total** | **2,689** | **40** | **100%** | |
 
 ### Test Quality Principles
 
@@ -148,14 +149,14 @@ After Phase T102, all in `hitls-crypto`. The `hitls-tls` crate has 100% file-lev
 | **Phase T107** | +10 | D5 | TLCP double certificate validation ✅ |
 | **Phase T108** | ~15 | D10 | SM9 tower fields (fp2/fp4/fp12) ✅ |
 | **Phase T109** | ~15 | D10 | SLH-DSA internal modules ✅ |
-| **Phase T110** | ~15 | D10 | McEliece + FrodoKEM + XMSS internals |
+| **Phase T110** | ~15 | D10 | McEliece + FrodoKEM + XMSS internals ✅ |
 | **Phase T111** | — | D6/D7 | Infra: proptest + coverage CI |
 
 ### Coverage Metrics Target
 
-| Metric | Current | After Phase T109 | After Phase T111 |
+| Metric | Current | After Phase T110 | After Phase T111 |
 |--------|:-------:|:-----------------:|:-----------------:|
-| Total tests | 2,674 | 2,674 | 2,750+ |
+| Total tests | 2,689 | 2,689 | 2,750+ |
 | Critical deficiencies | 0 | 0 | 0 |
 | High deficiencies | 1 | 1 | 0 |
 | Async connection coverage | 40% | 100% | 100% |
@@ -1830,14 +1831,58 @@ Added 15 dedicated unit tests covering address encoding, parameter validation, h
 
 ---
 
+### Phase T110: McEliece + FrodoKEM + XMSS Internal Module Tests (+15 tests, 2,674→2,689)
+
+**Date**: 2026-02-23
+**Deficiency**: D10 (Low) — Three PQC families (Classic McEliece, FrodoKEM, XMSS) had internal modules with zero direct unit tests. All coverage was indirect through high-level keygen/encaps/sign roundtrip tests.
+
+Added 15 dedicated unit tests across 11 files covering parameter invariants, GF polynomial evaluation, Benes network roundtrip, bit matrix operations, lattice PKE roundtrip, address encoding, hash function determinism, and base-W extraction:
+
+| # | Test | File | What It Verifies |
+|:-:|------|------|-----------------|
+| 1 | `test_mceliece_params_invariants` | mceliece/params.rs | mt=m*t, k=n-mt, n_bytes, cipher_bytes (pc/non-pc), all 12 param sets |
+| 2 | `test_gfpoly_eval_known_values` | mceliece/poly.rs | f(x)=x+1 in GF(2^m): f(0)=1, f(1)=0, f(2)=3; constant poly; zero poly |
+| 3 | `test_gfpoly_set_coeff_degree_tracking` | mceliece/poly.rs | Degree updates on set_coeff: increase, decrease, zero-out |
+| 4 | `test_cbits_roundtrip_small` | mceliece/benes.rs | Identity perm w=4 n=16: cbits_from_perm→support_from_cbits produces valid permutation |
+| 5 | `test_bitmatrix_set_get_bit` | mceliece/matrix.rs | BitMatrix set/get/clear individual bits, row_slice verification |
+| 6 | `test_frodo_params_q_mask_packed_len` | frodokem/params.rs | q_mask = (1<<logq)-1, packed_len formula for all 12 param sets |
+| 7 | `test_frodo_params_size_invariants` | frodokem/params.rs | pk_size, ct_size, sk_size formulas match stored values |
+| 8 | `test_matrix_add_sub_roundtrip` | frodokem/matrix.rs | (a+b)-b = a mod q for random-ish matrices |
+| 9 | `test_pke_encrypt_decrypt_roundtrip` | frodokem/pke.rs | PKE keygen→encrypt→decrypt recovers original message (FrodoKem640Shake) |
+| 10 | `test_xmss_adrs_set_get` | xmss/address.rs | Set/get all fields: layer, tree, type, OTS, chain, hash, key_and_mask |
+| 11 | `test_xmss_adrs_set_type_clears_trailing` | xmss/address.rs | set_type zeros bytes [16:32] |
+| 12 | `test_xmss_params_sig_bytes_and_oid` | xmss/params.rs | All 9 param sets: n=32, wots_len=67, sig_bytes formula, OID values |
+| 13 | `test_xmss_hasher_prf_determinism` | xmss/hash.rs | prf() and prf_keygen() are deterministic, output length = 32 |
+| 14 | `test_xmss_hasher_f_h_output_lengths` | xmss/hash.rs | F, H, h_msg all return n bytes |
+| 15 | `test_xmss_base_w_extraction` | xmss/wots.rs | base_w nibble extraction: [0x12,0x34]→[1,2,3,4], 0xFF→[15,15], etc. |
+
+**Per-crate counts after Phase T110**:
+
+| Crate | Tests | Ignored |
+|-------|------:|-------:|
+| hitls-auth | 33 | 0 |
+| hitls-bignum | 49 | 0 |
+| hitls-cli | 117 | 5 |
+| hitls-crypto | 697 | 31 |
+| wycheproof | 15 | 0 |
+| hitls-integration | 149 | 3 |
+| hitls-pki | 349 | 1 |
+| hitls-tls | 1199 | 0 |
+| hitls-types | 26 | 0 |
+| hitls-utils | 53 | 0 |
+| doc-tests | 2 | 0 |
+| **Total** | **2689** | **40** |
+
+---
+
 ## 8. Verification & Quality Gates
 
 All phases verified with the same quality gates:
 
 ```bash
-# Full test suite — all 2,674 tests pass
+# Full test suite — all 2,689 tests pass
 cargo test --workspace --all-features
-# Result: 2,674 passed, 0 failed, 40 ignored
+# Result: 2,689 passed, 0 failed, 40 ignored
 
 # Clippy — zero warnings enforced
 RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets

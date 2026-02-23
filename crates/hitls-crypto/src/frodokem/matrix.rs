@@ -316,3 +316,28 @@ pub(crate) fn matrix_sub(a: &[u16], b: &[u16], q_mask: u16) -> Vec<u16> {
         .map(|(&x, &y)| x.wrapping_sub(y) & q_mask)
         .collect()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_matrix_add_sub_roundtrip() {
+        let q_mask = 0x7FFFu16; // logq=15
+
+        let a = vec![100u16, 200, 300, 400, 32000, 0, 1, 32767];
+        let b = vec![50u16, 60, 70, 80, 1000, 32767, 32767, 0];
+
+        let sum = matrix_add(&a, &b, q_mask);
+        let recovered = matrix_sub(&sum, &b, q_mask);
+        assert_eq!(recovered, a);
+
+        // Also verify commutativity of add
+        let sum2 = matrix_add(&b, &a, q_mask);
+        assert_eq!(sum, sum2);
+
+        // sub(a, a) = zeros
+        let zeros = matrix_sub(&a, &a, q_mask);
+        assert!(zeros.iter().all(|&v| v == 0));
+    }
+}

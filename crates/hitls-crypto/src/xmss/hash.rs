@@ -186,3 +186,62 @@ impl XmssHasher {
         core_hash(self.mode, &input, n)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::xmss::address::XmssAdrs;
+
+    #[test]
+    fn test_xmss_hasher_prf_determinism() {
+        let hasher = XmssHasher {
+            n: 32,
+            mode: XmssHashMode::Shake256,
+            sk_seed: vec![0xAAu8; 32],
+            pk_seed: vec![0xBBu8; 32],
+        };
+
+        let adrs = XmssAdrs::new();
+        let seed = vec![0xCCu8; 32];
+
+        let prf1 = hasher.prf(&seed, &adrs).unwrap();
+        let prf2 = hasher.prf(&seed, &adrs).unwrap();
+        assert_eq!(prf1, prf2);
+        assert_eq!(prf1.len(), 32);
+
+        // prf_keygen uses sk_seed
+        let pk1 = hasher.prf_keygen(&adrs).unwrap();
+        let pk2 = hasher.prf_keygen(&adrs).unwrap();
+        assert_eq!(pk1, pk2);
+        assert_eq!(pk1.len(), 32);
+    }
+
+    #[test]
+    fn test_xmss_hasher_f_h_output_lengths() {
+        let hasher = XmssHasher {
+            n: 32,
+            mode: XmssHashMode::Sha256,
+            sk_seed: vec![0xAAu8; 32],
+            pk_seed: vec![0xBBu8; 32],
+        };
+
+        let adrs = XmssAdrs::new();
+        let msg = vec![0x55u8; 32];
+
+        // F output = n bytes
+        let f_out = hasher.f(&adrs, &msg).unwrap();
+        assert_eq!(f_out.len(), 32);
+
+        // H output = n bytes (takes left || right, each n bytes)
+        let left = vec![0x11u8; 32];
+        let right = vec![0x22u8; 32];
+        let h_out = hasher.h(&adrs, &left, &right).unwrap();
+        assert_eq!(h_out.len(), 32);
+
+        // h_msg output = n bytes
+        let r = vec![0x33u8; 32];
+        let root = vec![0x44u8; 32];
+        let hm_out = hasher.h_msg(&r, &root, 0, b"test").unwrap();
+        assert_eq!(hm_out.len(), 32);
+    }
+}

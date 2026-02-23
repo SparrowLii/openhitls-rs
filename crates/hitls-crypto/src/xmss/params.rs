@@ -129,3 +129,41 @@ pub(crate) fn hash_mode(param_id: XmssParamId) -> XmssHashMode {
         | XmssParamId::Shake256_20_256 => XmssHashMode::Shake256,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use hitls_types::XmssParamId;
+
+    #[test]
+    fn test_xmss_params_sig_bytes_and_oid() {
+        let all_ids = [
+            XmssParamId::Sha2_10_256,
+            XmssParamId::Sha2_16_256,
+            XmssParamId::Sha2_20_256,
+            XmssParamId::Shake128_10_256,
+            XmssParamId::Shake128_16_256,
+            XmssParamId::Shake128_20_256,
+            XmssParamId::Shake256_10_256,
+            XmssParamId::Shake256_16_256,
+            XmssParamId::Shake256_20_256,
+        ];
+
+        for id in &all_ids {
+            let p = get_params(*id);
+            // All sets: n=32, wots_len=67
+            assert_eq!(p.n, 32);
+            assert_eq!(p.wots_len, 67);
+            // sig_bytes = 4 + n + (wots_len + h) * n
+            let expected = 4 + p.n + (p.wots_len + p.h) * p.n;
+            assert_eq!(p.sig_bytes, expected, "sig_bytes mismatch for h={}", p.h);
+        }
+
+        // Check specific OID values from RFC 8391
+        assert_eq!(oid(XmssParamId::Sha2_10_256), 0x00000001);
+        assert_eq!(oid(XmssParamId::Sha2_16_256), 0x00000002);
+        assert_eq!(oid(XmssParamId::Sha2_20_256), 0x00000003);
+        assert_eq!(oid(XmssParamId::Shake128_10_256), 0x00000007);
+        assert_eq!(oid(XmssParamId::Shake256_10_256), 0x0000000a);
+    }
+}

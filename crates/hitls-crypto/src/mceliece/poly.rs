@@ -161,3 +161,62 @@ fn gf_vec_mul(out: &mut [GfElement], in0: &[GfElement], in1: &[GfElement], t: us
 
     out[..t].copy_from_slice(&prod[..t]);
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_gfpoly_eval_known_values() {
+        // f(x) = x + 1 → coeffs[0]=1, coeffs[1]=1, degree=1
+        // In GF(2^m): f(0)=1, f(1)=0 (XOR), f(2)=3, f(3)=2
+        let mut f = GfPoly::new(4);
+        f.set_coeff(0, 1);
+        f.set_coeff(1, 1);
+        assert_eq!(f.degree, 1);
+
+        assert_eq!(f.eval(0), 1);
+        assert_eq!(f.eval(1), 0); // 1 XOR 1 = 0
+        assert_eq!(f.eval(2), 3); // 2 XOR 1 = 3
+        assert_eq!(f.eval(3), 2); // 3 XOR 1 = 2
+
+        // Constant polynomial f(x) = 5
+        let mut g = GfPoly::new(4);
+        g.set_coeff(0, 5);
+        assert_eq!(g.eval(0), 5);
+        assert_eq!(g.eval(100), 5);
+
+        // Zero polynomial
+        let h = GfPoly::new(4);
+        assert_eq!(h.degree, -1);
+        assert_eq!(h.eval(42), 0);
+    }
+
+    #[test]
+    fn test_gfpoly_set_coeff_degree_tracking() {
+        let mut p = GfPoly::new(8);
+        assert_eq!(p.degree, -1);
+
+        // Set degree-3 term
+        p.set_coeff(3, 7);
+        assert_eq!(p.degree, 3);
+
+        // Set higher degree term
+        p.set_coeff(5, 2);
+        assert_eq!(p.degree, 5);
+
+        // Set lower degree term — degree should not decrease
+        p.set_coeff(1, 4);
+        assert_eq!(p.degree, 5);
+
+        // Clear highest term — degree should drop
+        p.set_coeff(5, 0);
+        assert_eq!(p.degree, 3);
+
+        // Clear remaining terms
+        p.set_coeff(3, 0);
+        assert_eq!(p.degree, 1);
+        p.set_coeff(1, 0);
+        assert_eq!(p.degree, -1);
+    }
+}

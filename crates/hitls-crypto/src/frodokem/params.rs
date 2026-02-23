@@ -286,3 +286,74 @@ static PARAMS: [FrodoParams; 12] = [
         prg: PrgMode::Aes,
     },
 ];
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use hitls_types::FrodoKemParamId;
+
+    #[test]
+    fn test_frodo_params_q_mask_packed_len() {
+        // FrodoKEM-640: logq=15
+        let p = get_params(FrodoKemParamId::FrodoKem640Shake);
+        assert_eq!(p.q_mask(), (1u16 << 15) - 1);
+        // packed_len for n*n_bar=5120 elements at 15 bits: ceil(5120*15/8) = 9600
+        assert_eq!(p.packed_len(p.n * p.n_bar), 9600);
+
+        // FrodoKEM-976: logq=16
+        let p2 = get_params(FrodoKemParamId::FrodoKem976Shake);
+        assert_eq!(p2.q_mask(), u16::MAX);
+        // packed_len at 16 bits: 976*8*2 = 15616
+        assert_eq!(p2.packed_len(p2.n * p2.n_bar), 15616);
+    }
+
+    #[test]
+    fn test_frodo_params_size_invariants() {
+        let all_ids = [
+            FrodoKemParamId::FrodoKem640Shake,
+            FrodoKemParamId::FrodoKem976Shake,
+            FrodoKemParamId::FrodoKem1344Shake,
+            FrodoKemParamId::FrodoKem640Aes,
+            FrodoKemParamId::FrodoKem976Aes,
+            FrodoKemParamId::FrodoKem1344Aes,
+            FrodoKemParamId::EFrodoKem640Shake,
+            FrodoKemParamId::EFrodoKem976Shake,
+            FrodoKemParamId::EFrodoKem1344Shake,
+            FrodoKemParamId::EFrodoKem640Aes,
+            FrodoKemParamId::EFrodoKem976Aes,
+            FrodoKemParamId::EFrodoKem1344Aes,
+        ];
+
+        for (i, id) in all_ids.iter().enumerate() {
+            let p = get_params(*id);
+
+            // pk_size = seed_a_len + packed_len(n * n_bar)
+            let expected_pk = p.seed_a_len + p.packed_len(p.n * p.n_bar);
+            assert_eq!(
+                p.pk_size, expected_pk,
+                "pk_size mismatch for param set {}",
+                i
+            );
+
+            // ct_size = packed_len(n_bar*n) + packed_len(n_bar*n_bar) + salt_len
+            let expected_ct =
+                p.packed_len(p.n_bar * p.n) + p.packed_len(p.n_bar * p.n_bar) + p.salt_len;
+            assert_eq!(
+                p.ct_size, expected_ct,
+                "ct_size mismatch for param set {}",
+                i
+            );
+
+            // sk_size = ss_len + pk_hash_len + pk_size + 2*n*n_bar
+            let expected_sk = p.ss_len + p.pk_hash_len + p.pk_size + 2 * p.n * p.n_bar;
+            assert_eq!(
+                p.sk_size, expected_sk,
+                "sk_size mismatch for param set {}",
+                i
+            );
+
+            // n_bar is always 8
+            assert_eq!(p.n_bar, 8);
+        }
+    }
+}

@@ -351,3 +351,30 @@ fn sort_u32_le(a: &mut [u32]) -> Result<(), CryptoError> {
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_cbits_roundtrip_small() {
+        // Identity permutation on n=16 (w=4)
+        let w = 4;
+        let n = 16;
+        let pi: Vec<i16> = (0..n as i16).collect();
+
+        let cbits = cbits_from_perm(&pi, w, n).unwrap();
+        // Expected length: (2*w-1)*n/2 bits = 7*8 = 56 bits → 7 bytes
+        assert_eq!(cbits.len(), 7);
+
+        let support = support_from_cbits(&cbits, w, n).unwrap();
+        assert_eq!(support.len(), n);
+
+        // All values must be unique and within 0..2^w
+        let mut sorted: Vec<u16> = support.clone();
+        sorted.sort();
+        sorted.dedup();
+        assert_eq!(sorted.len(), n);
+        assert!(*sorted.last().unwrap() < (1u16 << w));
+    }
+}

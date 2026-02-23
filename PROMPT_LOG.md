@@ -2360,3 +2360,27 @@ Targeted coverage gaps in connection_info, handshake enums, lib.rs constants, co
 **Result**:
 - 6 files modified, 0 files created. hitls-crypto: 667→682, total: 2659→2674.
 - All 2674 workspace tests pass, 0 clippy warnings, formatting clean.
+
+## Phase T110: McEliece + FrodoKEM + XMSS Internal Module Tests
+
+**Prompt**: Implement Phase T110 — McEliece + FrodoKEM + XMSS Internal Module Tests. Add 15 dedicated unit tests across 11 internal PQC modules (McEliece params/poly/benes/matrix, FrodoKEM params/matrix/pke, XMSS address/params/hash/wots). Close D10. Target: +15 tests.
+
+**Scope**: Close D10 (Low) — Three PQC families had internal modules with zero direct unit tests.
+
+**Work performed**:
+1. Added 1 test to `crates/hitls-crypto/src/mceliece/params.rs`: parameter invariants (all 12 param sets)
+2. Added 2 tests to `crates/hitls-crypto/src/mceliece/poly.rs`: GfPoly eval + degree tracking
+3. Added 1 test to `crates/hitls-crypto/src/mceliece/benes.rs`: Benes cbits roundtrip (w=4, n=16)
+4. Added 1 test to `crates/hitls-crypto/src/mceliece/matrix.rs`: BitMatrix set/get/clear bits
+5. Added 2 tests to `crates/hitls-crypto/src/frodokem/params.rs`: q_mask/packed_len, pk/ct/sk size invariants
+6. Added 1 test to `crates/hitls-crypto/src/frodokem/matrix.rs`: matrix add/sub roundtrip
+7. Added 1 test to `crates/hitls-crypto/src/frodokem/pke.rs`: PKE encrypt/decrypt roundtrip
+8. Added 2 tests to `crates/hitls-crypto/src/xmss/address.rs`: set/get fields, type clearing
+9. Added 1 test to `crates/hitls-crypto/src/xmss/params.rs`: sig_bytes + OID values
+10. Added 2 tests to `crates/hitls-crypto/src/xmss/hash.rs`: PRF determinism, F/H/h_msg lengths
+11. Added 1 test to `crates/hitls-crypto/src/xmss/wots.rs`: base_w nibble extraction
+12. Updated CLAUDE.md, DEV_LOG.md, TEST_LOG.md, PROMPT_LOG.md, README.md
+
+**Result**:
+- 11 files modified, 0 files created. hitls-crypto: 682→697, total: 2674→2689.
+- All 2689 workspace tests pass, 0 clippy warnings, formatting clean.

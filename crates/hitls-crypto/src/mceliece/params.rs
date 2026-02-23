@@ -29,6 +29,21 @@ pub(crate) const SIGMA2: usize = 32;
 pub(crate) const MU: usize = 32;
 pub(crate) const NU: usize = 64;
 
+pub(crate) const ALL_PARAM_IDS: [McElieceParamId; 12] = [
+    McElieceParamId::McEliece6688128,
+    McElieceParamId::McEliece6688128F,
+    McElieceParamId::McEliece6688128Pc,
+    McElieceParamId::McEliece6688128Pcf,
+    McElieceParamId::McEliece6960119,
+    McElieceParamId::McEliece6960119F,
+    McElieceParamId::McEliece6960119Pc,
+    McElieceParamId::McEliece6960119Pcf,
+    McElieceParamId::McEliece8192128,
+    McElieceParamId::McEliece8192128F,
+    McElieceParamId::McEliece8192128Pc,
+    McElieceParamId::McEliece8192128Pcf,
+];
+
 pub(crate) fn get_params(id: McElieceParamId) -> McElieceParams {
     use McElieceParamId::*;
     match id {
@@ -224,5 +239,46 @@ pub(crate) fn get_params(id: McElieceParamId) -> McElieceParams {
             semi: true,
             pc: true,
         },
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_mceliece_params_invariants() {
+        for id in &ALL_PARAM_IDS {
+            let p = get_params(*id);
+
+            // mt == m * t
+            assert_eq!(p.mt, p.m * p.t, "mt != m*t for n={}", p.n);
+
+            // k == n - mt
+            assert_eq!(p.k, p.n - p.mt, "k != n-mt for n={}", p.n);
+
+            // n_bytes == ceil(n/8)
+            assert_eq!(p.n_bytes, p.n.div_ceil(8), "n_bytes mismatch for n={}", p.n);
+
+            // shared_key_bytes always 32
+            assert_eq!(p.shared_key_bytes, 32);
+
+            // m is always 13
+            assert_eq!(p.m, 13);
+
+            // pc variants: cipher_bytes == ceil(mt/8) + 32
+            // non-pc variants: cipher_bytes == ceil(mt/8)
+            let base_cipher = p.mt.div_ceil(8);
+            if p.pc {
+                assert_eq!(
+                    p.cipher_bytes,
+                    base_cipher + 32,
+                    "pc cipher mismatch for n={}",
+                    p.n
+                );
+            } else {
+                assert_eq!(p.cipher_bytes, base_cipher, "cipher mismatch for n={}", p.n);
+            }
+        }
     }
 }

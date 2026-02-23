@@ -73,3 +73,48 @@ impl XmssAdrs {
         &self.bytes
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_xmss_adrs_set_get() {
+        let mut adrs = XmssAdrs::new();
+        adrs.set_layer_addr(3);
+        adrs.set_tree_addr(0xABCD);
+        adrs.set_type(XmssAdrsType::Ots);
+        adrs.set_ots_addr(7);
+        adrs.set_chain_addr(15);
+        adrs.set_hash_addr(9);
+        adrs.set_key_and_mask(1);
+
+        let b = adrs.as_bytes();
+        assert_eq!(&b[0..4], &3u32.to_be_bytes());
+        assert_eq!(&b[4..12], &0xABCDu64.to_be_bytes());
+        assert_eq!(&b[12..16], &0u32.to_be_bytes()); // Ots=0
+        assert_eq!(&b[16..20], &7u32.to_be_bytes());
+        assert_eq!(&b[20..24], &15u32.to_be_bytes());
+        assert_eq!(&b[24..28], &9u32.to_be_bytes());
+        assert_eq!(&b[28..32], &1u32.to_be_bytes());
+    }
+
+    #[test]
+    fn test_xmss_adrs_set_type_clears_trailing() {
+        let mut adrs = XmssAdrs::new();
+        adrs.set_type(XmssAdrsType::Ots);
+        adrs.set_ots_addr(99);
+        adrs.set_chain_addr(55);
+        adrs.set_hash_addr(77);
+        adrs.set_key_and_mask(2);
+
+        // Verify fields are set
+        assert_ne!(&adrs.as_bytes()[16..32], &[0u8; 16]);
+
+        // set_type should zero bytes [16:32]
+        adrs.set_type(XmssAdrsType::HashTree);
+        assert_eq!(&adrs.as_bytes()[16..32], &[0u8; 16]);
+        // Type field should be HashTree=2
+        assert_eq!(&adrs.as_bytes()[12..16], &2u32.to_be_bytes());
+    }
+}

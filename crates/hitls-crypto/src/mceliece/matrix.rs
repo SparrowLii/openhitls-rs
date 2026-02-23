@@ -395,3 +395,39 @@ fn same_mask(k: u32, val: u32) -> u64 {
     let nz = (diff as i64 >> 63) | ((-(diff as i64)) >> 63);
     !(nz as u64)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_bitmatrix_set_get_bit() {
+        let mut m = BitMatrix::new(8, 16);
+        assert_eq!(m.rows, 8);
+        assert_eq!(m.cols, 16);
+        assert_eq!(m.cols_bytes, 2);
+
+        // Initially all zeros
+        assert_eq!(m.get_bit(0, 0), 0);
+        assert_eq!(m.get_bit(7, 15), 0);
+
+        // Set and get various positions
+        m.set_bit(0, 0, 1);
+        assert_eq!(m.get_bit(0, 0), 1);
+        assert_eq!(m.get_bit(0, 1), 0);
+
+        m.set_bit(3, 7, 1);
+        assert_eq!(m.get_bit(3, 7), 1);
+
+        m.set_bit(7, 15, 1);
+        assert_eq!(m.get_bit(7, 15), 1);
+
+        // Clear a bit
+        m.set_bit(3, 7, 0);
+        assert_eq!(m.get_bit(3, 7), 0);
+
+        // Verify row_slice gives correct data
+        assert_eq!(m.row_slice(0), &[0x01, 0x00]);
+        assert_eq!(m.row_slice(7), &[0x00, 0x80]);
+    }
+}

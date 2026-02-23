@@ -135,3 +135,26 @@ pub(crate) fn pke_decrypt(
     // Decode M → mu
     util::decode(&m, params)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::frodokem::params::get_params;
+    use hitls_types::FrodoKemParamId;
+
+    #[test]
+    fn test_pke_encrypt_decrypt_roundtrip() {
+        let p = get_params(FrodoKemParamId::FrodoKem640Shake);
+
+        let seed_a = vec![0xAAu8; p.seed_a_len];
+        let seed_se_kg = vec![0xBBu8; p.seed_se_len];
+        let (b_packed, s_t) = pke_keygen(&seed_a, &seed_se_kg, p).unwrap();
+
+        let seed_se_enc = vec![0xCCu8; p.seed_se_len];
+        let mu = vec![0x42u8; p.mu_len];
+        let (c1, c2) = pke_encrypt(&seed_a, &b_packed, &seed_se_enc, &mu, p).unwrap();
+
+        let mu_dec = pke_decrypt(&s_t, &c1, &c2, p);
+        assert_eq!(mu, mu_dec);
+    }
+}

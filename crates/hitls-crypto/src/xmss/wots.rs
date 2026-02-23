@@ -195,3 +195,23 @@ pub(crate) fn wots_pk_from_sig(
     ltree_adrs.set_ltree_addr(ots_addr);
     l_tree(h, &pk_parts, &mut ltree_adrs, p)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_xmss_base_w_extraction() {
+        // W=16, so each nibble is one base-W digit
+        assert_eq!(base_w(&[0x12, 0x34], 4), vec![1, 2, 3, 4]);
+        assert_eq!(base_w(&[0xFF], 2), vec![15, 15]);
+        assert_eq!(base_w(&[0x00], 2), vec![0, 0]);
+        assert_eq!(base_w(&[0xAB], 2), vec![0x0A, 0x0B]);
+
+        // Multi-byte extraction
+        assert_eq!(base_w(&[0xDE, 0xAD], 4), vec![0x0D, 0x0E, 0x0A, 0x0D]);
+
+        // Single digit
+        assert_eq!(base_w(&[0x70], 1), vec![7]);
+    }
+}
