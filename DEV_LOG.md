@@ -7870,3 +7870,39 @@ Introduced parameter structs to bundle function arguments where `#[allow(clippy:
 - `cargo test --workspace --all-features`: 2585 passed, 0 failed, 40 ignored
 - `RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets`: 0 warnings
 - `cargo fmt --all -- --check`: clean
+
+---
+
+## Phase R111: DRBG State Machine Unification
+
+**Date**: 2026-02-23
+**Scope**: Extract shared DRBG utilities and introduce `Drbg` trait
+
+### Summary
+
+Unified 4 DRBG variants by extracting duplicated constants, utility functions, and convenience methods into shared `drbg/mod.rs`. Introduced a `Drbg` trait with default `generate_bytes()` implementation.
+
+### Shared Items Extracted
+
+| Item | Type | Copies Removed |
+|------|------|----------------|
+| `RESEED_INTERVAL` | `pub(crate) const` | 4 → 1 |
+| `get_system_entropy()` | `pub(crate) fn` | 3 → 1 |
+| `increment_counter()` | `pub(crate) fn` | 2 → 1 |
+| `generate_bytes()` | trait default method | 4 → 1 |
+| `Drbg` trait | `pub trait` | New |
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `crates/hitls-crypto/src/drbg/mod.rs` | Added `RESEED_INTERVAL`, `get_system_entropy()`, `increment_counter()`, `Drbg` trait |
+| `crates/hitls-crypto/src/drbg/hmac_drbg.rs` | Removed constant + entropy block + `generate_bytes`, added `Drbg` impl |
+| `crates/hitls-crypto/src/drbg/hash_drbg.rs` | Removed constant + entropy block + `generate_bytes`, added `Drbg` impl |
+| `crates/hitls-crypto/src/drbg/ctr_drbg.rs` | Removed constant + counter fn + entropy block + `generate_bytes`, added `Drbg` impl |
+| `crates/hitls-crypto/src/drbg/sm4_ctr_drbg.rs` | Removed constant + counter fn + `generate_bytes`, added `Drbg` impl |
+
+### Build Status
+- `cargo test --workspace --all-features`: 2585 passed, 0 failed, 40 ignored
+- `RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets`: 0 warnings
+- `cargo fmt --all -- --check`: clean

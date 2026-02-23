@@ -571,6 +571,46 @@ Kept 2 suppressions in `slh_dsa/hypertree.rs` (`xmss_node`, `hypertree_verify`) 
 
 ---
 
+## Phase R111: DRBG State Machine Unification
+
+**Date**: 2026-02-23
+**Priority**: Low
+**ARCH_REPORT ref**: §7 — DRBG code duplication
+
+### Problem
+4 DRBG variants (`hmac_drbg.rs`, `hash_drbg.rs`, `ctr_drbg.rs`, `sm4_ctr_drbg.rs`) contained ~76 lines of exact duplication:
+- `RESEED_INTERVAL: u64 = 1 << 48` — defined 4× (identical)
+- `generate_bytes()` — 4 identical 4-line convenience methods
+- `from_system_entropy()` — 3 copies of ~12-line entropy sourcing (HMAC/Hash/CTR; SM4 lacks it)
+- `increment_counter()` — 2 identical 7-line functions (CTR + SM4-CTR)
+
+### Solution
+Extracted shared items into `drbg/mod.rs` and introduced a `Drbg` trait with default `generate_bytes()`:
+- `RESEED_INTERVAL` constant (1×, `pub(crate)`)
+- `get_system_entropy()` helper (1×, `pub(crate)`)
+- `increment_counter()` function (1×, `pub(crate)`)
+- `Drbg` trait with `generate()`, `reseed()`, and default `generate_bytes()`
+- 4 trait impl blocks delegating to inherent methods
+
+### Execution
+1. `drbg/mod.rs`: Added shared constant, 2 utility functions, `Drbg` trait
+2. `hmac_drbg.rs`: Removed constant + entropy block + `generate_bytes`, added `Drbg` impl
+3. `hash_drbg.rs`: Removed constant + entropy block + `generate_bytes`, added `Drbg` impl
+4. `ctr_drbg.rs`: Removed constant + counter fn + entropy block + `generate_bytes`, added `Drbg` impl
+5. `sm4_ctr_drbg.rs`: Removed constant + counter fn + `generate_bytes`, added `Drbg` impl
+
+### Impact
+- 5 files modified, ~76 lines removed, ~40 lines added (net ~36 lines reduced)
+- Zero public API changes, zero logic changes
+- `Drbg` trait added as new public interface
+
+### Verification
+- `cargo test -p hitls-crypto --all-features -- drbg`: 37 passed (36 DRBG + 1 FIPS KAT)
+- `RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets`: 0 warnings
+- `cargo fmt --all -- --check`: clean
+
+---
+
 ## Refactoring Queue
 
 The following phases are defined in [ARCH_REPORT.md](ARCH_REPORT.md) §7 and have not yet been started:
@@ -586,6 +626,6 @@ The following phases are defined in [ARCH_REPORT.md](ARCH_REPORT.md) §7 and hav
 | Phase R108 | Integration Test Modularization | Medium | **Done** |
 | Phase R109 | Test Helper Consolidation | Low | **Done** |
 | Phase R110 | Parameter Struct Refactoring | Low | **Done** |
-| Phase R111 | DRBG State Machine Unification | Low | Pending |
+| Phase R111 | DRBG State Machine Unification | Low | **Done** |
 
-**Recommended execution order**: R107 → R108 → R109 → R110 → R111 → R106
+All 10 refactoring phases complete.
