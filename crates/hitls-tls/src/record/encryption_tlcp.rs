@@ -626,4 +626,115 @@ mod tests {
         assert_eq!(enc.sequence_number(), 5);
         assert_eq!(dec.sequence_number(), 5);
     }
+
+    #[test]
+    fn test_cbc_decrypt_fragment_too_short() {
+        let enc_key = vec![0x42u8; 16];
+        let mac_key = vec![0xABu8; 32];
+        let mut dec = RecordDecryptorTlcpCbc::new(enc_key, mac_key);
+
+        // Minimum is SM4_BLOCK_SIZE + SM4_BLOCK_SIZE * 3 = 64 bytes
+        let short_record = Record {
+            content_type: ContentType::ApplicationData,
+            version: TLCP_VERSION,
+            fragment: vec![0u8; 63], // one byte short of minimum
+        };
+        let err = dec.decrypt_record(&short_record).unwrap_err();
+        assert!(
+            matches!(err, TlsError::RecordError(_)),
+            "expected RecordError for too-short CBC fragment, got: {err:?}"
+        );
+    }
+
+    #[test]
+    fn test_cbc_decrypt_not_block_aligned() {
+        let enc_key = vec![0x42u8; 16];
+        let mac_key = vec![0xABu8; 32];
+        let mut dec = RecordDecryptorTlcpCbc::new(enc_key, mac_key);
+
+        // IV(16) + encrypted data that is not a multiple of SM4_BLOCK_SIZE
+        // 16 (IV) + 49 bytes (not multiple of 16) = 65 total, >= 64 minimum
+        let mut fragment = vec![0u8; 16 + 49];
+        // Fill with non-zero to avoid trivial edge cases
+        for (i, b) in fragment.iter_mut().enumerate() {
+            *b = (i & 0xFF) as u8;
+        }
+        let bad_record = Record {
+            content_type: ContentType::ApplicationData,
+            version: TLCP_VERSION,
+            fragment,
+        };
+        let err = dec.decrypt_record(&bad_record).unwrap_err();
+        assert!(
+            matches!(err, TlsError::RecordError(_)),
+            "expected RecordError for non-block-aligned CBC fragment, got: {err:?}"
+        );
+    }
+
+    #[test]
+    fn test_gcm_decrypt_fragment_too_short() {
+        let key = vec![0x42u8; 16];
+        let iv = vec![0xABu8; 4];
+        let mut dec = RecordDecryptorTlcpGcm::new(&key, iv).unwrap();
+
+        // Minimum is GCM_EXPLICIT_NONCE_LEN(8) + tag_len(16) = 24
+        let short_record = Record {
+            content_type: ContentType::ApplicationData,
+            version: TLCP_VERSION,
+            fragment: vec![0u8; 23], // one byte short
+        };
+        let err = dec.decrypt_record(&short_record).unwrap_err();
+        assert!(
+            matches!(err, TlsError::RecordError(_)),
+            "expected RecordError for too-short GCM fragment, got: {err:?}"
+        );
+    }
+
+    #[test]
+    fn test_gcm_empty_plaintext_roundtrip() {
+        let key = vec![0x42u8; 16];
+        let iv = vec![0xABu8; 4];
+
+        let mut enc = RecordEncryptorTlcpGcm::new(&key, iv.clone()).unwrap();
+        let mut dec = RecordDecryptorTlcpGcm::new(&key, iv).unwrap();
+
+        let record = enc
+            .encrypt_record(ContentType::ApplicationData, b"")
+            .unwrap();
+
+        // Fragment = explicit_nonce(8) + ciphertext(0) + tag(16) = 24
+        assert_eq!(record.fragment.len(), GCM_EXPLICIT_NONCE_LEN + 16);
+        assert!(!record.fragment.is_empty());
+
+        let decrypted = dec.decrypt_record(&record).unwrap();
+        assert!(decrypted.is_empty());
+    }
+
+    #[test]
+    fn test_gcm_sequence_number_increments() {
+        let key = vec![0x42u8; 16];
+        let iv = vec![0xABu8; 4];
+
+        let mut enc = RecordEncryptorTlcpGcm::new(&key, iv).unwrap();
+
+        let plaintext = b"identical payload";
+        let r1 = enc
+            .encrypt_record(ContentType::ApplicationData, plaintext)
+            .unwrap();
+        assert_eq!(enc.sequence_number(), 1);
+
+        let r2 = enc
+            .encrypt_record(ContentType::ApplicationData, plaintext)
+            .unwrap();
+        assert_eq!(enc.sequence_number(), 2);
+
+        // Same plaintext, different sequence numbers → different ciphertexts (different nonces)
+        assert_ne!(r1.fragment, r2.fragment);
+
+        // Explicit nonces (first 8 bytes) should differ
+        assert_ne!(
+            &r1.fragment[..GCM_EXPLICIT_NONCE_LEN],
+            &r2.fragment[..GCM_EXPLICIT_NONCE_LEN]
+        );
+    }
 }

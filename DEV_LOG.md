@@ -8200,3 +8200,29 @@ Added 15 robustness tests across 3 TLS 1.3 crypto modules:
 - `cargo test --workspace --all-features`: 2739 passed, 0 failed, 40 ignored
 - `RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets`: 0 warnings
 - `cargo fmt --all -- --check`: clean
+
+## Phase T114: Record Layer Encryption Edge Cases & AEAD Failure Modes (+15 tests, 2,739→2,754)
+
+**Date**: 2026-02-24
+**Scope**: DTLS 1.2 encryption error paths, TLCP CBC/GCM failure modes, AEAD wrong-AAD/empty-plaintext/unsupported-suite/key-validation tests.
+
+### Summary
+
+Added 15 edge-case tests across 3 record layer encryption modules:
+
+- **DTLS 1.2 encryption** (5 tests): Fragment-too-short decryption failure, empty plaintext roundtrip, MAX_PLAINTEXT_LENGTH boundary enforcement, wrong-key decryption failure, explicit nonce verification in ciphertext
+- **TLCP encryption** (5 tests): CBC fragment-too-short, CBC not-block-aligned, GCM fragment-too-short, GCM empty plaintext roundtrip, GCM sequence number increment verification via nonce divergence
+- **AEAD module** (5 tests): AES-GCM wrong AAD failure, ChaCha20-Poly1305 wrong AAD failure, AES-GCM empty plaintext roundtrip (ciphertext = tag only), unsupported cipher suite error path, SM4-GCM invalid key length validation
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `crates/hitls-tls/src/record/encryption_dtls12.rs` | Added 5 DTLS 1.2 encryption edge-case tests |
+| `crates/hitls-tls/src/record/encryption_tlcp.rs` | Added 5 TLCP CBC/GCM error-path tests |
+| `crates/hitls-tls/src/crypt/aead.rs` | Added 5 AEAD failure-mode tests |
+
+### Build Status
+- `cargo test --workspace --all-features`: 2754 passed, 0 failed, 40 ignored
+- `RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets`: 0 warnings
+- `cargo fmt --all -- --check`: clean

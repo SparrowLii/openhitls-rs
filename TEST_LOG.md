@@ -2010,6 +2010,45 @@ Added 20 proptest property-based tests across hitls-crypto and hitls-utils, plus
 | doc-tests | 2 | 0 |
 | **Total** | **2739** | **40** |
 
+### Phase T114: Record Layer Encryption Edge Cases & AEAD Failure Modes (2026-02-24)
+
+**+15 tests** across 3 modules (encryption_dtls12.rs, encryption_tlcp.rs, aead.rs).
+
+| # | Test | File | Property |
+|---|------|------|----------|
+| 1 | `test_decrypt_fragment_too_short` | encryption_dtls12.rs | Fragment < EXPLICIT_NONCE_LEN + tag_len → RecordError |
+| 2 | `test_encrypt_empty_plaintext_roundtrip` | encryption_dtls12.rs | Empty plaintext → non-empty ciphertext → decrypts to empty |
+| 3 | `test_encrypt_max_plaintext_boundary` | encryption_dtls12.rs | 16384 bytes ok; 16385 bytes → RecordError |
+| 4 | `test_decrypt_wrong_key_fails` | encryption_dtls12.rs | Key A encrypt, key B decrypt → RecordError |
+| 5 | `test_explicit_nonce_in_ciphertext` | encryption_dtls12.rs | First 8 bytes = epoch(2) ‖ seq(6) |
+| 6 | `test_cbc_decrypt_fragment_too_short` | encryption_tlcp.rs | CBC fragment < 64 bytes → RecordError |
+| 7 | `test_cbc_decrypt_not_block_aligned` | encryption_tlcp.rs | CBC fragment not multiple of 16 → RecordError |
+| 8 | `test_gcm_decrypt_fragment_too_short` | encryption_tlcp.rs | GCM fragment < 24 bytes → RecordError |
+| 9 | `test_gcm_empty_plaintext_roundtrip` | encryption_tlcp.rs | GCM empty → nonce+tag → decrypts to empty |
+| 10 | `test_gcm_sequence_number_increments` | encryption_tlcp.rs | Two encryptions → different nonces/ciphertexts |
+| 11 | `test_aes_gcm_wrong_aad_fails` | aead.rs | Encrypt AAD "hello", decrypt AAD "world" → error |
+| 12 | `test_chacha20_wrong_aad_fails` | aead.rs | ChaCha20 same wrong-AAD pattern → error |
+| 13 | `test_aes_gcm_empty_plaintext_roundtrip` | aead.rs | Empty plaintext → tag_size() bytes → empty |
+| 14 | `test_create_aead_unsupported_suite` | aead.rs | CipherSuite(0xFFFF) → NoSharedCipherSuite |
+| 15 | `test_sm4_gcm_invalid_key_length` | aead.rs | 15/17/0 bytes → error; 16 bytes → ok |
+
+**Per-crate counts after Phase T114**:
+
+| Crate | Tests | Ignored |
+|-------|------:|-------:|
+| hitls-auth | 33 | 0 |
+| hitls-bignum | 49 | 0 |
+| hitls-cli | 117 | 5 |
+| hitls-crypto | 709 | 31 |
+| wycheproof | 15 | 0 |
+| hitls-integration | 149 | 3 |
+| hitls-pki | 349 | 1 |
+| hitls-tls | 1244 | 0 |
+| hitls-types | 26 | 0 |
+| hitls-utils | 61 | 0 |
+| doc-tests | 2 | 0 |
+| **Total** | **2754** | **40** |
+
 ---
 
 ## 8. Verification & Quality Gates
@@ -2017,9 +2056,9 @@ Added 20 proptest property-based tests across hitls-crypto and hitls-utils, plus
 All phases verified with the same quality gates:
 
 ```bash
-# Full test suite — all 2,739 tests pass
+# Full test suite — all 2,754 tests pass
 cargo test --workspace --all-features
-# Result: 2,739 passed, 0 failed, 40 ignored
+# Result: 2,754 passed, 0 failed, 40 ignored
 
 # Clippy — zero warnings enforced
 RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets

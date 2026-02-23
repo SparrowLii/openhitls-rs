@@ -2447,3 +2447,19 @@ Targeted coverage gaps in connection_info, handshake enums, lib.rs constants, co
 **Result**:
 - 3 source files modified, 0 files created. hitls-tls: 1214→1229, total: 2724→2739.
 - All 2739 workspace tests pass, 0 clippy warnings, formatting clean.
+
+## Phase T114: Record Layer Encryption Edge Cases & AEAD Failure Modes
+
+**Prompt**: Implement Phase T114 — Record Layer Encryption Edge Cases + AEAD Failure Modes. Add 5 DTLS 1.2 encryption tests (fragment-too-short, empty plaintext, max plaintext boundary, wrong-key, explicit nonce verification). Add 5 TLCP encryption tests (CBC fragment-too-short, CBC not-block-aligned, GCM fragment-too-short, GCM empty plaintext roundtrip, GCM sequence number increments). Add 5 AEAD tests (wrong AAD for AES-GCM and ChaCha20, empty plaintext roundtrip, unsupported cipher suite, SM4-GCM invalid key length).
+
+**Scope**: Record layer encryption is the core data-path component of TLS. DTLS 1.2 had 6 tests but missed error paths. TLCP had 8 tests but missed CBC-specific errors and GCM nonce tracking. AEAD had 16 tests but missed wrong-AAD failures, empty plaintext, and unsupported suite error path.
+
+**Work performed**:
+1. Added 5 DTLS 1.2 tests to `crates/hitls-tls/src/record/encryption_dtls12.rs`: fragment too short, empty plaintext roundtrip, MAX_PLAINTEXT_LENGTH boundary, wrong key, explicit nonce verification
+2. Added 5 TLCP tests to `crates/hitls-tls/src/record/encryption_tlcp.rs`: CBC fragment too short, CBC not block-aligned, GCM fragment too short, GCM empty plaintext roundtrip, GCM sequence number increments
+3. Added 5 AEAD tests to `crates/hitls-tls/src/crypt/aead.rs`: AES-GCM wrong AAD, ChaCha20 wrong AAD, AES-GCM empty plaintext, unsupported cipher suite (CipherSuite(0xFFFF)), SM4-GCM invalid key length
+4. Updated CLAUDE.md, DEV_LOG.md, TEST_LOG.md, PROMPT_LOG.md, README.md
+
+**Result**:
+- 3 source files modified, 0 files created. hitls-tls: 1229→1244, total: 2739→2754.
+- All 2754 workspace tests pass, 0 clippy warnings, formatting clean.

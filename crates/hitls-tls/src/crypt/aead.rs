@@ -536,4 +536,70 @@ mod tests {
         // Decrypting with wrong nonce should fail
         assert!(aead.decrypt(&nonce2, aad, &ct).is_err());
     }
+
+    #[test]
+    fn test_aes_gcm_wrong_aad_fails() {
+        let key = [0x42u8; 16];
+        let nonce = [0x01u8; 12];
+        let plaintext = b"secret message";
+
+        let aead = AesGcmAead::new(&key).unwrap();
+        let ct = aead.encrypt(&nonce, b"hello", plaintext).unwrap();
+
+        // Decrypting with different AAD should fail
+        assert!(aead.decrypt(&nonce, b"world", &ct).is_err());
+    }
+
+    #[test]
+    fn test_chacha20_wrong_aad_fails() {
+        let key = [0x42u8; 32];
+        let nonce = [0x01u8; 12];
+        let plaintext = b"secret message";
+
+        let aead = ChaCha20Poly1305Aead::new(&key).unwrap();
+        let ct = aead.encrypt(&nonce, b"hello", plaintext).unwrap();
+
+        // Decrypting with different AAD should fail
+        assert!(aead.decrypt(&nonce, b"world", &ct).is_err());
+    }
+
+    #[test]
+    fn test_aes_gcm_empty_plaintext_roundtrip() {
+        let key = [0x42u8; 16];
+        let nonce = [0x01u8; 12];
+        let aad = b"additional data";
+
+        let aead = AesGcmAead::new(&key).unwrap();
+        let ct = aead.encrypt(&nonce, aad, b"").unwrap();
+
+        // Ciphertext for empty plaintext is exactly the tag
+        assert_eq!(ct.len(), aead.tag_size());
+
+        let pt = aead.decrypt(&nonce, aad, &ct).unwrap();
+        assert!(pt.is_empty());
+    }
+
+    #[test]
+    fn test_create_aead_unsupported_suite() {
+        let key = [0x42u8; 16];
+        // Use an obviously unsupported cipher suite value
+        let result = create_aead(CipherSuite(0xFFFF), &key);
+        assert!(
+            matches!(result, Err(TlsError::NoSharedCipherSuite)),
+            "expected NoSharedCipherSuite for unsupported suite"
+        );
+    }
+
+    #[cfg(any(feature = "tlcp", feature = "sm_tls13"))]
+    #[test]
+    fn test_sm4_gcm_invalid_key_length() {
+        // 15 bytes — too short
+        assert!(Sm4GcmAead::new(&[0u8; 15]).is_err());
+        // 17 bytes — too long
+        assert!(Sm4GcmAead::new(&[0u8; 17]).is_err());
+        // 0 bytes — empty
+        assert!(Sm4GcmAead::new(&[]).is_err());
+        // 16 bytes — valid
+        assert!(Sm4GcmAead::new(&[0u8; 16]).is_ok());
+    }
 }

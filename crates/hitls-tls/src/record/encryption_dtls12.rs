@@ -288,4 +288,111 @@ mod tests {
         // Different epochs → different explicit nonce → different ciphertext
         assert_ne!(r0.fragment, r1.fragment);
     }
+
+    #[test]
+    fn test_decrypt_fragment_too_short() {
+        let (key, iv) = make_keys_128();
+        let suite = CipherSuite::TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256;
+        let mut dec = DtlsRecordDecryptor12::new(suite, &key, iv).unwrap();
+
+        // Fragment shorter than EXPLICIT_NONCE_LEN(8) + tag_len(16) = 24
+        let short_record = DtlsRecord {
+            content_type: ContentType::ApplicationData,
+            version: DTLS12_VERSION,
+            epoch: 0,
+            sequence_number: 0,
+            fragment: vec![0u8; 23], // one byte short
+        };
+        let err = dec.decrypt_record(&short_record).unwrap_err();
+        assert!(
+            matches!(err, TlsError::RecordError(_)),
+            "expected RecordError for too-short fragment, got: {err:?}"
+        );
+    }
+
+    #[test]
+    fn test_encrypt_empty_plaintext_roundtrip() {
+        let (key, iv) = make_keys_128();
+        let suite = CipherSuite::TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256;
+        let mut enc = DtlsRecordEncryptor12::new(suite, &key, iv.clone()).unwrap();
+        let mut dec = DtlsRecordDecryptor12::new(suite, &key, iv).unwrap();
+
+        let record = enc
+            .encrypt_record(ContentType::ApplicationData, b"", 0, 0)
+            .unwrap();
+
+        // Fragment = explicit_nonce(8) + ciphertext(0) + tag(16) = 24
+        assert_eq!(record.fragment.len(), EXPLICIT_NONCE_LEN + 16);
+        assert!(!record.fragment.is_empty());
+
+        let decrypted = dec.decrypt_record(&record).unwrap();
+        assert!(decrypted.is_empty());
+    }
+
+    #[test]
+    fn test_encrypt_max_plaintext_boundary() {
+        let (key, iv) = make_keys_128();
+        let suite = CipherSuite::TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256;
+        let mut enc = DtlsRecordEncryptor12::new(suite, &key, iv).unwrap();
+
+        // Exactly MAX_PLAINTEXT_LENGTH should succeed
+        let max_pt = vec![0xAAu8; MAX_PLAINTEXT_LENGTH];
+        assert!(enc
+            .encrypt_record(ContentType::ApplicationData, &max_pt, 0, 0)
+            .is_ok());
+
+        // One byte over should fail with RecordError
+        let over_pt = vec![0xBBu8; MAX_PLAINTEXT_LENGTH + 1];
+        let err = enc
+            .encrypt_record(ContentType::ApplicationData, &over_pt, 0, 1)
+            .unwrap_err();
+        assert!(
+            matches!(err, TlsError::RecordError(_)),
+            "expected RecordError for oversized plaintext, got: {err:?}"
+        );
+    }
+
+    #[test]
+    fn test_decrypt_wrong_key_fails() {
+        let (key_a, iv) = make_keys_128();
+        let key_b = vec![0x99u8; 16];
+        let suite = CipherSuite::TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256;
+
+        let mut enc = DtlsRecordEncryptor12::new(suite, &key_a, iv.clone()).unwrap();
+        let mut dec = DtlsRecordDecryptor12::new(suite, &key_b, iv).unwrap();
+
+        let record = enc
+            .encrypt_record(ContentType::ApplicationData, b"secret data", 0, 0)
+            .unwrap();
+
+        let err = dec.decrypt_record(&record).unwrap_err();
+        assert!(
+            matches!(err, TlsError::RecordError(_)),
+            "expected RecordError for wrong-key decrypt, got: {err:?}"
+        );
+    }
+
+    #[test]
+    fn test_explicit_nonce_in_ciphertext() {
+        let (key, iv) = make_keys_128();
+        let suite = CipherSuite::TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256;
+        let mut enc = DtlsRecordEncryptor12::new(suite, &key, iv).unwrap();
+
+        let epoch: u16 = 2;
+        let seq: u64 = 0x0000_0102_0304_0506;
+        let record = enc
+            .encrypt_record(ContentType::ApplicationData, b"nonce check", epoch, seq)
+            .unwrap();
+
+        // First 8 bytes of fragment are the explicit nonce = epoch(2) || seq_lower6(6)
+        let explicit = &record.fragment[..EXPLICIT_NONCE_LEN];
+        let expected = build_explicit_nonce(epoch, seq);
+        assert_eq!(explicit, &expected);
+
+        // Verify epoch bytes
+        assert_eq!(&explicit[..2], &epoch.to_be_bytes());
+        // Verify seq lower 6 bytes
+        let seq_bytes = seq.to_be_bytes();
+        assert_eq!(&explicit[2..8], &seq_bytes[2..8]);
+    }
 }
