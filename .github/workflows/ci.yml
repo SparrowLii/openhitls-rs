@@ -105,7 +105,7 @@ jobs:
       - name: Install cargo-tarpaulin
         run: cargo install cargo-tarpaulin --locked
       - name: Generate coverage
-        run: cargo tarpaulin --workspace --all-features --out xml --output-dir coverage/ --timeout 300 --exclude-files "tests/vectors/*"
+        run: cargo tarpaulin --workspace --all-features --out xml --output-dir coverage/ --timeout 900 --exclude-files "tests/vectors/*"
       - name: Upload to Codecov
         uses: codecov/codecov-action@v4
         with:
