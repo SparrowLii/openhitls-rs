@@ -374,6 +374,8 @@ Total: **24 files**, +633 / −621 lines.
 
 ## Phase R106: Sync/Async Unification via Body Macros
 
+### Date: 2026-02-22
+
 **Prompt**: Implement Phase R106 — Sync/Async Unification via Body Macros
 
 **Scope**: Eliminate ~2,900 lines of sync/async code duplication using `macro_rules!` body macros with `maybe_await!` pattern.
@@ -506,7 +508,7 @@ Transformed the `#[cfg(test)] mod tests { ... }` block into:
 
 ## Phase R109: Test Helper Consolidation
 
-**Date**: 2026-02-23
+### Date: 2026-02-23
 **ARCH_REPORT ref**: §7 — Test Helper Consolidation
 
 ### Problem
@@ -537,7 +539,8 @@ Created `crates/hitls-utils/src/hex.rs` with canonical `pub fn hex(s: &str) -> V
 
 ## Phase R110: Parameter Struct Refactoring
 
-**Date**: 2026-02-23
+### Date: 2026-02-23
+
 **Priority**: Low
 **ARCH_REPORT ref**: §7 — `#[allow(clippy::too_many_arguments)]` suppressions
 
@@ -573,7 +576,8 @@ Kept 2 suppressions in `slh_dsa/hypertree.rs` (`xmss_node`, `hypertree_verify`) 
 
 ## Phase R111: DRBG State Machine Unification
 
-**Date**: 2026-02-23
+### Date: 2026-02-23
+
 **Priority**: Low
 **ARCH_REPORT ref**: §7 — DRBG code duplication
 

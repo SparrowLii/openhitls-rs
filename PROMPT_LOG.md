@@ -1511,11 +1511,13 @@ Files changed: `crates/hitls-utils/src/asn1/encoder.rs`, `crates/hitls-utils/src
 
 1790 total tests (40 ignored). Clippy clean, fmt clean.
 
-## Phase 65: PSK CCM Completion + CCM_8 Authentication Cipher Suites (2026-02-16)
+## Phase 63: CCM_8 (8-byte tag) + PSK+CCM Cipher Suites (2026-02-16)
 
-**Prompt**: Implement Phase 65 — PSK CCM completion + CCM_8 authentication cipher suites. Add 10 TLS 1.2 cipher suites completing CCM/CCM_8 coverage: PSK AES_128_CCM (0xC0A4), PSK AES_128/256_CCM_8 (0xC0A8/C0A9), DHE_PSK AES_128/256_CCM_8 (0xC0AA/C0AB), ECDHE_PSK AES_128_CCM_8_SHA256 (0xD003), DHE_RSA AES_128/256_CCM_8 (0xC0A2/C0A3), ECDHE_ECDSA AES_128/256_CCM_8 (0xC0AE/C0AF). All use PRF=SHA-256, AEAD mode, fixed_iv_len=4, record_iv_len=8. CCM suites use tag_len=16, CCM_8 suites use tag_len=8.
+**Prompt**: Add CCM_8 (8-byte AEAD tag) and PSK+CCM cipher suites. TLS 1.3: AES_128_CCM_8_SHA256 (0x1305). TLS 1.2 CCM_8: RSA_WITH_AES_128_CCM_8 (0xC0A0), RSA_WITH_AES_256_CCM_8 (0xC0A1). TLS 1.2 PSK+CCM: PSK_WITH_AES_256_CCM (0xC0A5), DHE_PSK_WITH_AES_128/256_CCM (0xC0A6/C0A7), ECDHE_PSK_WITH_AES_128_CCM_SHA256 (0xD005). New AesCcm8Aead adapter wrapping ccm_encrypt/decrypt with tag_len=8. Expected ~12 new tests.
 
-**Result**: 11 new TLS tests. 10 new cipher suites added. PSK_WITH_AES_128_CCM added to CCM (16-byte tag) AEAD mapping arm. 9 CCM_8 suites added to CCM_8 (8-byte tag) AEAD mapping arm (expanded from 2 to 11 entries). All 10 suites registered in `Tls12CipherSuiteParams::from_suite()`. No handshake changes needed — all KX/auth combinations already implemented. Tests: suite mapping (10 CCM_8 + 1 CCM), encrypt/decrypt roundtrips (PSK CCM 128, PSK CCM_8 128, DHE_RSA CCM_8 256, ECDHE_ECDSA CCM_8 128), tampered record (PSK CCM_8), params lookup (PSK CCM/CCM_8, DHE_PSK CCM_8, ECDHE_PSK CCM_8, DHE_RSA CCM_8, ECDHE_ECDSA CCM_8). TLS: 648 tests [was: 637]. Total: 1818 tests (40 ignored). Clippy clean, fmt clean.
+**Result**: 12 new TLS tests. Created `AesCcm8Aead` struct wrapping CCM with 8-byte tag for CCM_8 variants. TLS 1.3 AES_128_CCM_8_SHA256 (0x1305) added as TLS 1.3 cipher suite with 8-byte AEAD tag in record layer. TLS 1.2 CCM_8 suites (0xC0A0, 0xC0A1) use 8-byte tag via `AesCcm8Aead`. PSK+CCM suites (0xC0A5, 0xC0A6, 0xC0A7, 0xD005) use standard 16-byte tag via existing `AesCcmAead`. All suites use SHA-256 PRF. CCM_8 uses same nonce/AAD format as CCM/GCM: fixed_iv(4) || explicit_nonce(8). Total: 7 new cipher suites (1 TLS 1.3 + 2 CCM_8 + 4 PSK+CCM).
+
+1802 total tests (40 ignored). Clippy clean, fmt clean.
 
 ---
 
@@ -1527,13 +1529,11 @@ Files changed: `crates/hitls-utils/src/asn1/encoder.rs`, `crates/hitls-utils/src
 
 ---
 
-## Phase 63: CCM_8 (8-byte tag) + PSK+CCM Cipher Suites (2026-02-16)
+## Phase 65: PSK CCM Completion + CCM_8 Authentication Cipher Suites (2026-02-16)
 
-**Prompt**: Add CCM_8 (8-byte AEAD tag) and PSK+CCM cipher suites. TLS 1.3: AES_128_CCM_8_SHA256 (0x1305). TLS 1.2 CCM_8: RSA_WITH_AES_128_CCM_8 (0xC0A0), RSA_WITH_AES_256_CCM_8 (0xC0A1). TLS 1.2 PSK+CCM: PSK_WITH_AES_256_CCM (0xC0A5), DHE_PSK_WITH_AES_128/256_CCM (0xC0A6/C0A7), ECDHE_PSK_WITH_AES_128_CCM_SHA256 (0xD005). New AesCcm8Aead adapter wrapping ccm_encrypt/decrypt with tag_len=8. Expected ~12 new tests.
+**Prompt**: Implement Phase 65 — PSK CCM completion + CCM_8 authentication cipher suites. Add 10 TLS 1.2 cipher suites completing CCM/CCM_8 coverage: PSK AES_128_CCM (0xC0A4), PSK AES_128/256_CCM_8 (0xC0A8/C0A9), DHE_PSK AES_128/256_CCM_8 (0xC0AA/C0AB), ECDHE_PSK AES_128_CCM_8_SHA256 (0xD003), DHE_RSA AES_128/256_CCM_8 (0xC0A2/C0A3), ECDHE_ECDSA AES_128/256_CCM_8 (0xC0AE/C0AF). All use PRF=SHA-256, AEAD mode, fixed_iv_len=4, record_iv_len=8. CCM suites use tag_len=16, CCM_8 suites use tag_len=8.
 
-**Result**: 12 new TLS tests. Created `AesCcm8Aead` struct wrapping CCM with 8-byte tag for CCM_8 variants. TLS 1.3 AES_128_CCM_8_SHA256 (0x1305) added as TLS 1.3 cipher suite with 8-byte AEAD tag in record layer. TLS 1.2 CCM_8 suites (0xC0A0, 0xC0A1) use 8-byte tag via `AesCcm8Aead`. PSK+CCM suites (0xC0A5, 0xC0A6, 0xC0A7, 0xD005) use standard 16-byte tag via existing `AesCcmAead`. All suites use SHA-256 PRF. CCM_8 uses same nonce/AAD format as CCM/GCM: fixed_iv(4) || explicit_nonce(8). Total: 7 new cipher suites (1 TLS 1.3 + 2 CCM_8 + 4 PSK+CCM).
-
-1802 total tests (40 ignored). Clippy clean, fmt clean.
+**Result**: 11 new TLS tests. 10 new cipher suites added. PSK_WITH_AES_128_CCM added to CCM (16-byte tag) AEAD mapping arm. 9 CCM_8 suites added to CCM_8 (8-byte tag) AEAD mapping arm (expanded from 2 to 11 entries). All 10 suites registered in `Tls12CipherSuiteParams::from_suite()`. No handshake changes needed — all KX/auth combinations already implemented. Tests: suite mapping (10 CCM_8 + 1 CCM), encrypt/decrypt roundtrips (PSK CCM 128, PSK CCM_8 128, DHE_RSA CCM_8 256, ECDHE_ECDSA CCM_8 128), tampered record (PSK CCM_8), params lookup (PSK CCM/CCM_8, DHE_PSK CCM_8, ECDHE_PSK CCM_8, DHE_RSA CCM_8, ECDHE_ECDSA CCM_8). TLS: 648 tests [was: 637]. Total: 1818 tests (40 ignored). Clippy clean, fmt clean.
 
 ---
 
@@ -2006,6 +2006,28 @@ Targeted coverage gaps in connection_info, handshake enums, lib.rs constants, co
 
 **Result**:
 - ARCH_LOG.md created.
+
+---
+
+## Phase R103: Record Layer Enum Dispatch
+
+**Prompt**: Implement Phase R103 — Record Layer Enum Dispatch
+
+**Scope**: Replace `Option<T>` field proliferation in `RecordLayer` with type-safe enum dispatch. The struct had 8–10 `Option` fields (only 2 active at any time).
+
+**Work performed**:
+- Defined `RecordEncryptorVariant` (5 variants) and `RecordDecryptorVariant` (5 variants) enums
+- Simplified `RecordLayer` struct from 8 Option fields to 2 (`encryptor: Option<RecordEncryptorVariant>`, `decryptor: Option<RecordDecryptorVariant>`)
+- Replaced 5-way `if/else` chains in `seal_record()` and `open_record()` with single `match` dispatches
+- Simplified `is_encrypting()`/`is_decrypting()` from 5-field `||` chains to `.is_some()`
+- Eliminated ~20 variant-clearing lines in `activate_*` methods
+
+**Files modified**:
+1. `crates/hitls-tls/src/record/mod.rs` — only file changed
+
+**Result**:
+- ~77 lines removed from record/mod.rs. 8→2 Option fields. Zero public API changes.
+- hitls-tls: 1164 tests pass. Full workspace: 2585 pass, 40 ignored. Clippy: 0 warnings.
 
 ---
 

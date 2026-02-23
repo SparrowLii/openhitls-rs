@@ -1296,134 +1296,6 @@ Added three features: (1) KeyUpdate DoS protection with a 128-consecutive-limit 
 
 ---
 
-## Phase 67: DH_ANON + ECDH_ANON Cipher Suites (Anonymous Key Exchange for TLS 1.2)
-
-### Date: 2026-02-16
-
-### Summary
-Added 8 TLS 1.2 anonymous cipher suites (RFC 5246 / RFC 4492) with no authentication. New `KeyExchangeAlg::DheAnon` and `EcdheAnon` variants, `AuthAlg::Anon`, unsigned ServerKeyExchange codec (`ServerKeyExchangeDheAnon` / `ServerKeyExchangeEcdheAnon`), and anonymous handshake flow (no Certificate message, no signature in ServerKeyExchange, no CertificateRequest). 10 new tests (suite params lookup, GCM AEAD mapping, encrypt/decrypt roundtrip, codec roundtrip, requires_certificate check).
-
-### New Cipher Suites
-
-| Suite | Code | Key Exchange | Auth | Cipher | Hash |
-|-------|------|-------------|------|--------|------|
-| TLS_DH_ANON_WITH_AES_128_CBC_SHA | 0x0034 | DheAnon | Anon | AES-128-CBC | SHA-256 (PRF), SHA-1 (MAC) |
-| TLS_DH_ANON_WITH_AES_256_CBC_SHA | 0x003A | DheAnon | Anon | AES-256-CBC | SHA-256 (PRF), SHA-1 (MAC) |
-| TLS_DH_ANON_WITH_AES_128_CBC_SHA256 | 0x006C | DheAnon | Anon | AES-128-CBC | SHA-256 |
-| TLS_DH_ANON_WITH_AES_256_CBC_SHA256 | 0x006D | DheAnon | Anon | AES-256-CBC | SHA-256 |
-| TLS_DH_ANON_WITH_AES_128_GCM_SHA256 | 0x00A6 | DheAnon | Anon | AES-128-GCM | SHA-256 |
-| TLS_DH_ANON_WITH_AES_256_GCM_SHA384 | 0x00A7 | DheAnon | Anon | AES-256-GCM | SHA-384 |
-| TLS_ECDH_ANON_WITH_AES_128_CBC_SHA | 0xC018 | EcdheAnon | Anon | AES-128-CBC | SHA-256 (PRF), SHA-1 (MAC) |
-| TLS_ECDH_ANON_WITH_AES_256_CBC_SHA | 0xC019 | EcdheAnon | Anon | AES-256-CBC | SHA-256 (PRF), SHA-1 (MAC) |
-
-### Files Modified
-
-| File | Changes |
-|------|---------|
-| `crates/hitls-tls/src/lib.rs` | 8 new `CipherSuite` constants |
-| `crates/hitls-tls/src/crypt/mod.rs` | `KeyExchangeAlg::DheAnon/EcdheAnon`, `AuthAlg::Anon`, updated `requires_certificate()`, 8 `Tls12CipherSuiteParams` entries |
-| `crates/hitls-tls/src/handshake/codec12.rs` | `ServerKeyExchangeDheAnon`/`ServerKeyExchangeEcdheAnon` structs, encode/decode functions, 2 roundtrip tests |
-| `crates/hitls-tls/src/handshake/server12.rs` | DheAnon/EcdheAnon arms in SKE build (~line 552) and CKE process (~line 1067) |
-| `crates/hitls-tls/src/handshake/client12.rs` | State transitions, `process_server_key_exchange_dhe_anon()`/`process_server_key_exchange_ecdhe_anon()` methods, CKE generation arms |
-| `crates/hitls-tls/src/connection12.rs` | DheAnon/EcdheAnon arms in client SKE dispatch |
-| `crates/hitls-tls/src/connection12_async.rs` | Same dispatch (async mirror) |
-| `crates/hitls-tls/src/record/encryption12.rs` | DH_ANON GCM suites in `tls12_suite_to_aead_suite()`, 8 new tests |
-
-### Implementation Details
-- Anonymous handshake: no Certificate message, no signature in ServerKeyExchange, no CertificateRequest
-- DheAnon: same DH param exchange as Dhe but unsigned — `ServerKeyExchangeDheAnon` has `dh_p/dh_g/dh_ys` only (no sig_algorithm/signature)
-- EcdheAnon: same ECDHE param exchange as Ecdhe but unsigned — `ServerKeyExchangeEcdheAnon` has `named_curve/public_key` only
-- `requires_certificate()` returns false for DheAnon/EcdheAnon (alongside Psk/DhePsk/EcdhePsk)
-- CKE processing reuses existing `decode_client_key_exchange_dhe`/`decode_client_key_exchange` — raw PMS (not PSK-wrapped)
-- CBC-SHA suites: mac_key_len=20, mac_len=20 (SHA-1 HMAC)
-- CBC-SHA256 suites: mac_key_len=32, mac_len=32 (SHA-256 HMAC)
-- GCM suites: fixed_iv_len=4, record_iv_len=8, tag_len=16
-
-### Test Counts (Phase 67)
-- **hitls-tls**: 666 [was: 656]
-- **Total workspace**: 1836 (40 ignored) [was: 1826]
-
-### Build Status
-- Clippy: zero warnings (`RUSTFLAGS="-D warnings"`)
-- Formatting: clean (`cargo fmt --check`)
-- 1836 workspace tests passing (40 ignored)
-
-## Phase 65: PSK CCM Completion + CCM_8 Authentication Cipher Suites
-
-### Date: 2026-02-16
-
-### Summary
-Added 10 TLS 1.2 cipher suites completing CCM/CCM_8 coverage across all key exchange methods. PSK: AES_128_CCM (16-byte tag), AES_128/256_CCM_8 (8-byte tag). DHE_PSK: AES_128/256_CCM_8. ECDHE_PSK: AES_128_CCM_8_SHA256. DHE_RSA: AES_128/256_CCM_8. ECDHE_ECDSA: AES_128/256_CCM_8. 11 new tests validate suite mapping, record layer encrypt/decrypt roundtrips, tampered record detection, and parameter lookups.
-
-### New Cipher Suites
-
-| Suite | Code | Key Exchange | Tag | Key | RFC |
-|-------|------|-------------|-----|-----|-----|
-| TLS_PSK_WITH_AES_128_CCM | 0xC0A4 | PSK | 16 | 128 | RFC 6655 |
-| TLS_PSK_WITH_AES_128_CCM_8 | 0xC0A8 | PSK | 8 | 128 | RFC 6655 |
-| TLS_PSK_WITH_AES_256_CCM_8 | 0xC0A9 | PSK | 8 | 256 | RFC 6655 |
-| TLS_DHE_PSK_WITH_AES_128_CCM_8 | 0xC0AA | DHE_PSK | 8 | 128 | RFC 6655 |
-| TLS_DHE_PSK_WITH_AES_256_CCM_8 | 0xC0AB | DHE_PSK | 8 | 256 | RFC 6655 |
-| TLS_ECDHE_PSK_WITH_AES_128_CCM_8_SHA256 | 0xD003 | ECDHE_PSK | 8 | 128 | draft-ietf-tls-ecdhe-psk-aead |
-| TLS_DHE_RSA_WITH_AES_128_CCM_8 | 0xC0A2 | DHE_RSA | 8 | 128 | RFC 6655 |
-| TLS_DHE_RSA_WITH_AES_256_CCM_8 | 0xC0A3 | DHE_RSA | 8 | 256 | RFC 6655 |
-| TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8 | 0xC0AE | ECDHE_ECDSA | 8 | 128 | RFC 7251 |
-| TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8 | 0xC0AF | ECDHE_ECDSA | 8 | 256 | RFC 7251 |
-
-### Implementation Details
-- PSK_WITH_AES_128_CCM added to CCM (16-byte tag) AEAD mapping arm
-- 9 CCM_8 suites added to CCM_8 (8-byte tag) AEAD mapping arm (was 2, now 11)
-- All 10 suites registered in `Tls12CipherSuiteParams::from_suite()` with correct kx_alg, auth_alg, key_len, tag_len
-- No handshake changes needed — all KX/auth combinations already implemented
-
-### Test Counts (Phase 65)
-- **hitls-tls**: 648 [was: 637]
-- **Total workspace**: 1818 (40 ignored) [was: 1807]
-
-### Build Status
-- Clippy: zero warnings (`RUSTFLAGS="-D warnings"`)
-- Formatting: clean (`cargo fmt --check`)
-- 1818 workspace tests passing (40 ignored)
-
----
-
-## Phase 64: PSK CBC-SHA256/SHA384 + ECDHE_PSK GCM Cipher Suites
-
-### Date: 2026-02-16
-
-### Summary
-Added 8 new TLS 1.2 cipher suites completing PSK cipher suite coverage with CBC-SHA256/SHA384 variants and ECDHE_PSK GCM variants. 6 suites from RFC 5487 add PSK/DHE_PSK/RSA_PSK with AES-128/256-CBC using SHA-256/SHA-384 MACs. 2 suites from draft-ietf-tls-ecdhe-psk-aead add ECDHE_PSK with AES-128/256-GCM. 5 new tests validate suite mapping and record layer operation.
-
-### New Cipher Suites
-
-| Suite | Code | Key Exchange | MAC/AEAD | Hash | RFC |
-|-------|------|-------------|----------|------|-----|
-| TLS_PSK_WITH_AES_128_CBC_SHA256 | 0x00AE | PSK | HMAC-SHA256 | SHA-256 | RFC 5487 |
-| TLS_PSK_WITH_AES_256_CBC_SHA384 | 0x00AF | PSK | HMAC-SHA384 | SHA-256 | RFC 5487 |
-| TLS_DHE_PSK_WITH_AES_128_CBC_SHA256 | 0x00B2 | DHE_PSK | HMAC-SHA256 | SHA-256 | RFC 5487 |
-| TLS_DHE_PSK_WITH_AES_256_CBC_SHA384 | 0x00B3 | DHE_PSK | HMAC-SHA384 | SHA-256 | RFC 5487 |
-| TLS_RSA_PSK_WITH_AES_128_CBC_SHA256 | 0x00B6 | RSA_PSK | HMAC-SHA256 | SHA-256 | RFC 5487 |
-| TLS_RSA_PSK_WITH_AES_256_CBC_SHA384 | 0x00B7 | RSA_PSK | HMAC-SHA384 | SHA-256 | RFC 5487 |
-| TLS_ECDHE_PSK_WITH_AES_128_GCM_SHA256 | 0xD001 | ECDHE_PSK | AES-GCM | SHA-256 | draft-ietf-tls-ecdhe-psk-aead |
-| TLS_ECDHE_PSK_WITH_AES_256_GCM_SHA384 | 0xD002 | ECDHE_PSK | AES-GCM | SHA-384 | draft-ietf-tls-ecdhe-psk-aead |
-
-### Implementation Details
-- CBC-SHA256/SHA384 suites use `mac_len` (32/48) for HMAC dispatch, same pattern as Phase 29 CBC
-- ECDHE_PSK GCM suites use standard AEAD record protection, identical to ECDHE_PSK (no new adapter needed)
-- All suites leverage existing `KeyExchangeAlg::Psk`, `DhePsk`, `RsaPsk`, `EcdhePsk` variants from Phase 37
-- Suite mapping in `ciphersuite.rs` and `Tls12CipherSuiteParams` lookups for CBC/GCM dispatch
-
-### Test Counts (Phase 64)
-- **hitls-tls**: 637 [was: 632]
-- **Total workspace**: 1807 (40 ignored) [was: 1802]
-
-### Build Status
-- Clippy: zero warnings (`RUSTFLAGS="-D warnings"`)
-- Formatting: clean (`cargo fmt --check`)
-- 1807 workspace tests passing (40 ignored)
-
----
-
 ## Phase 0: Project Scaffolding (Session 2026-02-06)
 
 ### Goals
@@ -7614,6 +7486,62 @@ Added 8 new tests covering:
 - `RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets`: 0 warnings
 - `cargo fmt --all -- --check`: clean
 
+## Refactoring-Phase R102: PKI Encoding Consolidation
+
+**Date**: 2026-02-21
+**Scope**: Eliminate 32 duplicated ASN.1 encoding helpers and OID mapping functions across the hitls-pki crate
+
+### Summary
+
+Created `encoding.rs` (11 shared `pub(crate)` ASN.1 helpers) and `oid_mapping.rs` (unified OID-to-curve mapping) in hitls-pki crate root. Removed 32 duplicate function definitions from 7 files (cms/mod.rs, pkcs12/mod.rs, x509/ocsp.rs, cms/enveloped.rs, cms/encrypted.rs, pkcs8/mod.rs, pkcs8/encrypted.rs). Made `cms::parse_algorithm_identifier` `pub(crate)` to eliminate 2 more copies.
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `crates/hitls-pki/src/encoding.rs` | **NEW** — 79 lines, 11 shared helpers |
+| `crates/hitls-pki/src/oid_mapping.rs` | **NEW** — 27 lines, unified OID mapping |
+| `crates/hitls-pki/src/lib.rs` | 2 module declarations |
+| `crates/hitls-pki/src/cms/mod.rs` | Removed 10 functions, `parse_algorithm_identifier` → `pub(crate)` |
+| `crates/hitls-pki/src/cms/enveloped.rs` | Removed 2 functions |
+| `crates/hitls-pki/src/cms/encrypted.rs` | Removed 2 functions |
+| `crates/hitls-pki/src/pkcs12/mod.rs` | Removed 9 functions |
+| `crates/hitls-pki/src/x509/ocsp.rs` | Removed 7 functions |
+| `crates/hitls-pki/src/pkcs8/mod.rs` | Thin wrapper over `oid_mapping` |
+| `crates/hitls-pki/src/pkcs8/encrypted.rs` | Removed `bytes_to_u32` |
+| `crates/hitls-pki/src/x509/mod.rs` | Thin wrapper over `oid_mapping` |
+
+### Build Status
+- 11 files changed, 141 insertions, 275 deletions (net −134 lines)
+- `cargo test --workspace --all-features`: 2585 passed, 0 failed, 40 ignored
+- `RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets`: 0 warnings
+- `cargo fmt --all -- --check`: clean
+
+---
+
+## Refactoring-Phase R103: Record Layer Enum Dispatch
+
+**Date**: 2026-02-22
+**Scope**: Replace `Option<T>` field proliferation in `RecordLayer` with type-safe enum dispatch
+
+### Summary
+
+Defined `RecordEncryptorVariant` (5 variants) and `RecordDecryptorVariant` (5 variants) enums to replace 8–10 `Option` fields in `RecordLayer` (only 2 active at any time). Simplified `seal_record()` and `open_record()` from 5-way `if/else` chains to single `match` dispatches. Reduced `is_encrypting()`/`is_decrypting()` from 5-field `||` chains to `.is_some()`. Eliminated ~20 variant-clearing lines in `activate_*` methods.
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `crates/hitls-tls/src/record/mod.rs` | Only file changed — added 2 enums, simplified struct (8→2 fields) |
+
+### Build Status
+- ~77 lines removed. Zero public API changes.
+- `cargo test --workspace --all-features`: 2585 passed, 0 failed, 40 ignored
+- `RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets`: 0 warnings
+- `cargo fmt --all -- --check`: clean
+
+---
+
 ## Refactoring-Phase R104: Connection File Decomposition
 
 **Date**: 2026-02-22
@@ -7758,46 +7686,6 @@ Split into 4 new submodules with mod.rs retaining re-exports and tests. All `pub
 - `RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets`: 0 warnings
 - `cargo fmt --all -- --check`: clean
 
-## Refactoring-Phase R109: Test Helper Consolidation
-
-**Date**: 2026-02-23
-**Scope**: Consolidate ~54 duplicate `hex()`/`to_hex()`/`hex_to_bytes()` helper functions into `hitls-utils/src/hex.rs`
-
-### Summary
-
-Scattered across the codebase were ~54 identical hex conversion helpers: `fn hex(s: &str) -> Vec<u8>` (decode), `fn to_hex(bytes: &[u8]) -> String` (encode), and `fn hex_to_bytes(s: &str) -> Vec<u8>` (alias). These were copy-pasted into `#[cfg(test)]` modules and 4 production files. Consolidated all into a single `hitls_utils::hex` module.
-
-### New Files
-
-| File | Lines | Contents |
-|------|-------|----------|
-| `crates/hitls-utils/src/hex.rs` | 15 | `pub fn hex()` + `pub fn to_hex()` |
-
-### Files Modified
-
-- **1 new file**: `crates/hitls-utils/src/hex.rs`
-- **53 files modified**: lib.rs, 2 Cargo.toml, 4 production files, 1 interop helper, 45 test modules
-- **Net ~345 lines removed** (661 deletions, 316 insertions)
-
-### Changes by Crate
-
-| Crate | Files | Changes |
-|-------|-------|---------|
-| hitls-utils | 2 | New `hex.rs` module + `lib.rs` export |
-| hitls-crypto | 35 | 2 production (`fips/kat.rs`, `sm9/curve.rs`) + 33 test modules + Cargo.toml |
-| hitls-tls | 7 | 1 production (`keylog.rs`) + 6 test modules |
-| hitls-pki | 3 | 3 test modules |
-| hitls-cli | 2 | 2 test modules |
-| hitls-auth | 2 | 1 production (`spake2plus`) + 1 test module + Cargo.toml |
-| tests/interop | 1 | Re-export via `pub use` |
-
-### Build Status
-- `cargo test --workspace --all-features`: 2585 passed, 0 failed, 40 ignored
-- `RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets`: 0 warnings
-- `cargo fmt --all -- --check`: clean
-
----
-
 ## Refactoring-Phase R108: Integration Test Modularization
 
 **Date**: 2026-02-23
@@ -7832,6 +7720,46 @@ Transformed the crate into a test utility library (`src/lib.rs` with `pub` helpe
 
 ### Build Status
 - `cargo test -p hitls-integration-tests --all-features`: 125 passed, 0 failed, 3 ignored
+- `cargo test --workspace --all-features`: 2585 passed, 0 failed, 40 ignored
+- `RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets`: 0 warnings
+- `cargo fmt --all -- --check`: clean
+
+---
+
+## Refactoring-Phase R109: Test Helper Consolidation
+
+**Date**: 2026-02-23
+**Scope**: Consolidate ~54 duplicate `hex()`/`to_hex()`/`hex_to_bytes()` helper functions into `hitls-utils/src/hex.rs`
+
+### Summary
+
+Scattered across the codebase were ~54 identical hex conversion helpers: `fn hex(s: &str) -> Vec<u8>` (decode), `fn to_hex(bytes: &[u8]) -> String` (encode), and `fn hex_to_bytes(s: &str) -> Vec<u8>` (alias). These were copy-pasted into `#[cfg(test)]` modules and 4 production files. Consolidated all into a single `hitls_utils::hex` module.
+
+### New Files
+
+| File | Lines | Contents |
+|------|-------|----------|
+| `crates/hitls-utils/src/hex.rs` | 15 | `pub fn hex()` + `pub fn to_hex()` |
+
+### Files Modified
+
+- **1 new file**: `crates/hitls-utils/src/hex.rs`
+- **53 files modified**: lib.rs, 2 Cargo.toml, 4 production files, 1 interop helper, 45 test modules
+- **Net ~345 lines removed** (661 deletions, 316 insertions)
+
+### Changes by Crate
+
+| Crate | Files | Changes |
+|-------|-------|---------|
+| hitls-utils | 2 | New `hex.rs` module + `lib.rs` export |
+| hitls-crypto | 35 | 2 production (`fips/kat.rs`, `sm9/curve.rs`) + 33 test modules + Cargo.toml |
+| hitls-tls | 7 | 1 production (`keylog.rs`) + 6 test modules |
+| hitls-pki | 3 | 3 test modules |
+| hitls-cli | 2 | 2 test modules |
+| hitls-auth | 2 | 1 production (`spake2plus`) + 1 test module + Cargo.toml |
+| tests/interop | 1 | Re-export via `pub use` |
+
+### Build Status
 - `cargo test --workspace --all-features`: 2585 passed, 0 failed, 40 ignored
 - `RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets`: 0 warnings
 - `cargo fmt --all -- --check`: clean
@@ -7873,7 +7801,7 @@ Introduced parameter structs to bundle function arguments where `#[allow(clippy:
 
 ---
 
-## Phase R111: DRBG State Machine Unification
+## Refactoring-Phase R111: DRBG State Machine Unification
 
 **Date**: 2026-02-23
 **Scope**: Extract shared DRBG utilities and introduce `Drbg` trait
