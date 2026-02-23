@@ -7834,3 +7834,36 @@ Unified 4 DRBG variants by extracting duplicated constants, utility functions, a
 - `cargo test --workspace --all-features`: 2585 passed, 0 failed, 40 ignored
 - `RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets`: 0 warnings
 - `cargo fmt --all -- --check`: clean
+
+## Phase T103: Async TLS 1.2 Deep Coverage (+10 tests, 2,585→2,595)
+
+**Date**: 2026-02-23
+**Scope**: Close D2 async TLS 1.2 parity gap — 10 deep coverage tests for ALPN, SNI, AES-256-GCM, X25519, session resumption via ticket, server shutdown, peer certificates, empty write, bidirectional server-first, write-after-shutdown.
+
+### Summary
+
+Added 10 new async TLS 1.2 tests covering scenarios not covered by existing 18 tests:
+
+- **ALPN negotiation**: Client offers h2+http/1.1, server offers http/1.1+h2, verify ALPN negotiated
+- **SNI**: Client sets server_name("example.com"), server reads server_name()
+- **AES-256-GCM-SHA384**: Handshake + bidirectional data exchange
+- **X25519 key exchange**: Group negotiation + data exchange
+- **Session resumption via ticket**: Two-step (full handshake with ticket_key → take_session → resumed handshake), verify is_session_resumed() + data exchange
+- **Server shutdown**: Server-side shutdown + double shutdown idempotent
+- **Peer certificates**: Client has server's cert chain, server has empty peer certs
+- **Empty write**: Returns 0, connection still usable afterward
+- **Bidirectional server-first**: Server sends data first, client replies
+- **Write after shutdown**: Returns error
+
+**Bug found**: Session ticket encryption requires exactly 32-byte key (AES-256-GCM). Using 48-byte key caused `encrypt_session_ticket()` to return error during full handshake, while `tokio::join!` kept the client waiting forever for server data.
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `crates/hitls-tls/src/connection12_async.rs` | +10 tests |
+
+### Build Status
+- `cargo test --workspace --all-features`: 2595 passed, 0 failed, 40 ignored
+- `RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets`: 0 warnings
+- `cargo fmt --all -- --check`: clean

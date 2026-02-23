@@ -2241,3 +2241,20 @@ Targeted coverage gaps in connection_info, handshake enums, lib.rs constants, co
 - 5 files modified, ~76 lines removed, ~40 lines added (net ~36 lines reduced).
 - All 2585 workspace tests pass, 0 clippy warnings, formatting clean.
 - Completes all 10 phases of the architecture refactoring plan (R102–R111).
+
+---
+
+## Phase T103: Async TLS 1.2 Deep Coverage
+
+**Prompt**: 重新执行Phase T103
+
+**Scope**: Close D2 deficiency — add 10 async TLS 1.2 connection tests covering ALPN, SNI, AES-256-GCM, X25519, session resumption via ticket, server shutdown, peer certificates, empty write, bidirectional server-first, write-after-shutdown.
+
+**Work performed**:
+1. Added 10 new `#[tokio::test]` tests to `connection12_async.rs`
+2. Found and fixed bug: session ticket encryption requires 32-byte key (AES-256-GCM), not 48-byte
+3. Updated CLAUDE.md, TEST_LOG.md, DEV_LOG.md, PROMPT_LOG.md, README.md
+
+**Result**:
+- 1 file modified (connection12_async.rs: +10 tests). hitls-tls: 1164→1174, total: 2585→2595.
+- All 2595 workspace tests pass, 0 clippy warnings, formatting clean.

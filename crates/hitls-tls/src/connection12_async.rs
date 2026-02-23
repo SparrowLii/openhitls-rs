@@ -2226,4 +2226,334 @@ mod tests {
         assert!(!server_info.peer_verify_data.is_empty());
         assert!(!server_info.local_verify_data.is_empty());
     }
+
+    // -------------------------------------------------------
+    // Phase T103: async TLS 1.2 deep coverage
+    // -------------------------------------------------------
+
+    #[tokio::test]
+    async fn test_async_tls12_alpn_negotiation() {
+        let key_bytes = ecdsa_private_key();
+        let fake_cert = vec![0x30, 0x82, 0x01, 0x00];
+
+        let client_config = TlsConfig::builder()
+            .cipher_suites(&[CipherSuite::TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256])
+            .supported_groups(&[NamedGroup::SECP256R1])
+            .signature_algorithms(&[SignatureScheme::ECDSA_SECP256R1_SHA256])
+            .alpn(&[b"h2", b"http/1.1"])
+            .verify_peer(false)
+            .build();
+
+        let server_config = TlsConfig::builder()
+            .cipher_suites(&[CipherSuite::TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256])
+            .supported_groups(&[NamedGroup::SECP256R1])
+            .signature_algorithms(&[SignatureScheme::ECDSA_SECP256R1_SHA256])
+            .certificate_chain(vec![fake_cert])
+            .private_key(ServerPrivateKey::Ecdsa {
+                curve_id: hitls_types::EccCurveId::NistP256,
+                private_key: key_bytes,
+            })
+            .alpn(&[b"http/1.1", b"h2"])
+            .verify_peer(false)
+            .build();
+
+        let (cs, ss) = tokio::io::duplex(64 * 1024);
+        let mut client = AsyncTls12ClientConnection::new(cs, client_config);
+        let mut server = AsyncTls12ServerConnection::new(ss, server_config);
+
+        let (c, s) = tokio::join!(client.handshake(), server.handshake());
+        c.unwrap();
+        s.unwrap();
+
+        let alpn = client.alpn_protocol();
+        assert!(alpn.is_some(), "ALPN should be negotiated");
+    }
+
+    #[tokio::test]
+    async fn test_async_tls12_server_name_sni() {
+        let key_bytes = ecdsa_private_key();
+        let fake_cert = vec![0x30, 0x82, 0x01, 0x00];
+
+        let client_config = TlsConfig::builder()
+            .cipher_suites(&[CipherSuite::TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256])
+            .supported_groups(&[NamedGroup::SECP256R1])
+            .signature_algorithms(&[SignatureScheme::ECDSA_SECP256R1_SHA256])
+            .server_name("example.com")
+            .verify_peer(false)
+            .build();
+
+        let server_config = TlsConfig::builder()
+            .cipher_suites(&[CipherSuite::TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256])
+            .supported_groups(&[NamedGroup::SECP256R1])
+            .signature_algorithms(&[SignatureScheme::ECDSA_SECP256R1_SHA256])
+            .certificate_chain(vec![fake_cert])
+            .private_key(ServerPrivateKey::Ecdsa {
+                curve_id: hitls_types::EccCurveId::NistP256,
+                private_key: key_bytes,
+            })
+            .verify_peer(false)
+            .build();
+
+        let (cs, ss) = tokio::io::duplex(64 * 1024);
+        let mut client = AsyncTls12ClientConnection::new(cs, client_config);
+        let mut server = AsyncTls12ServerConnection::new(ss, server_config);
+
+        let (c, s) = tokio::join!(client.handshake(), server.handshake());
+        c.unwrap();
+        s.unwrap();
+
+        assert_eq!(server.server_name(), Some("example.com"));
+    }
+
+    #[tokio::test]
+    async fn test_async_tls12_aes256_gcm() {
+        let suite = CipherSuite::TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384;
+        let (client_config, server_config) = make_configs(suite);
+
+        let (cs, ss) = tokio::io::duplex(64 * 1024);
+        let mut client = AsyncTls12ClientConnection::new(cs, client_config);
+        let mut server = AsyncTls12ServerConnection::new(ss, server_config);
+
+        let (c, s) = tokio::join!(client.handshake(), server.handshake());
+        c.unwrap();
+        s.unwrap();
+
+        assert_eq!(client.cipher_suite(), Some(suite));
+        let msg = b"AES-256-GCM-SHA384 test";
+        client.write(msg).await.unwrap();
+        let mut buf = [0u8; 256];
+        let n = server.read(&mut buf).await.unwrap();
+        assert_eq!(&buf[..n], msg);
+    }
+
+    #[tokio::test]
+    async fn test_async_tls12_x25519_key_exchange() {
+        let suite = CipherSuite::TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256;
+        let key_bytes = ecdsa_private_key();
+        let fake_cert = vec![0x30, 0x82, 0x01, 0x00];
+
+        let client_config = TlsConfig::builder()
+            .cipher_suites(&[suite])
+            .supported_groups(&[NamedGroup::X25519])
+            .signature_algorithms(&[SignatureScheme::ECDSA_SECP256R1_SHA256])
+            .verify_peer(false)
+            .build();
+
+        let server_config = TlsConfig::builder()
+            .cipher_suites(&[suite])
+            .supported_groups(&[NamedGroup::X25519])
+            .signature_algorithms(&[SignatureScheme::ECDSA_SECP256R1_SHA256])
+            .certificate_chain(vec![fake_cert])
+            .private_key(ServerPrivateKey::Ecdsa {
+                curve_id: hitls_types::EccCurveId::NistP256,
+                private_key: key_bytes,
+            })
+            .verify_peer(false)
+            .build();
+
+        let (cs, ss) = tokio::io::duplex(64 * 1024);
+        let mut client = AsyncTls12ClientConnection::new(cs, client_config);
+        let mut server = AsyncTls12ServerConnection::new(ss, server_config);
+
+        let (c, s) = tokio::join!(client.handshake(), server.handshake());
+        c.unwrap();
+        s.unwrap();
+
+        assert_eq!(client.negotiated_group(), Some(NamedGroup::X25519));
+        let msg = b"X25519 key exchange";
+        client.write(msg).await.unwrap();
+        let mut buf = [0u8; 256];
+        let n = server.read(&mut buf).await.unwrap();
+        assert_eq!(&buf[..n], msg);
+    }
+
+    #[tokio::test]
+    async fn test_async_tls12_session_resumption_via_ticket() {
+        let suite = CipherSuite::TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256;
+        let key_bytes = ecdsa_private_key();
+        let fake_cert = vec![0x30, 0x82, 0x01, 0x00];
+        let ticket_key = vec![0x99u8; 32];
+
+        // Step 1: initial handshake to obtain session ticket
+        let client_config1 = TlsConfig::builder()
+            .cipher_suites(&[suite])
+            .supported_groups(&[NamedGroup::SECP256R1])
+            .signature_algorithms(&[SignatureScheme::ECDSA_SECP256R1_SHA256])
+            .verify_peer(false)
+            .build();
+
+        let server_config1 = TlsConfig::builder()
+            .cipher_suites(&[suite])
+            .supported_groups(&[NamedGroup::SECP256R1])
+            .signature_algorithms(&[SignatureScheme::ECDSA_SECP256R1_SHA256])
+            .certificate_chain(vec![fake_cert.clone()])
+            .private_key(ServerPrivateKey::Ecdsa {
+                curve_id: hitls_types::EccCurveId::NistP256,
+                private_key: key_bytes.clone(),
+            })
+            .ticket_key(ticket_key.clone())
+            .verify_peer(false)
+            .build();
+
+        let (cs1, ss1) = tokio::io::duplex(64 * 1024);
+        let mut client1 = AsyncTls12ClientConnection::new(cs1, client_config1);
+        let mut server1 = AsyncTls12ServerConnection::new(ss1, server_config1);
+
+        let (c, s) = tokio::join!(client1.handshake(), server1.handshake());
+        c.unwrap();
+        s.unwrap();
+        assert!(!client1.is_session_resumed());
+
+        let session = client1.take_session().expect("should have session");
+
+        // Step 2: resumption with ticket
+        let client_config2 = TlsConfig::builder()
+            .cipher_suites(&[suite])
+            .supported_groups(&[NamedGroup::SECP256R1])
+            .signature_algorithms(&[SignatureScheme::ECDSA_SECP256R1_SHA256])
+            .resumption_session(session)
+            .verify_peer(false)
+            .build();
+
+        let server_config2 = TlsConfig::builder()
+            .cipher_suites(&[suite])
+            .supported_groups(&[NamedGroup::SECP256R1])
+            .signature_algorithms(&[SignatureScheme::ECDSA_SECP256R1_SHA256])
+            .certificate_chain(vec![fake_cert])
+            .private_key(ServerPrivateKey::Ecdsa {
+                curve_id: hitls_types::EccCurveId::NistP256,
+                private_key: key_bytes,
+            })
+            .ticket_key(ticket_key)
+            .verify_peer(false)
+            .build();
+
+        let (cs2, ss2) = tokio::io::duplex(64 * 1024);
+        let mut client2 = AsyncTls12ClientConnection::new(cs2, client_config2);
+        let mut server2 = AsyncTls12ServerConnection::new(ss2, server_config2);
+
+        let (c, s) = tokio::join!(client2.handshake(), server2.handshake());
+        c.unwrap();
+        s.unwrap();
+
+        assert!(
+            client2.is_session_resumed(),
+            "second handshake should be resumed"
+        );
+
+        // Data exchange works after resumption
+        let msg = b"resumed session data";
+        client2.write(msg).await.unwrap();
+        let mut buf = [0u8; 256];
+        let n = server2.read(&mut buf).await.unwrap();
+        assert_eq!(&buf[..n], msg);
+    }
+
+    #[tokio::test]
+    async fn test_async_tls12_server_shutdown() {
+        let suite = CipherSuite::TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256;
+        let (client_config, server_config) = make_configs(suite);
+
+        let (cs, ss) = tokio::io::duplex(64 * 1024);
+        let mut client = AsyncTls12ClientConnection::new(cs, client_config);
+        let mut server = AsyncTls12ServerConnection::new(ss, server_config);
+
+        let (c, s) = tokio::join!(client.handshake(), server.handshake());
+        c.unwrap();
+        s.unwrap();
+
+        server.shutdown().await.unwrap();
+        // Double shutdown should be idempotent
+        server.shutdown().await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_async_tls12_peer_certificates_populated() {
+        let suite = CipherSuite::TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256;
+        let (client_config, server_config) = make_configs(suite);
+
+        let (cs, ss) = tokio::io::duplex(64 * 1024);
+        let mut client = AsyncTls12ClientConnection::new(cs, client_config);
+        let mut server = AsyncTls12ServerConnection::new(ss, server_config);
+
+        let (c, s) = tokio::join!(client.handshake(), server.handshake());
+        c.unwrap();
+        s.unwrap();
+
+        // Client should have server's certificate(s)
+        assert!(
+            !client.peer_certificates().is_empty(),
+            "client should have server's cert chain"
+        );
+        // Server doesn't request client cert → no peer certs
+        assert!(server.peer_certificates().is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_async_tls12_empty_write() {
+        let suite = CipherSuite::TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256;
+        let (client_config, server_config) = make_configs(suite);
+
+        let (cs, ss) = tokio::io::duplex(64 * 1024);
+        let mut client = AsyncTls12ClientConnection::new(cs, client_config);
+        let mut server = AsyncTls12ServerConnection::new(ss, server_config);
+
+        let (c, s) = tokio::join!(client.handshake(), server.handshake());
+        c.unwrap();
+        s.unwrap();
+
+        let n = client.write(b"").await.unwrap();
+        assert_eq!(n, 0);
+
+        // Connection still usable after empty write
+        let msg = b"after empty write";
+        client.write(msg).await.unwrap();
+        let mut buf = [0u8; 256];
+        let n = server.read(&mut buf).await.unwrap();
+        assert_eq!(&buf[..n], msg);
+    }
+
+    #[tokio::test]
+    async fn test_async_tls12_bidirectional_server_first() {
+        let suite = CipherSuite::TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256;
+        let (client_config, server_config) = make_configs(suite);
+
+        let (cs, ss) = tokio::io::duplex(64 * 1024);
+        let mut client = AsyncTls12ClientConnection::new(cs, client_config);
+        let mut server = AsyncTls12ServerConnection::new(ss, server_config);
+
+        let (c, s) = tokio::join!(client.handshake(), server.handshake());
+        c.unwrap();
+        s.unwrap();
+
+        // Server sends first
+        let msg = b"server speaks first";
+        server.write(msg).await.unwrap();
+        let mut buf = [0u8; 256];
+        let n = client.read(&mut buf).await.unwrap();
+        assert_eq!(&buf[..n], msg);
+
+        let reply = b"client replies";
+        client.write(reply).await.unwrap();
+        let n = server.read(&mut buf).await.unwrap();
+        assert_eq!(&buf[..n], reply);
+    }
+
+    #[tokio::test]
+    async fn test_async_tls12_write_after_shutdown() {
+        let suite = CipherSuite::TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256;
+        let (client_config, server_config) = make_configs(suite);
+
+        let (cs, ss) = tokio::io::duplex(64 * 1024);
+        let mut client = AsyncTls12ClientConnection::new(cs, client_config);
+        let mut server = AsyncTls12ServerConnection::new(ss, server_config);
+
+        let (c, s) = tokio::join!(client.handshake(), server.handshake());
+        c.unwrap();
+        s.unwrap();
+
+        client.shutdown().await.unwrap();
+        let result = client.write(b"after shutdown").await;
+        assert!(result.is_err(), "write after shutdown should fail");
+    }
 }

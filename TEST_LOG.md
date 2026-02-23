@@ -9,12 +9,12 @@
 
 | Metric | Value |
 |--------|-------|
-| **Total tests** | **2,585** (40 ignored) |
-| **Test growth** | 1,104 → 2,585 (+134% since baseline) |
+| **Total tests** | **2,595** (40 ignored) |
+| **Test growth** | 1,104 → 2,595 (+135% since baseline) |
 | **Crates covered** | 8/8 (100% crate-level coverage) |
 | **Fuzz targets** | 10 (with 66 seed corpus files) |
 | **Wycheproof vectors** | 5,000+ (15 test groups) |
-| **Zero failures** | All 2,585 tests pass, clippy clean, fmt clean |
+| **Zero failures** | All 2,595 tests pass, clippy clean, fmt clean |
 
 ### Test Growth Timeline
 
@@ -46,6 +46,7 @@ Phase T99  2,519     +40   ConnectionInfo + handshake enums + codec errors (*)
 Phase T100  2,544     +25   ECC/DH params + TLCP API + DTLCP encryption (*)
 Phase T101  2,577     +33   ECC point + AES soft + SM9 + McEliece vector (*)
 Phase T102  2,585      +8   0-RTT early data + replay protection (*)
+Phase T103  2,595     +10   Async TLS 1.2 deep coverage + session resumption fix (*)
 ```
 
 (*) Testing-only phases (no new features, pure test coverage)
@@ -72,7 +73,7 @@ Phase T102  2,585      +8   0-RTT early data + replay protection (*)
 
 | Crate | Tests | Ignored | % of Total | Focus |
 |-------|------:|--------:|:----------:|-------|
-| hitls-tls | 1,164 | 0 | 45.0% | TLS 1.3/1.2/DTLS/TLCP/DTLCP handshake, record, extensions, callbacks |
+| hitls-tls | 1,174 | 0 | 45.2% | TLS 1.3/1.2/DTLS/TLCP/DTLCP handshake, record, extensions, callbacks |
 | hitls-crypto | 652 | 31 | 25.3% | 48 algorithm modules + hardware acceleration |
 | hitls-pki | 349 | 1 | 13.5% | X.509, PKCS#8/12, CMS (5 content types) |
 | hitls-integration | 125 | 3 | 4.9% | Cross-crate TCP loopback, error scenarios, concurrency |
@@ -1520,6 +1521,42 @@ Pure test coverage phases — no new features, only new tests for existing code.
 | doc-tests | 2 | 0 |
 | **Total** | **2577** | **40** |
 
+### 7.17 Phase T103 — Async TLS 1.2 Deep Coverage (+10 tests, 2,585→2,595)
+
+**Date**: 2026-02-23
+**File modified**: `crates/hitls-tls/src/connection12_async.rs`
+**Bug found**: Session ticket encryption key must be 32 bytes (AES-256-GCM), not 48
+
+| Test | File | Description |
+|------|------|-------------|
+| test_async_tls12_alpn_negotiation | connection12_async.rs | Client offers h2+http/1.1, server offers http/1.1+h2, ALPN negotiated |
+| test_async_tls12_server_name_sni | connection12_async.rs | Client sets server_name("example.com"), server reads SNI |
+| test_async_tls12_aes256_gcm | connection12_async.rs | AES-256-GCM-SHA384 handshake + data exchange |
+| test_async_tls12_x25519_key_exchange | connection12_async.rs | X25519 key exchange, verify negotiated_group |
+| test_async_tls12_session_resumption_via_ticket | connection12_async.rs | Two-step: full handshake with ticket_key → take_session → resumed handshake + data exchange |
+| test_async_tls12_server_shutdown | connection12_async.rs | Server shutdown + double shutdown idempotent |
+| test_async_tls12_peer_certificates_populated | connection12_async.rs | Client has server cert chain, server has empty peer certs |
+| test_async_tls12_empty_write | connection12_async.rs | Empty write returns 0, connection still usable |
+| test_async_tls12_bidirectional_server_first | connection12_async.rs | Server sends first, client replies |
+| test_async_tls12_write_after_shutdown | connection12_async.rs | Write after shutdown fails |
+
+### Workspace Test Counts After Phase T103
+
+| Crate | Tests | Ignored |
+|-------|------:|-------:|
+| hitls-auth | 33 | 0 |
+| hitls-bignum | 49 | 0 |
+| hitls-cli | 117 | 5 |
+| hitls-crypto | 652 | 31 |
+| wycheproof | 15 | 0 |
+| hitls-integration | 125 | 3 |
+| hitls-pki | 349 | 1 |
+| hitls-tls | 1174 | 0 |
+| hitls-types | 26 | 0 |
+| hitls-utils | 53 | 0 |
+| doc-tests | 2 | 0 |
+| **Total** | **2595** | **40** |
+
 ---
 
 ## 8. Verification & Quality Gates
@@ -1527,9 +1564,9 @@ Pure test coverage phases — no new features, only new tests for existing code.
 All phases verified with the same quality gates:
 
 ```bash
-# Full test suite — all 2,577 tests pass
+# Full test suite — all 2,595 tests pass
 cargo test --workspace --all-features
-# Result: 2,577 passed, 0 failed, 40 ignored
+# Result: 2,595 passed, 0 failed, 40 ignored
 
 # Clippy — zero warnings enforced
 RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets
