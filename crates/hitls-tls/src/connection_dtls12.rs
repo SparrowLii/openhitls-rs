@@ -1157,4 +1157,30 @@ mod tests {
             assert_eq!(received, msg);
         }
     }
+
+    #[test]
+    fn test_dtls12_seal_app_data_not_connected() {
+        let mut client = Dtls12ClientConnection::new(client_config());
+        assert!(!client.is_connected());
+        let result = client.seal_app_data(b"should fail");
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(
+            err.to_string().contains("not connected"),
+            "expected 'not connected' error, got: {err}"
+        );
+    }
+
+    #[test]
+    fn test_dtls12_open_app_data_not_connected() {
+        let mut server = Dtls12ServerConnection::new(server_config(), false);
+        assert!(!server.is_connected());
+        let result = server.open_app_data(b"should fail");
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(
+            err.to_string().contains("not connected"),
+            "expected 'not connected' error, got: {err}"
+        );
+    }
 }

@@ -12,8 +12,8 @@
 | Layer | Mechanism | Coverage | Status |
 |:-----:|-----------|----------|:------:|
 | **L1** | Static Analysis | clippy zero-warning + rustfmt + MSRV 1.75 dual-version CI | Complete |
-| **L2** | Unit Tests | 2,610 tests (40 ignored), 100% pass rate | Coverage uneven |
-| **L3** | Integration Tests | 125 cross-crate TCP loopback tests | Scenarios insufficient |
+| **L2** | Unit Tests | 2,634 tests (40 ignored), 100% pass rate | Coverage uneven |
+| **L3** | Integration Tests | 145 cross-crate tests (TCP loopback + DTLS resilience) | Good |
 | **L4** | Fuzz Testing | 10 fuzz targets + 66 seed corpus files | Parse-only |
 | **L5** | Security Audit | rustsec/audit-check + Miri (bignum/utils) | Scope limited |
 
@@ -35,10 +35,10 @@ GitHub Actions (.github/workflows/ci.yml)
 
 | Crate | Tests | Ignored | % of Total | Focus |
 |-------|------:|--------:|:----------:|-------|
-| hitls-tls | 1,189 | 0 | 45.6% | TLS 1.3/1.2/DTLS/TLCP/DTLCP handshake, record, extensions, callbacks |
+| hitls-tls | 1,193 | 0 | 45.3% | TLS 1.3/1.2/DTLS/TLCP/DTLCP handshake, record, extensions, callbacks |
 | hitls-crypto | 652 | 31 | 25.1% | 48 algorithm modules + hardware acceleration |
 | hitls-pki | 349 | 1 | 13.4% | X.509, PKCS#8/12, CMS (5 content types) |
-| hitls-integration | 125 | 3 | 4.8% | Cross-crate TCP loopback, error scenarios, concurrency |
+| hitls-integration | 145 | 3 | 5.5% | Cross-crate TCP loopback, error scenarios, concurrency, DTLS resilience |
 | hitls-cli | 117 | 5 | 4.5% | 14 CLI commands |
 | hitls-utils | 53 | 0 | 2.0% | ASN.1, Base64, PEM, OID |
 | hitls-bignum | 49 | 0 | 1.9% | Montgomery, Miller-Rabin, modular arithmetic |
@@ -46,7 +46,7 @@ GitHub Actions (.github/workflows/ci.yml)
 | hitls-types | 26 | 0 | 1.0% | Enum definitions, error types |
 | Wycheproof | 15 | 0 | 0.6% | 5,000+ vectors across 15 test groups |
 | Doc-tests | 2 | 0 | 0.1% | API documentation examples |
-| **Total** | **2,610** | **40** | **100%** | |
+| **Total** | **2,634** | **40** | **100%** | |
 
 ### 1.4 Standard Compliance Coverage
 
@@ -78,7 +78,7 @@ Severity   ID   Description                              Impact
 CLOSED     D1   0-RTT replay protection: +8 tests         Resolved (Phase T102)
 CLOSED     D2   Async TLCP/DTLCP: zero tests               Resolved (Phase T104: +15)
 CLOSED     D3   Extension negotiation: +14 e2e tests       Resolved (Phase T105: +14)
-High       D4   DTLS loss/retransmission: no tests        Core DTLS feature unverified
+PARTIAL    D4   DTLS loss/resilience: +10 tests             Partially resolved (Phase T106)
 High       D5   TLCP double certificate: untested         GM compliance risk
 Medium     D6   No property-based testing framework       Input space coverage gap
 Medium     D7   No code coverage metrics in CI            Cannot quantify quality
@@ -125,14 +125,20 @@ Phase T105 added 14 E2E tests covering all identified gaps:
 - Combined ALPN + SNI + group verification via ConnectionInfo
 - Codec: duplicate extension type, zero-length extension parsing
 
-### 2.5 D4 — DTLS Loss/Retransmission (High)
+### 2.5 D4 — DTLS Loss/Retransmission ~~(High)~~ — **PARTIAL** (Phase T106)
 
-DTLS 1.2's core value is handling unreliable UDP transport, but all tests use **reliable in-memory transport**:
+**Partially resolved**: Phase T106 added 10 tests covering post-handshake adverse delivery:
+- Out-of-order delivery (5 messages reversed), selective loss (50% packet loss)
+- Stale records beyond 64-entry anti-replay window (rejected)
+- Corrupted ciphertext (AEAD integrity failure), truncated/empty datagrams
+- Wrong-epoch record (nonce mismatch → rejection)
+- Interleaved bidirectional out-of-order delivery
+- seal/open on unconnected connections (error path coverage)
 
-- No packet loss simulation (e.g., ClientHello lost → timeout retransmission)
-- No out-of-order delivery tests (Finished arriving before Certificate)
-- Retransmission backoff algorithm (`retransmit.rs`) has no integration-level verification
-- Epoch transition with old-epoch records untested
+**Remaining** (requires handshake driver refactoring, out of scope for test phase):
+- Handshake-level loss simulation (e.g., ClientHello lost → timeout retransmission)
+- Out-of-order handshake flight delivery (Finished before Certificate)
+- Retransmission backoff algorithm integration-level verification
 
 ### 2.6 D5 — TLCP Double Certificate (High)
 
@@ -371,7 +377,7 @@ Phase T111        —       D6/D7        Infra: proptest + coverage CI
 
 | Metric | Current | After Phase T107 | After Phase T111 |
 |--------|:-------:|:--------------:|:---------------:|
-| Total tests | 2,624 | ~2,660 | ~2,750+ |
+| Total tests | 2,634 | ~2,660 | ~2,750+ |
 | Critical deficiencies (D1-D2) | 0 | 0 | 0 |
 | High deficiencies (D3-D5) | 2 | 0 | 0 |
 | Crypto files with tests | 75% | 75% | 90%+ |

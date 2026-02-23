@@ -2291,3 +2291,18 @@ Targeted coverage gaps in connection_info, handshake enums, lib.rs constants, co
 **Result**:
 - 1 file created, 1 file modified. hitls-tls: 1189→1191, hitls-integration: 125→137, total: 2610→2624.
 - All 2624 workspace tests pass, 0 clippy warnings, formatting clean.
+
+## Phase T106: DTLS Loss Simulation & Resilience Tests
+
+**Prompt**: Implement Phase T106 — DTLS Loss Simulation & Resilience Tests. Create 8 integration tests for adverse delivery patterns (out-of-order, loss, stale, corrupted, truncated, empty, wrong epoch, interleaved bidirectional). Add 2 unit tests for seal/open on unconnected connections. Target: +10 tests.
+
+**Scope**: Partially close D4 (High) — DTLS 1.2 had no tests for adverse delivery patterns.
+
+**Work performed**:
+1. Created `tests/interop/tests/dtls_resilience.rs` with 8 integration tests: out-of-order (reverse), selective loss (50% even-only), stale beyond anti-replay window (100 msgs), corrupted ciphertext (AEAD failure), truncated record (< header), empty datagram, wrong epoch (nonce mismatch), interleaved bidirectional out-of-order
+2. Added 2 unit tests to `connection_dtls12.rs`: seal_app_data/open_app_data on unconnected connections return RecordError
+3. Updated CLAUDE.md, DEV_LOG.md, TEST_LOG.md, PROMPT_LOG.md, README.md, QUALITY_REPORT.md
+
+**Result**:
+- 1 file created, 1 file modified. hitls-tls: 1191→1193, hitls-integration: 137→145, total: 2624→2634.
+- All 2634 workspace tests pass, 0 clippy warnings, formatting clean.

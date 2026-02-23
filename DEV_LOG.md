@@ -7929,3 +7929,31 @@ Created `tests/interop/tests/ext_negotiation.rs` with 12 E2E TCP loopback tests 
 - `cargo test --workspace --all-features`: 2624 passed, 0 failed, 40 ignored
 - `RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets`: 0 warnings
 - `cargo fmt --all -- --check`: clean
+
+## Phase T106: DTLS Loss Simulation & Resilience Tests (+10 tests, 2,624→2,634)
+
+**Date**: 2026-02-23
+**Scope**: Partially close D4 (High) — DTLS 1.2 had no tests for adverse delivery patterns (out-of-order, loss, corruption, truncation, wrong epoch). Added 8 integration tests exercising post-handshake resilience and 2 unit tests for unconnected-state error paths.
+
+### Summary
+
+Created `tests/interop/tests/dtls_resilience.rs` with 8 integration tests that establish a DTLS 1.2 connection via `dtls12_handshake_in_memory()` then exercise adverse delivery patterns on the established connection. Added 2 unit tests to `connection_dtls12.rs` for seal/open on unconnected connections.
+
+**Integration tests** (8 tests):
+- Out-of-order delivery (5 messages delivered in reverse), selective loss (50% packet loss), stale record beyond anti-replay window (seq 0 after 99 delivered), corrupted ciphertext (AEAD integrity failure), truncated record (< 13-byte header), empty datagram, wrong epoch (epoch 1→0 nonce mismatch), interleaved bidirectional out-of-order
+
+**Unit tests** (2 tests):
+- `seal_app_data()` on unconnected client → RecordError("not connected")
+- `open_app_data()` on unconnected server → RecordError("not connected")
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `tests/interop/tests/dtls_resilience.rs` | **NEW** — 8 DTLS resilience integration tests |
+| `crates/hitls-tls/src/connection_dtls12.rs` | Added 2 unit tests to existing test module |
+
+### Build Status
+- `cargo test --workspace --all-features`: 2634 passed, 0 failed, 40 ignored
+- `RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets`: 0 warnings
+- `cargo fmt --all -- --check`: clean

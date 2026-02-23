@@ -9,12 +9,12 @@
 
 | Metric | Value |
 |--------|-------|
-| **Total tests** | **2,610** (40 ignored) |
-| **Test growth** | 1,104 → 2,610 (+136% since baseline) |
+| **Total tests** | **2,634** (40 ignored) |
+| **Test growth** | 1,104 → 2,634 (+139% since baseline) |
 | **Crates covered** | 8/8 (100% crate-level coverage) |
 | **Fuzz targets** | 10 (with 66 seed corpus files) |
 | **Wycheproof vectors** | 5,000+ (15 test groups) |
-| **Zero failures** | All 2,610 tests pass, clippy clean, fmt clean |
+| **Zero failures** | All 2,634 tests pass, clippy clean, fmt clean |
 
 ### Test Growth Timeline
 
@@ -48,6 +48,8 @@ Phase T101  2,577     +33   ECC point + AES soft + SM9 + McEliece vector (*)
 Phase T102  2,585      +8   0-RTT early data + replay protection (*)
 Phase T103  2,595     +10   Async TLS 1.2 deep coverage + session resumption fix (*)
 Phase T104  2,610     +15   Async TLCP + DTLCP connection types & tests (*)
+Phase T105  2,624     +14   Extension negotiation E2E tests (*)
+Phase T106  2,634     +10   DTLS loss simulation & resilience tests (*)
 ```
 
 (*) Testing-only phases (no new features, pure test coverage)
@@ -1653,6 +1655,47 @@ Pure test coverage phases — no new features, only new tests for existing code.
 | doc-tests | 2 | 0 |
 | **Total** | **2624** | **40** |
 
+### Phase T106 — DTLS Loss Simulation & Resilience Tests (+10 tests, 2,624→2,634)
+
+**Scope**: Partially close D4 (High) — DTLS 1.2 had no tests for adverse delivery patterns.
+
+**Integration tests** (8 tests in `tests/interop/tests/dtls_resilience.rs`):
+
+| # | Test | Pattern | Result |
+|:-:|------|---------|--------|
+| 1 | test_dtls12_out_of_order_delivery | 5 msgs delivered in reverse (4,3,2,1,0) | All succeed (within window) |
+| 2 | test_dtls12_selective_loss_within_window | 10 msgs, deliver even only (0,2,4,6,8) | All delivered succeed |
+| 3 | test_dtls12_stale_beyond_anti_replay_window | 100 msgs, deliver #1-#99, then #0 | #0 rejected (outside window) |
+| 4 | test_dtls12_corrupted_ciphertext_rejected | Flip bit in ciphertext area | AEAD failure |
+| 5 | test_dtls12_truncated_record_rejected | Truncate to 10 bytes (< 13-byte header) | Parse error |
+| 6 | test_dtls12_empty_datagram_rejected | Empty &[] to open_app_data() | Error |
+| 7 | test_dtls12_wrong_epoch_record | Modify epoch 1→0 in header | AEAD nonce mismatch |
+| 8 | test_dtls12_interleaved_bidirectional_out_of_order | Both sides seal 5, deliver scrambled | All succeed |
+
+**Unit tests** (2 tests in `connection_dtls12.rs`):
+
+| # | Test | Result |
+|:-:|------|--------|
+| 9 | test_dtls12_seal_app_data_not_connected | RecordError("not connected") |
+| 10 | test_dtls12_open_app_data_not_connected | RecordError("not connected") |
+
+**Per-crate counts after Phase T106**:
+
+| Crate | Tests | Ignored |
+|-------|------:|-------:|
+| hitls-auth | 33 | 0 |
+| hitls-bignum | 49 | 0 |
+| hitls-cli | 117 | 5 |
+| hitls-crypto | 652 | 31 |
+| wycheproof | 15 | 0 |
+| hitls-integration | 145 | 3 |
+| hitls-pki | 349 | 1 |
+| hitls-tls | 1193 | 0 |
+| hitls-types | 26 | 0 |
+| hitls-utils | 53 | 0 |
+| doc-tests | 2 | 0 |
+| **Total** | **2634** | **40** |
+
 ---
 
 ## 8. Verification & Quality Gates
@@ -1660,9 +1703,9 @@ Pure test coverage phases — no new features, only new tests for existing code.
 All phases verified with the same quality gates:
 
 ```bash
-# Full test suite — all 2,624 tests pass
+# Full test suite — all 2,634 tests pass
 cargo test --workspace --all-features
-# Result: 2,624 passed, 0 failed, 40 ignored
+# Result: 2,634 passed, 0 failed, 40 ignored
 
 # Clippy — zero warnings enforced
 RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets
