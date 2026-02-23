@@ -450,6 +450,60 @@ All `pub(crate)` items used by sibling modules (`crl.rs`, `ocsp.rs`, `verify.rs`
 
 ---
 
+---
+
+## Phase R108: Integration Test Modularization
+
+### Date: 2026-02-23
+
+### Goal
+
+Split the monolithic `tests/interop/src/lib.rs` (7,675 lines, 128 test functions) into a helper library plus 10 focused integration test files under `tests/`. Enables targeted test runs (e.g., `cargo test --test tls13`) and improves navigability.
+
+### Solution
+
+Transformed the `#[cfg(test)] mod tests { ... }` block into:
+- `src/lib.rs` (404 lines): 11 `pub fn` helpers + 1 internal helper, no `#[cfg(test)]` wrapper
+- 10 integration test files under `tests/`, each importing `use hitls_integration_tests::*;`
+
+### Files Created
+
+| File | Tests | Lines | Contents |
+|------|-------|-------|----------|
+| `tests/crypto.rs` | 8 | 186 | Crypto primitive roundtrip tests |
+| `tests/pki.rs` | 9 | 493 | X.509, CSR, CMS, PKCS#8, codec-level tests |
+| `tests/tls13.rs` | 25 | 1,687 | TLS 1.3 handshake, data, cipher suites, ALPN, EKM |
+| `tests/tls13_callbacks.rs` | 17 | 1,132 | TLS 1.3 callbacks, extensions, GREASE, Heartbeat |
+| `tests/tls12.rs` | 24 | 2,166 | TLS 1.2 handshake, features, callbacks |
+| `tests/tls12_suites.rs` | 19 | 563 | TLS 1.2 CCM/PSK/anonymous suites, GREASE, Heartbeat |
+| `tests/dtls12.rs` | 9 | 297 | DTLS 1.2 handshake, data, anti-replay, abbreviated |
+| `tests/tlcp.rs` | 7 | 108 | TLCP and DTLCP handshake tests |
+| `tests/async_io.rs` | 3 | 217 | Async tokio TLS 1.3/1.2 loopback tests |
+| `tests/error_protocol.rs` | 7 | 350 | Version mismatch, cipher mismatch, PSK errors, misc |
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `tests/interop/src/lib.rs` | Modified — 7,675 → 404 lines |
+
+### Impact
+
+| Metric | Before | After |
+|--------|--------|-------|
+| Largest file (lib.rs) | 7,675 lines | 2,166 lines (tls12.rs) |
+| Total test files | 1 | 10 |
+| Test count | 128 | 128 (unchanged) |
+| Targeted test runs | Not possible | `cargo test --test tls13` etc. |
+
+### Build Status
+- `cargo test -p hitls-integration-tests --all-features`: 125 passed, 0 failed, 3 ignored
+- `cargo test --workspace --all-features`: 2585 passed, 0 failed, 40 ignored
+- `RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets`: 0 warnings
+- `cargo fmt --all -- --check`: clean
+
+---
+
 ## Refactoring Queue
 
 The following phases are defined in [ARCH_REPORT.md](ARCH_REPORT.md) §7 and have not yet been started:
@@ -462,7 +516,7 @@ The following phases are defined in [ARCH_REPORT.md](ARCH_REPORT.md) §7 and hav
 | Phase R105 | Hash Digest Enum Dispatch | Medium | **Done** |
 | Phase R106 | Sync/Async Unification via Macros | Medium | **Done** |
 | Phase R107 | X.509 Module Decomposition | Medium | **Done** |
-| Phase R108 | Integration Test Modularization | Medium | Pending |
+| Phase R108 | Integration Test Modularization | Medium | **Done** |
 | Phase R109 | Test Helper Consolidation | Low | Pending |
 | Phase R110 | Parameter Struct Refactoring | Low | Pending |
 | Phase R111 | DRBG State Machine Unification | Low | Pending |

@@ -2133,3 +2133,30 @@ Targeted coverage gaps in connection_info, handshake enums, lib.rs constants, co
 - 5 files changed (4 created, 1 modified). 3,425 lines → 3,519 lines across 5 files (net +94 lines from imports/module boilerplate).
 - All 2585 workspace tests pass, 0 clippy warnings, formatting clean.
 - Zero public API changes. Zero sibling module changes.
+
+---
+
+## Phase R108: Integration Test Modularization
+
+**Prompt**: Implement Phase R108 — Integration Test Modularization (plan from plan file)
+
+**Scope**: Split `tests/interop/src/lib.rs` (7,675 lines) into helper library + 10 integration test files under `tests/`.
+
+**Work performed**:
+- Rewrote `tests/interop/src/lib.rs` (7,675→404 lines): 12 pub helper functions, no `#[cfg(test)]` wrapper
+- Created 10 integration test files under `tests/interop/tests/`:
+  1. `crypto.rs` (8 tests, 186 lines) — crypto primitive roundtrips
+  2. `pki.rs` (9 tests, 493 lines) — X.509, CSR, CMS, PKCS#8, codec-level
+  3. `tls13.rs` (25 tests, 1,687 lines) — TLS 1.3 handshake, data, cipher suites, ALPN, EKM
+  4. `tls13_callbacks.rs` (17 tests, 1,132 lines) — TLS 1.3 callbacks, extensions, GREASE, Heartbeat
+  5. `tls12.rs` (24 tests, 2,166 lines) — TLS 1.2 handshake, features, callbacks
+  6. `tls12_suites.rs` (19 tests, 563 lines) — TLS 1.2 CCM/PSK/anonymous suites
+  7. `dtls12.rs` (9 tests, 297 lines) — DTLS 1.2 handshake, data, anti-replay
+  8. `tlcp.rs` (7 tests, 108 lines) — TLCP and DTLCP handshakes
+  9. `async_io.rs` (3 tests, 217 lines) — async tokio TLS loopbacks
+  10. `error_protocol.rs` (7 tests, 350 lines) — version/cipher mismatch, PSK errors, misc
+
+**Result**:
+- 11 files changed (10 created, 1 modified). 128 tests (125 passed + 3 ignored) across 10 files.
+- All 2585 workspace tests pass, 0 clippy warnings, formatting clean.
+- Pure structural reorganization, zero logic changes.

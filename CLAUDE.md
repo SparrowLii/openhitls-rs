@@ -23,7 +23,7 @@ openhitls-rs/
 │   ├── hitls-pki/       # X.509, PKCS#8 (incl. Encrypted PBES2), PKCS#12, CMS (SignedData/EnvelopedData/EncryptedData/DigestedData/AuthenticatedData), hostname verification (349 tests, 1 ignored)
 │   ├── hitls-auth/      # HOTP/TOTP, SPAKE2+, Privacy Pass (33 tests)
 │   └── hitls-cli/       # CLI tool: dgst, genpkey, x509, verify, enc, pkey, crl, req, s-client, s-server, list, rand, pkeyutl, speed, pkcs12, mac (117 tests, 5 ignored)
-├── tests/interop/       # Integration tests (125 cross-crate tests, 3 ignored)
+├── tests/interop/       # Integration tests (125 cross-crate tests, 3 ignored) — 10 test files + helper lib
 ├── tests/vectors/       # Standard test vectors (NIST, Wycheproof, GM/T)
 ├── fuzz/                # Fuzz targets (cargo-fuzz, 10 targets)
 └── benches/             # Criterion benchmarks
@@ -129,6 +129,6 @@ Key milestones:
 - Phase 82–86: TLS callbacks (10 types), Trusted CA Keys/USE_SRTP/STATUS_REQUEST_V2, CMS AuthenticatedData
 - Phase 88–92: Encrypted PKCS#8, TicketKeyCallback/SecurityCallback, SM4-CTR-DRBG, CMS ML-DSA
 - Phase T73–T102: CLI unit tests, async connection tests, cipher suite integration, codec/state machine edge cases, ECC point/AES soft/SM9 field arithmetic/McEliece vector, 0-RTT early data tests
-- Phase R102–R107: Architecture refactoring — PKI encoding consolidation, record layer enum dispatch, connection file decomposition, hash digest enum dispatch, sync/async unification via body macros, X.509 module decomposition
+- Phase R102–R108: Architecture refactoring — PKI encoding consolidation, record layer enum dispatch, connection file decomposition, hash digest enum dispatch, sync/async unification via body macros, X.509 module decomposition, integration test modularization
 
 See `DEV_LOG.md` for detailed phase tables, `TEST_LOG.md` for testing history, `PROMPT_LOG.md` for prompt/response log, and `ARCH_LOG.md` for refactoring execution log.

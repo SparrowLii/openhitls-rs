@@ -7757,3 +7757,41 @@ Split into 4 new submodules with mod.rs retaining re-exports and tests. All `pub
 - `cargo test --workspace --all-features`: 2585 passed, 0 failed, 40 ignored
 - `RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets`: 0 warnings
 - `cargo fmt --all -- --check`: clean
+
+## Refactoring-Phase R108: Integration Test Modularization
+
+**Date**: 2026-02-23
+**Scope**: Split `tests/interop/src/lib.rs` (7,675 lines) into helper library + 10 integration test files
+
+### Summary
+
+The integration test crate contained a single monolithic `src/lib.rs` file with 128 test functions and 12 helper functions inside a `#[cfg(test)] mod tests { ... }` block. This made it difficult to navigate, run targeted test subsets, or find specific protocol tests.
+
+Transformed the crate into a test utility library (`src/lib.rs` with `pub` helpers, ~400 lines) plus 10 integration test files under `tests/`. Each test file is a separate Cargo compilation unit that imports helpers via `use hitls_integration_tests::*;`.
+
+### New Files
+
+| File | Tests | Lines | Contents |
+|------|-------|-------|----------|
+| `tests/crypto.rs` | 8 | 186 | Crypto primitive roundtrip tests |
+| `tests/pki.rs` | 9 | 493 | X.509, CSR, CMS, PKCS#8, codec-level tests |
+| `tests/tls13.rs` | 25 | 1,687 | TLS 1.3 handshake, data, cipher suites, ALPN, EKM |
+| `tests/tls13_callbacks.rs` | 17 | 1,132 | TLS 1.3 callbacks, extensions, GREASE, Heartbeat |
+| `tests/tls12.rs` | 24 | 2,166 | TLS 1.2 handshake, features, callbacks |
+| `tests/tls12_suites.rs` | 19 | 563 | TLS 1.2 CCM/PSK/anonymous suites, GREASE, Heartbeat |
+| `tests/dtls12.rs` | 9 | 297 | DTLS 1.2 handshake, data, anti-replay, abbreviated |
+| `tests/tlcp.rs` | 7 | 108 | TLCP and DTLCP handshake tests |
+| `tests/async_io.rs` | 3 | 217 | Async tokio TLS 1.3/1.2 loopback tests |
+| `tests/error_protocol.rs` | 7 | 350 | Version mismatch, cipher mismatch, PSK errors, misc |
+
+### Files Modified
+
+| File | Before | After | Changes |
+|------|--------|-------|---------|
+| `src/lib.rs` | 7,675 | 404 | Stripped to 12 pub helper functions (no `#[cfg(test)]` wrapper) |
+
+### Build Status
+- `cargo test -p hitls-integration-tests --all-features`: 125 passed, 0 failed, 3 ignored
+- `cargo test --workspace --all-features`: 2585 passed, 0 failed, 40 ignored
+- `RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets`: 0 warnings
+- `cargo fmt --all -- --check`: clean
