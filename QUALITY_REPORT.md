@@ -12,7 +12,7 @@
 | Layer | Mechanism | Coverage | Status |
 |:-----:|-----------|----------|:------:|
 | **L1** | Static Analysis | clippy zero-warning + rustfmt + MSRV 1.75 dual-version CI | Complete |
-| **L2** | Unit Tests | 2,882 tests (47 ignored), 100% pass rate | Comprehensive |
+| **L2** | Unit Tests | 2,897 tests (47 ignored), 100% pass rate | Comprehensive |
 | **L3** | Integration Tests | 149 cross-crate tests (TCP loopback + DTLS resilience) | Good |
 | **L4** | Fuzz Testing | 10 fuzz targets + 66 seed corpus files | Parse-only |
 | **L5** | Security Audit | rustsec/audit-check + Miri (bignum/utils) + cargo-tarpaulin coverage | Good |
@@ -37,7 +37,7 @@ GitHub Actions (.github/workflows/ci.yml)
 | Crate | Tests | Ignored | % of Total | Focus |
 |-------|------:|--------:|:----------:|-------|
 | hitls-tls | 1,284 | 0 | 45.4% | TLS 1.3/1.2/DTLS/TLCP/DTLCP handshake, record, extensions, callbacks |
-| hitls-crypto | 767 | 38 | 26.6% | 48 algorithm modules + hardware acceleration + proptest |
+| hitls-crypto | 782 | 38 | 27.0% | 48 algorithm modules + hardware acceleration + proptest |
 | hitls-pki | 374 | 1 | 13.2% | X.509, PKCS#8/12, CMS (5 content types), encoding helpers |
 | hitls-integration | 149 | 3 | 5.3% | Cross-crate TCP loopback, error scenarios, concurrency, DTLS resilience |
 | hitls-cli | 117 | 5 | 4.1% | 14 CLI commands |
@@ -47,7 +47,7 @@ GitHub Actions (.github/workflows/ci.yml)
 | hitls-types | 26 | 0 | 0.9% | Enum definitions, error types |
 | Wycheproof | 15 | 0 | 0.5% | 5,000+ vectors across 15 test groups |
 | Doc-tests | 2 | 0 | 0.1% | API documentation examples |
-| **Total** | **2,882** | **47** | **100%** | |
+| **Total** | **2,897** | **47** | **100%** | |
 
 ### 1.4 Standard Compliance Coverage
 
@@ -239,9 +239,10 @@ Phase T120         +15      —            X.509 cert parsing + SM9 G2 + pairing
 Phase T121         +13      —            SM9 hash + algorithm helpers + curve params ✅
 Phase T122         +15      —            McEliece keygen + encoding + decoding       ✅
 Phase T123         +10      —            XMSS tree + WOTS+ deepening + FORS          ✅
+Phase T124         +15      —            McEliece GF + Benes + matrix deepening      ✅
 ```
 
-**Result**: 2,585 → 2,882 tests (+297), all planned deficiencies addressed.
+**Result**: 2,585 → 2,897 tests (+312), all planned deficiencies addressed.
 
 ### 3.2 Phase T102 — 0-RTT Early Data + Replay Protection (~8 tests) ✅
 
@@ -416,6 +417,7 @@ Phases T112–T119 continued hardening beyond the original roadmap:
 | T121 | +13 | SM9 hash functions H1/H2/KDF, SM9 algorithm sign/verify/encrypt/decrypt, BN256 curve parameters |
 | T122 | +15 | McEliece keygen helpers (bitrev/SHAKE256/PRG), encoding (error vector), decoding (Berlekamp-Massey) |
 | T123 | +10 | XMSS tree operations (compute_root/sign/verify), WOTS+ deepening, SLH-DSA FORS deepening |
+| T124 | +15 | McEliece GF(2^13) field algebra, Benes network permutation/sort, binary matrix Gaussian elimination |
 
 ---
 
@@ -423,7 +425,7 @@ Phases T112–T119 continued hardening beyond the original roadmap:
 
 | Metric | Original (T106) | Target (T111) | **Actual (T123)** |
 |--------|:---------------:|:-------------:|:-----------------:|
-| Total tests | 2,634 | ~2,750+ | **2,882** |
+| Total tests | 2,634 | ~2,750+ | **2,897** |
 | Critical deficiencies (D1-D2) | 0 | 0 | **0** |
 | High deficiencies (D3-D5) | 2 partial | 0 | **0** (D4/D5 mostly closed) |
 | Crypto files with tests | 75% | 90%+ | **~90%** |

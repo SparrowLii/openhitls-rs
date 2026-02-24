@@ -2544,6 +2544,24 @@ Targeted coverage gaps in connection_info, handshake enums, lib.rs constants, co
 - 3 source files modified, 0 files created. hitls-pki: 354→369, total: 2814→2829.
 - All 2829 workspace tests pass, 0 clippy warnings, formatting clean.
 
+## Phase T124: McEliece GF(2^13) + Benes Network + Binary Matrix Deepening
+
+**Prompt**: Continue implementing Phase T124. Deepen McEliece internal modules with low test density: gf.rs (135 lines, 1 test — GF(2^13) field arithmetic), benes.rs (380 lines, 1 test — Benes network control bits), matrix.rs (433 lines, 1 test — binary matrix and Gaussian elimination).
+
+**Scope**: Three McEliece internal module files with single test each: GF(2^13) finite field operations (add/mul/inv/div/pow with LOG/EXP tables), Benes network (permutation→control bits, control bits→support, radix sort, bitrev), binary matrix (bit-packed row-major, Gaussian elimination, systematic form reduction, same_mask constant-time helper).
+
+**Work performed**:
+1. Added 5 GF(2^13) tests to `crates/hitls-crypto/src/mceliece/gf.rs`: mul commutativity, pow matches repeated mul, div=mul(a,inv(b)), inv(0)=0, pow(-1)=inv
+2. Added 5 Benes network tests to `crates/hitls-crypto/src/mceliece/benes.rs`: reverse permutation roundtrip, output length, bitrev involution, sort_u32_le correctness, swap permutation support uniqueness
+3. Added 5 binary matrix tests to `crates/hitls-crypto/src/mceliece/matrix.rs`: new all-zeros, identity diagonal, reduce_to_systematic on identity, same_mask equal/unequal
+4. Updated CLAUDE.md, DEV_LOG.md, TEST_LOG.md, PROMPT_LOG.md, README.md, QUALITY_REPORT.md
+
+**Result**:
+- 3 source files modified, 0 files created. hitls-crypto: 767→782 (38 ignored unchanged), total: 2882→2897 (47 ignored unchanged).
+- All 2897 workspace tests pass, 0 clippy warnings, formatting clean.
+
+---
+
 ## Phase T123: XMSS Tree Operations + XMSS WOTS+ Deepening + SLH-DSA FORS Deepening
 
 **Prompt**: Continue implementing Phase T123. Shift from zero-test files to low-density deepening: XMSS tree.rs (161 lines, 0 tests — last untested file), XMSS wots.rs (198 lines, 1 test), SLH-DSA fors.rs (146 lines, 1 test). Add 5 tree tests (all #[ignore] due to h=10 → 1024 leaves), 5 WOTS+ tests (msg_to_base_w, chain, l_tree, roundtrip), 5 FORS tests (sk_gen, sign length, node, pk independence).

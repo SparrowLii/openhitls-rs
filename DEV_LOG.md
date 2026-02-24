@@ -8357,6 +8357,34 @@ Added 15 tests across 3 core PKI infrastructure files that previously had zero t
 - `RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets`: 0 warnings
 - `cargo fmt --all -- --check`: clean
 
+## Phase T124: McEliece GF(2^13) + Benes Network + Binary Matrix Deepening (+15 tests, 2,882→2,897)
+
+**Date**: 2026-02-24
+**Scope**: McEliece GF(2^13) finite field arithmetic (gf.rs, 135 lines, 1 test), Benes network control bits and permutation reconstruction (benes.rs, 380 lines, 1 test), binary matrix operations and Gaussian elimination (matrix.rs, 433 lines, 1 test).
+
+### Summary
+
+Added 15 tests across 3 McEliece internal module files, deepening coverage of foundational algebraic and combinatorial operations:
+
+- **GF(2^13) field arithmetic** (5 tests): multiplication commutativity, power matches repeated multiplication, division = multiplication by inverse, inv(0) = 0 sentinel, negative exponent = inverse
+- **Benes network** (5 tests): reverse permutation roundtrip, control bits output length, bitrev involution (self-inverse), radix sort correctness, adjacent-swap permutation support uniqueness
+- **Binary matrix** (5 tests): new matrix all-zeros, identity matrix diagonal, reduce_to_systematic on identity (no-op), same_mask equal → all 1s, same_mask unequal → 0
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `crates/hitls-crypto/src/mceliece/gf.rs` | Added 5 tests to existing `mod tests` |
+| `crates/hitls-crypto/src/mceliece/benes.rs` | Added 5 tests to existing `mod tests` |
+| `crates/hitls-crypto/src/mceliece/matrix.rs` | Added 5 tests to existing `mod tests` |
+
+### Build Status
+- `cargo test --workspace --all-features`: 2897 passed, 0 failed, 47 ignored
+- `RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets`: 0 warnings
+- `cargo fmt --all -- --check`: clean
+
+---
+
 ## Phase T123: XMSS Tree Operations + XMSS WOTS+ Deepening + SLH-DSA FORS Deepening (+15 tests, 2,872→2,882)
 
 **Date**: 2026-02-24

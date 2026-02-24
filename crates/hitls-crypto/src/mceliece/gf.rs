@@ -132,4 +132,55 @@ mod tests {
             assert_eq!(gf_mul(a, 1), a);
         }
     }
+
+    #[test]
+    fn test_gf_mul_commutativity() {
+        for a in 1..50u16 {
+            for b in 1..50u16 {
+                assert_eq!(gf_mul(a, b), gf_mul(b, a), "a={}, b={}", a, b);
+            }
+        }
+    }
+
+    #[test]
+    fn test_gf_pow_matches_repeated_mul() {
+        let base: GfElement = 7;
+        let mut acc: GfElement = 1;
+        for exp in 0..20 {
+            assert_eq!(gf_pow(base, exp), acc, "base=7, exp={}", exp);
+            acc = gf_mul(acc, base);
+        }
+    }
+
+    #[test]
+    fn test_gf_div_inverse_relationship() {
+        // div(a, b) == mul(a, inv(b))
+        for a in 1..50u16 {
+            for b in 1..50u16 {
+                assert_eq!(gf_div(a, b), gf_mul(a, gf_inv(b)), "a={}, b={}", a, b);
+            }
+        }
+    }
+
+    #[test]
+    fn test_gf_inv_zero_returns_zero() {
+        assert_eq!(gf_inv(0), 0);
+        assert_eq!(gf_mul(0, gf_inv(0)), 0);
+        assert_eq!(gf_div(0, 5), 0);
+        assert_eq!(gf_pow(0, 5), 0);
+    }
+
+    #[test]
+    fn test_gf_pow_negative_exponent() {
+        // pow(a, -1) == inv(a)
+        for a in 1..50u16 {
+            assert_eq!(gf_pow(a, -1), gf_inv(a), "a={}", a);
+        }
+        // pow(a, 0) == 1
+        for a in 1..50u16 {
+            assert_eq!(gf_pow(a, 0), 1, "a={}", a);
+        }
+        // pow(0, k) == 0
+        assert_eq!(gf_pow(0, -1), 0);
+    }
 }

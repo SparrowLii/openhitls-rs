@@ -9,12 +9,12 @@
 
 | Metric | Value |
 |--------|-------|
-| **Total tests** | **2,882** (47 ignored) |
-| **Test growth** | 1,104 → 2,882 (+161% since baseline) |
+| **Total tests** | **2,897** (47 ignored) |
+| **Test growth** | 1,104 → 2,897 (+163% since baseline) |
 | **Crates covered** | 8/8 (100% crate-level coverage) |
 | **Fuzz targets** | 10 (with 66 seed corpus files) |
 | **Wycheproof vectors** | 5,000+ (15 test groups) |
-| **Zero failures** | All 2,882 tests pass, clippy clean, fmt clean |
+| **Zero failures** | All 2,897 tests pass, clippy clean, fmt clean |
 
 ### Test Growth Timeline
 
@@ -67,6 +67,7 @@ Phase T120  2,844     +15   X.509 certificate parsing + SM9 G2 + SM9 pairing (*)
 Phase T121  2,857     +13   SM9 hash functions + algorithm helpers + curve params (*)
 Phase T122  2,872     +15   McEliece keygen helpers + encoding + decoding (*)
 Phase T123  2,882     +10   XMSS tree ops + WOTS+ deepening + FORS deepening (*)
+Phase T124  2,897     +15   McEliece GF(2^13) + Benes network + matrix deepening (*)
 ```
 
 (*) Testing-only phases (no new features, pure test coverage)
@@ -2255,6 +2256,48 @@ Added 20 proptest property-based tests across hitls-crypto and hitls-utils, plus
 | hitls-utils | 66 | 0 |
 | doc-tests | 2 | 0 |
 | **Total** | **2829** | **40** |
+
+---
+
+## Phase T124: McEliece GF(2^13) + Benes Network + Binary Matrix Deepening (+15 tests, 2,882→2,897)
+
+**Date**: 2026-02-24
+**Scope**: McEliece GF(2^13) field arithmetic (gf.rs, 135 lines, 1 test), Benes network control bits and support reconstruction (benes.rs, 380 lines, 1 test), binary matrix and Gaussian elimination (matrix.rs, 433 lines, 1 test). Low-density deepening of McEliece internals.
+
+| # | Test | File | Property |
+|---|------|------|----------|
+| 1 | `test_gf_mul_commutativity` | gf.rs | a*b == b*a for a,b ∈ [1,49] |
+| 2 | `test_gf_pow_matches_repeated_mul` | gf.rs | pow(7, k) == 7*7*...*7 (k times) for k ∈ [0,19] |
+| 3 | `test_gf_div_inverse_relationship` | gf.rs | div(a, b) == mul(a, inv(b)) |
+| 4 | `test_gf_inv_zero_returns_zero` | gf.rs | inv(0) = 0, mul(0, inv(0)) = 0, div(0, 5) = 0 |
+| 5 | `test_gf_pow_negative_exponent` | gf.rs | pow(a, -1) == inv(a); pow(a, 0) == 1 |
+| 6 | `test_cbits_reverse_permutation` | benes.rs | Reverse permutation → unique support values |
+| 7 | `test_cbits_output_length` | benes.rs | cbits length = ceil((2w-1)*n/2 / 8) bytes |
+| 8 | `test_bitrev_involution` | benes.rs | bitrev(bitrev(x, m), m) == x for m ∈ [1,13] |
+| 9 | `test_sort_u32_le_basic` | benes.rs | Radix sort: unsorted → sorted; already sorted; single element |
+| 10 | `test_support_swap_permutation_unique` | benes.rs | Adjacent-swap perm → n unique support values |
+| 11 | `test_bitmatrix_new_all_zeros` | matrix.rs | New 16×32 matrix has all zero data bytes |
+| 12 | `test_bitmatrix_identity_diagonal` | matrix.rs | 8×8 identity: diag=1, off-diag=0 |
+| 13 | `test_reduce_to_systematic_on_identity` | matrix.rs | [I₄|0] unchanged after Gaussian elimination |
+| 14 | `test_same_mask_equal_returns_all_ones` | matrix.rs | same_mask(k, k) == u64::MAX |
+| 15 | `test_same_mask_unequal_returns_zero` | matrix.rs | same_mask(k, j) == 0 for k ≠ j |
+
+**Per-crate counts after Phase T124**:
+
+| Crate | Tests | Ignored |
+|-------|------:|-------:|
+| hitls-auth | 33 | 0 |
+| hitls-bignum | 49 | 0 |
+| hitls-cli | 117 | 5 |
+| hitls-crypto | 782 | 38 |
+| wycheproof | 15 | 0 |
+| hitls-integration | 149 | 3 |
+| hitls-pki | 374 | 1 |
+| hitls-tls | 1284 | 0 |
+| hitls-types | 26 | 0 |
+| hitls-utils | 66 | 0 |
+| doc-tests | 2 | 0 |
+| **Total** | **2897** | **47** |
 
 ---
 

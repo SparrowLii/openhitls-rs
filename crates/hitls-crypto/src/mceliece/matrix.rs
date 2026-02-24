@@ -430,4 +430,67 @@ mod tests {
         assert_eq!(m.row_slice(0), &[0x01, 0x00]);
         assert_eq!(m.row_slice(7), &[0x00, 0x80]);
     }
+
+    #[test]
+    fn test_bitmatrix_new_all_zeros() {
+        let m = BitMatrix::new(16, 32);
+        assert_eq!(m.rows, 16);
+        assert_eq!(m.cols, 32);
+        assert_eq!(m.cols_bytes, 4);
+        // All data bytes must be zero
+        assert!(m.data.iter().all(|&b| b == 0));
+    }
+
+    #[test]
+    fn test_bitmatrix_identity_diagonal() {
+        let n = 8;
+        let mut m = BitMatrix::new(n, n);
+        for i in 0..n {
+            m.set_bit(i, i, 1);
+        }
+        for i in 0..n {
+            for j in 0..n {
+                let expected = if i == j { 1 } else { 0 };
+                assert_eq!(m.get_bit(i, j), expected, "i={}, j={}", i, j);
+            }
+        }
+    }
+
+    #[test]
+    fn test_reduce_to_systematic_on_identity() {
+        // 4x8 matrix: [I_4 | 0]
+        let mut m = BitMatrix::new(4, 8);
+        for i in 0..4 {
+            m.set_bit(i, i, 1);
+        }
+        reduce_to_systematic(&mut m).unwrap();
+        // Left 4x4 should still be identity
+        for i in 0..4 {
+            for j in 0..4 {
+                let expected = if i == j { 1 } else { 0 };
+                assert_eq!(m.get_bit(i, j), expected, "i={}, j={}", i, j);
+            }
+        }
+        // Right 4x4 should be all zeros
+        for i in 0..4 {
+            for j in 4..8 {
+                assert_eq!(m.get_bit(i, j), 0, "i={}, j={}", i, j);
+            }
+        }
+    }
+
+    #[test]
+    fn test_same_mask_equal_returns_all_ones() {
+        for &k in &[0u32, 1, 7, 31, 63, 100, u32::MAX] {
+            assert_eq!(same_mask(k, k), u64::MAX, "k={}", k);
+        }
+    }
+
+    #[test]
+    fn test_same_mask_unequal_returns_zero() {
+        assert_eq!(same_mask(0, 1), 0);
+        assert_eq!(same_mask(1, 0), 0);
+        assert_eq!(same_mask(5, 10), 0);
+        assert_eq!(same_mask(u32::MAX, 0), 0);
+    }
 }

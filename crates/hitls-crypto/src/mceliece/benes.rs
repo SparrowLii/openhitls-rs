@@ -377,4 +377,81 @@ mod tests {
         assert_eq!(sorted.len(), n);
         assert!(*sorted.last().unwrap() < (1u16 << w));
     }
+
+    #[test]
+    fn test_cbits_reverse_permutation() {
+        // Reverse permutation on n=16 (w=4)
+        let w = 4;
+        let n = 16;
+        let pi: Vec<i16> = (0..n as i16).rev().collect();
+
+        let cbits = cbits_from_perm(&pi, w, n).unwrap();
+        let support = support_from_cbits(&cbits, w, n).unwrap();
+        assert_eq!(support.len(), n);
+
+        let mut sorted: Vec<u16> = support.clone();
+        sorted.sort();
+        sorted.dedup();
+        assert_eq!(sorted.len(), n);
+        assert!(*sorted.last().unwrap() < (1u16 << w));
+    }
+
+    #[test]
+    fn test_cbits_output_length() {
+        let w = 4;
+        let n = 16;
+        let pi: Vec<i16> = (0..n as i16).collect();
+        let cbits = cbits_from_perm(&pi, w, n).unwrap();
+        // (2*w - 1) * n / 2 bits → ceil to bytes
+        let expected_bits = (2 * w - 1) * n / 2;
+        let expected_bytes = expected_bits.div_ceil(8);
+        assert_eq!(cbits.len(), expected_bytes);
+    }
+
+    #[test]
+    fn test_bitrev_involution() {
+        // bitrev(bitrev(x, m), m) == x for all valid x and m
+        for m in 1..=13 {
+            let max_val = (1u16 << m).min(256);
+            for x in 0..max_val {
+                let masked = x & ((1u16 << m) - 1);
+                assert_eq!(bitrev(bitrev(masked, m), m), masked, "m={}, x={}", m, x);
+            }
+        }
+    }
+
+    #[test]
+    fn test_sort_u32_le_basic() {
+        let mut a = vec![5u32, 3, 8, 1, 7, 2, 4, 6];
+        sort_u32_le(&mut a).unwrap();
+        assert_eq!(a, vec![1, 2, 3, 4, 5, 6, 7, 8]);
+
+        // Already sorted
+        let mut b = vec![1u32, 2, 3, 4];
+        sort_u32_le(&mut b).unwrap();
+        assert_eq!(b, vec![1, 2, 3, 4]);
+
+        // Single element
+        let mut c = vec![42u32];
+        sort_u32_le(&mut c).unwrap();
+        assert_eq!(c, vec![42]);
+    }
+
+    #[test]
+    fn test_support_swap_permutation_unique() {
+        // Adjacent-swap permutation: swap 0↔1, 2↔3, etc.
+        let w = 4;
+        let n = 16;
+        let mut pi: Vec<i16> = (0..n as i16).collect();
+        for i in (0..n).step_by(2) {
+            pi.swap(i, i + 1);
+        }
+
+        let cbits = cbits_from_perm(&pi, w, n).unwrap();
+        let support = support_from_cbits(&cbits, w, n).unwrap();
+        let mut sorted: Vec<u16> = support.clone();
+        sorted.sort();
+        sorted.dedup();
+        assert_eq!(sorted.len(), n);
+    }
 }
