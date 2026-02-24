@@ -5,6 +5,8 @@
 //! This module underpins higher-level protocols such as ECDSA and ECDH.
 
 pub(crate) mod curves;
+pub(crate) mod p256_field;
+pub(crate) mod p256_point;
 pub(crate) mod point;
 
 use hitls_bignum::BigNum;
@@ -74,6 +76,11 @@ impl EcGroup {
         if point.infinity {
             return Ok(EcPoint::infinity());
         }
+        if self.curve_id == EccCurveId::NistP256 {
+            let pt = p256_point::bignum_to_p256_point(&point.x, &point.y)?;
+            let result = p256_point::p256_scalar_mul(k, &pt);
+            return p256_result_to_ecpoint(&result);
+        }
         let jp = JacobianPoint::from_affine(&point.x, &point.y);
         let result = scalar_mul(k, &jp, &self.params)?;
         jacobian_to_ecpoint(&result, &self.params)
@@ -81,6 +88,10 @@ impl EcGroup {
 
     /// Scalar multiplication with the base point: R = k * G.
     pub fn scalar_mul_base(&self, k: &BigNum) -> Result<EcPoint, CryptoError> {
+        if self.curve_id == EccCurveId::NistP256 {
+            let result = p256_point::p256_scalar_mul_base(k);
+            return p256_result_to_ecpoint(&result);
+        }
         let g = JacobianPoint::from_affine(&self.params.gx, &self.params.gy);
         let result = scalar_mul(k, &g, &self.params)?;
         jacobian_to_ecpoint(&result, &self.params)
@@ -118,6 +129,11 @@ impl EcGroup {
     ) -> Result<EcPoint, CryptoError> {
         if q.infinity {
             return self.scalar_mul_base(k1);
+        }
+        if self.curve_id == EccCurveId::NistP256 {
+            let qp = p256_point::bignum_to_p256_point(&q.x, &q.y)?;
+            let result = p256_point::p256_scalar_mul_add(k1, k2, &qp);
+            return p256_result_to_ecpoint(&result);
         }
         let g = JacobianPoint::from_affine(&self.params.gx, &self.params.gy);
         let qj = JacobianPoint::from_affine(&q.x, &q.y);
@@ -249,6 +265,14 @@ fn jacobian_to_ecpoint(jp: &JacobianPoint, params: &CurveParams) -> Result<EcPoi
         return Ok(EcPoint::infinity());
     }
     match jp.to_affine(&params.p)? {
+        Some((x, y)) => Ok(EcPoint::new(x, y)),
+        None => Ok(EcPoint::infinity()),
+    }
+}
+
+/// Convert a P256JacobianPoint to an EcPoint (affine).
+fn p256_result_to_ecpoint(pt: &p256_point::P256JacobianPoint) -> Result<EcPoint, CryptoError> {
+    match p256_point::p256_point_to_affine(pt)? {
         Some((x, y)) => Ok(EcPoint::new(x, y)),
         None => Ok(EcPoint::infinity()),
     }

@@ -1,0 +1,696 @@
+//! P-256 specialized field element arithmetic using 4×u64 Montgomery form.
+//!
+//! All elements are stored in Montgomery form: `a_mont = a * R mod p`, where `R = 2^256`.
+//! This allows fast modular multiplication via Montgomery reduction.
+//!
+//! The P-256 prime is `p = 2^256 - 2^224 + 2^192 + 2^96 - 1`.
+
+use core::cmp::Ordering;
+
+/// The P-256 prime p = 2^256 - 2^224 + 2^192 + 2^96 - 1.
+/// Stored as 4×u64 in little-endian limb order.
+const P: [u64; 4] = [
+    0xFFFF_FFFF_FFFF_FFFF,
+    0x0000_0000_FFFF_FFFF,
+    0x0000_0000_0000_0000,
+    0xFFFF_FFFF_0000_0001,
+];
+
+/// R^2 mod p, where R = 2^256 (precomputed for Montgomery conversion).
+const R2: [u64; 4] = [
+    0x0000_0000_0000_0003,
+    0xFFFF_FFFB_FFFF_FFFF,
+    0xFFFF_FFFF_FFFF_FFFE,
+    0x0000_0004_FFFF_FFFD,
+];
+
+/// Montgomery constant: N0 = -p^(-1) mod 2^64.
+///
+/// Since p\[0\] = 0xFFFF_FFFF_FFFF_FFFF = -1 mod 2^64,
+/// p^(-1) mod 2^64 = -1 mod 2^64, so N0 = -(-1) mod 2^64 = 1.
+const N0: u64 = 1;
+
+/// A P-256 field element in Montgomery form.
+///
+/// Internal representation: 4 × u64 limbs in little-endian order, where
+/// the stored value `v` represents the field element `v * R^(-1) mod p`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct P256FieldElement(pub [u64; 4]);
+
+impl P256FieldElement {
+    /// The additive identity (zero).
+    pub const ZERO: Self = Self([0, 0, 0, 0]);
+
+    /// The multiplicative identity (one) in Montgomery form: R mod p.
+    pub const ONE: Self = Self([
+        0x0000_0000_0000_0001,
+        0xFFFF_FFFF_0000_0000,
+        0xFFFF_FFFF_FFFF_FFFF,
+        0x0000_0000_FFFF_FFFE,
+    ]);
+
+    /// Convert from 32-byte big-endian representation to Montgomery form.
+    pub fn from_bytes(bytes: &[u8; 32]) -> Self {
+        let mut limbs = [0u64; 4];
+        limbs[3] = u64::from_be_bytes([
+            bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7],
+        ]);
+        limbs[2] = u64::from_be_bytes([
+            bytes[8], bytes[9], bytes[10], bytes[11], bytes[12], bytes[13], bytes[14], bytes[15],
+        ]);
+        limbs[1] = u64::from_be_bytes([
+            bytes[16], bytes[17], bytes[18], bytes[19], bytes[20], bytes[21], bytes[22], bytes[23],
+        ]);
+        limbs[0] = u64::from_be_bytes([
+            bytes[24], bytes[25], bytes[26], bytes[27], bytes[28], bytes[29], bytes[30], bytes[31],
+        ]);
+        // Convert to Montgomery form: multiply by R^2 and reduce
+        Self(limbs).mont_mul(&Self(R2))
+    }
+
+    /// Convert from Montgomery form to 32-byte big-endian representation.
+    pub fn to_bytes(self) -> [u8; 32] {
+        // Montgomery reduction: multiply by 1 to convert out of Montgomery form
+        let normal = self.mont_mul(&Self([1, 0, 0, 0]));
+        let mut out = [0u8; 32];
+        out[0..8].copy_from_slice(&normal.0[3].to_be_bytes());
+        out[8..16].copy_from_slice(&normal.0[2].to_be_bytes());
+        out[16..24].copy_from_slice(&normal.0[1].to_be_bytes());
+        out[24..32].copy_from_slice(&normal.0[0].to_be_bytes());
+        out
+    }
+
+    /// Field addition: (a + b) mod p.
+    pub fn add(&self, other: &Self) -> Self {
+        let (mut r, carry) = add_u256(&self.0, &other.0);
+        if carry != 0 || cmp_u256(&r, &P) != Ordering::Less {
+            sub_borrow_u256(&mut r, &P);
+        }
+        Self(r)
+    }
+
+    /// Field subtraction: (a - b) mod p.
+    pub fn sub(&self, other: &Self) -> Self {
+        let (mut r, borrow) = sub_u256(&self.0, &other.0);
+        if borrow != 0 {
+            add_carry_u256(&mut r, &P);
+        }
+        Self(r)
+    }
+
+    /// Field negation: (-a) mod p.
+    pub fn neg(&self) -> Self {
+        if self.is_zero() {
+            return *self;
+        }
+        let (r, _) = sub_u256(&P, &self.0);
+        Self(r)
+    }
+
+    /// Check if zero.
+    pub fn is_zero(&self) -> bool {
+        self.0[0] == 0 && self.0[1] == 0 && self.0[2] == 0 && self.0[3] == 0
+    }
+
+    /// Field multiplication: (a * b) mod p in Montgomery form.
+    pub fn mul(&self, other: &Self) -> Self {
+        self.mont_mul(other)
+    }
+
+    /// Field squaring: a^2 mod p in Montgomery form.
+    pub fn sqr(&self) -> Self {
+        self.mont_mul(self)
+    }
+
+    /// Field inversion using Fermat's little theorem: a^(-1) = a^(p-2) mod p.
+    ///
+    /// Uses an optimized addition chain with precomputed powers.
+    /// p-2 = 0xFFFFFFFF00000001000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFD
+    pub fn inv(&self) -> Self {
+        // Precompute x_n = a^(2^n - 1) for needed values of n.
+        let x1 = *self;
+        let x2 = x1.sqr().mul(&x1); // a^(2^2 - 1) = a^3
+
+        // x3 = a^(2^3 - 1) = a^7
+        let x3 = x2.sqr().mul(&x1);
+
+        // x4 = a^(2^4 - 1) = a^15
+        let x4 = {
+            let mut t = x2;
+            for _ in 0..2 {
+                t = t.sqr();
+            }
+            t.mul(&x2)
+        };
+
+        // x6 = a^(2^6 - 1) = a^63
+        let x6 = {
+            let mut t = x3;
+            for _ in 0..3 {
+                t = t.sqr();
+            }
+            t.mul(&x3)
+        };
+
+        // x8 = a^(2^8 - 1)
+        let x8 = {
+            let mut t = x4;
+            for _ in 0..4 {
+                t = t.sqr();
+            }
+            t.mul(&x4)
+        };
+
+        // x14 = a^(2^14 - 1)
+        let x14 = {
+            let mut t = x8;
+            for _ in 0..6 {
+                t = t.sqr();
+            }
+            t.mul(&x6)
+        };
+
+        // x16 = a^(2^16 - 1)
+        let x16 = {
+            let mut t = x8;
+            for _ in 0..8 {
+                t = t.sqr();
+            }
+            t.mul(&x8)
+        };
+
+        // x30 = a^(2^30 - 1)
+        let x30 = {
+            let mut t = x16;
+            for _ in 0..14 {
+                t = t.sqr();
+            }
+            t.mul(&x14)
+        };
+
+        // x32 = a^(2^32 - 1)
+        let x32 = {
+            let mut t = x16;
+            for _ in 0..16 {
+                t = t.sqr();
+            }
+            t.mul(&x16)
+        };
+
+        // Now build the exponent p-2 using the precomputed powers:
+        // p-2 = FFFFFFFF 00000001 00000000 00000000 00000000 FFFFFFFF FFFFFFFF FFFFFFFD
+
+        // Bits 255..224: FFFFFFFF (32 ones)
+        let mut e = x32;
+
+        // Bits 223..192: 00000001 (31 zeros then 1)
+        for _ in 0..32 {
+            e = e.sqr();
+        }
+        e = e.mul(&x1);
+
+        // Bits 191..96: 000000000000000000000000 (96 zeros)
+        for _ in 0..96 {
+            e = e.sqr();
+        }
+
+        // Bits 95..64: FFFFFFFF (32 ones)
+        for _ in 0..32 {
+            e = e.sqr();
+        }
+        e = e.mul(&x32);
+
+        // Bits 63..32: FFFFFFFF (32 ones)
+        for _ in 0..32 {
+            e = e.sqr();
+        }
+        e = e.mul(&x32);
+
+        // Bits 31..0: FFFFFFFD = 1{30}01 in binary
+        // (30 ones, then 0, then 1)
+        for _ in 0..30 {
+            e = e.sqr();
+        }
+        e = e.mul(&x30);
+        e = e.sqr(); // bit 1 = 0
+        e = e.sqr(); // bit 0 position
+        e = e.mul(&x1); // bit 0 = 1
+
+        e
+    }
+
+    /// Montgomery multiplication: computes (a * b * R^(-1)) mod p
+    /// using schoolbook 4-limb multiplication with u128 intermediates.
+    fn mont_mul(&self, other: &Self) -> Self {
+        let a = &self.0;
+        let b = &other.0;
+
+        // Compute 512-bit product: t = a * b (8 limbs)
+        let mut t = [0u64; 8];
+
+        // Schoolbook multiplication using u128 to capture carries
+        for i in 0..4 {
+            let mut carry: u64 = 0;
+            for j in 0..4 {
+                let product =
+                    (a[i] as u128) * (b[j] as u128) + (t[i + j] as u128) + (carry as u128);
+                t[i + j] = product as u64;
+                carry = (product >> 64) as u64;
+            }
+            t[i + 4] = carry;
+        }
+
+        // Montgomery reduction: for each limb i, eliminate t[i]
+        // by adding m * p << (64*i), where m = t[i] * N0 mod 2^64.
+        //
+        // We track overflow past t[7] in a separate variable, since the
+        // reduction can temporarily produce values exceeding 2^512.
+        let mut overflow: u64 = 0;
+
+        for i in 0..4 {
+            let m = t[i].wrapping_mul(N0); // m = t[i] since N0 = 1
+            let mut carry: u64 = 0;
+
+            // Add m * P to t, shifted by i limbs
+            for j in 0..4 {
+                let product = (m as u128) * (P[j] as u128) + (t[i + j] as u128) + (carry as u128);
+                t[i + j] = product as u64;
+                carry = (product >> 64) as u64;
+            }
+
+            // Propagate carry through remaining limbs
+            for item in &mut t[(i + 4)..8] {
+                if carry == 0 {
+                    break;
+                }
+                let sum = (*item as u128) + (carry as u128);
+                *item = sum as u64;
+                carry = (sum >> 64) as u64;
+            }
+
+            // Any remaining carry overflows past t[7]
+            overflow += carry;
+        }
+
+        // Result is in t[4..8]
+        let mut r = [t[4], t[5], t[6], t[7]];
+
+        // Final conditional subtraction: if overflow or r >= p, subtract p
+        if overflow != 0 || cmp_u256(&r, &P) != Ordering::Less {
+            sub_borrow_u256(&mut r, &P);
+        }
+
+        Self(r)
+    }
+}
+
+// ========================================================================
+// 256-bit unsigned arithmetic helpers
+// ========================================================================
+
+/// 256-bit addition: returns (result, carry).
+fn add_u256(a: &[u64; 4], b: &[u64; 4]) -> ([u64; 4], u64) {
+    let mut r = [0u64; 4];
+    let mut carry = 0u64;
+
+    for i in 0..4 {
+        let sum = (a[i] as u128) + (b[i] as u128) + (carry as u128);
+        r[i] = sum as u64;
+        carry = (sum >> 64) as u64;
+    }
+
+    (r, carry)
+}
+
+/// 256-bit subtraction: returns (result, borrow). Borrow is 1 if a < b.
+fn sub_u256(a: &[u64; 4], b: &[u64; 4]) -> ([u64; 4], u64) {
+    let mut r = [0u64; 4];
+    let mut borrow = 0i128;
+
+    for i in 0..4 {
+        let diff = (a[i] as i128) - (b[i] as i128) + borrow;
+        r[i] = diff as u64;
+        borrow = diff >> 64; // arithmetic shift: -1 if borrow, 0 otherwise
+    }
+
+    (r, if borrow < 0 { 1 } else { 0 })
+}
+
+/// Compare two 256-bit numbers (little-endian limb order).
+fn cmp_u256(a: &[u64; 4], b: &[u64; 4]) -> Ordering {
+    for i in (0..4).rev() {
+        match a[i].cmp(&b[i]) {
+            Ordering::Equal => continue,
+            other => return other,
+        }
+    }
+    Ordering::Equal
+}
+
+/// In-place 256-bit addition: a += b, ignoring overflow.
+fn add_carry_u256(a: &mut [u64; 4], b: &[u64; 4]) {
+    let mut carry = 0u64;
+    for i in 0..4 {
+        let sum = (a[i] as u128) + (b[i] as u128) + (carry as u128);
+        a[i] = sum as u64;
+        carry = (sum >> 64) as u64;
+    }
+}
+
+/// In-place 256-bit subtraction: a -= b, ignoring underflow.
+fn sub_borrow_u256(a: &mut [u64; 4], b: &[u64; 4]) {
+    let mut borrow = 0i128;
+    for i in 0..4 {
+        let diff = (a[i] as i128) - (b[i] as i128) + borrow;
+        a[i] = diff as u64;
+        borrow = diff >> 64;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Helper: create a field element from a decimal value (for small test values).
+    fn fe_from_u64(val: u64) -> P256FieldElement {
+        let mut bytes = [0u8; 32];
+        bytes[24..32].copy_from_slice(&val.to_be_bytes());
+        P256FieldElement::from_bytes(&bytes)
+    }
+
+    #[test]
+    fn test_from_bytes_to_bytes_roundtrip() {
+        let original = [
+            0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E,
+            0x0F, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1C,
+            0x1D, 0x1E, 0x1F, 0x20,
+        ];
+        let fe = P256FieldElement::from_bytes(&original);
+        let recovered = fe.to_bytes();
+        assert_eq!(original, recovered);
+    }
+
+    #[test]
+    fn test_from_bytes_to_bytes_zero() {
+        let zero_bytes = [0u8; 32];
+        let fe = P256FieldElement::from_bytes(&zero_bytes);
+        assert_eq!(fe, P256FieldElement::ZERO);
+        assert_eq!(fe.to_bytes(), zero_bytes);
+    }
+
+    #[test]
+    fn test_from_bytes_to_bytes_one() {
+        let mut one_bytes = [0u8; 32];
+        one_bytes[31] = 1;
+        let fe = P256FieldElement::from_bytes(&one_bytes);
+        assert_eq!(fe, P256FieldElement::ONE);
+        assert_eq!(fe.to_bytes(), one_bytes);
+    }
+
+    #[test]
+    fn test_one_constant() {
+        let mut expected = [0u8; 32];
+        expected[31] = 1;
+        assert_eq!(P256FieldElement::ONE.to_bytes(), expected);
+    }
+
+    #[test]
+    fn test_add_identity() {
+        let a = fe_from_u64(42);
+        assert_eq!(a.add(&P256FieldElement::ZERO), a);
+        assert_eq!(P256FieldElement::ZERO.add(&a), a);
+    }
+
+    #[test]
+    fn test_add_small_values() {
+        let a = fe_from_u64(3);
+        let b = fe_from_u64(5);
+        let c = a.add(&b);
+        let expected = fe_from_u64(8);
+        assert_eq!(c, expected);
+    }
+
+    #[test]
+    fn test_sub_identity() {
+        let a = fe_from_u64(42);
+        assert_eq!(a.sub(&P256FieldElement::ZERO), a);
+    }
+
+    #[test]
+    fn test_sub_self_is_zero() {
+        let a = fe_from_u64(12345);
+        assert_eq!(a.sub(&a), P256FieldElement::ZERO);
+    }
+
+    #[test]
+    fn test_sub_small_values() {
+        let a = fe_from_u64(10);
+        let b = fe_from_u64(3);
+        let c = a.sub(&b);
+        let expected = fe_from_u64(7);
+        assert_eq!(c, expected);
+    }
+
+    #[test]
+    fn test_sub_wraps_mod_p() {
+        // 3 - 5 = -2 mod p = p - 2
+        let a = fe_from_u64(3);
+        let b = fe_from_u64(5);
+        let c = a.sub(&b);
+
+        let pm2_bytes: [u8; 32] = [
+            0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+            0xFF, 0xFF, 0xFF, 0xFD,
+        ];
+        let expected = P256FieldElement::from_bytes(&pm2_bytes);
+        assert_eq!(c, expected);
+    }
+
+    #[test]
+    fn test_neg_zero() {
+        assert_eq!(P256FieldElement::ZERO.neg(), P256FieldElement::ZERO);
+    }
+
+    #[test]
+    fn test_neg_and_add() {
+        let a = fe_from_u64(12345);
+        let neg_a = a.neg();
+        assert_eq!(a.add(&neg_a), P256FieldElement::ZERO);
+    }
+
+    #[test]
+    fn test_neg_of_3() {
+        let a = fe_from_u64(3);
+        let neg_a = a.neg();
+
+        // p - 3
+        let pm3_bytes: [u8; 32] = [
+            0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+            0xFF, 0xFF, 0xFF, 0xFC,
+        ];
+        let expected = P256FieldElement::from_bytes(&pm3_bytes);
+        assert_eq!(neg_a, expected);
+    }
+
+    #[test]
+    fn test_mul_identity() {
+        let a = fe_from_u64(42);
+        assert_eq!(a.mul(&P256FieldElement::ONE), a);
+        assert_eq!(P256FieldElement::ONE.mul(&a), a);
+    }
+
+    #[test]
+    fn test_mul_zero() {
+        let a = fe_from_u64(42);
+        assert_eq!(a.mul(&P256FieldElement::ZERO), P256FieldElement::ZERO);
+    }
+
+    #[test]
+    fn test_mul_small_values() {
+        let a = fe_from_u64(7);
+        let b = fe_from_u64(11);
+        let c = a.mul(&b);
+        let expected = fe_from_u64(77);
+        assert_eq!(c, expected);
+    }
+
+    #[test]
+    fn test_mul_commutativity() {
+        let a = fe_from_u64(1234567);
+        let b = fe_from_u64(7654321);
+        assert_eq!(a.mul(&b), b.mul(&a));
+    }
+
+    #[test]
+    fn test_sqr_equals_mul_self() {
+        let a = fe_from_u64(12345);
+        assert_eq!(a.sqr(), a.mul(&a));
+    }
+
+    #[test]
+    fn test_sqr_small_value() {
+        let a = fe_from_u64(7);
+        let expected = fe_from_u64(49);
+        assert_eq!(a.sqr(), expected);
+    }
+
+    #[test]
+    fn test_inv_of_one() {
+        assert_eq!(P256FieldElement::ONE.inv(), P256FieldElement::ONE);
+    }
+
+    #[test]
+    fn test_inv_correctness() {
+        // a * a^(-1) = 1
+        let a = fe_from_u64(7);
+        let a_inv = a.inv();
+        let product = a.mul(&a_inv);
+        assert_eq!(product, P256FieldElement::ONE);
+    }
+
+    #[test]
+    fn test_inv_known_value() {
+        // 7^(-1) mod p = 0x249249246DB6DB6DDB6DB6DB6DB6DB6DB6DB6DB7000000000000000000000000
+        let a = fe_from_u64(7);
+        let a_inv = a.inv();
+        let a_inv_bytes = a_inv.to_bytes();
+
+        let expected: [u8; 32] = [
+            0x24, 0x92, 0x49, 0x24, 0x6D, 0xB6, 0xDB, 0x6D, 0xDB, 0x6D, 0xB6, 0xDB, 0x6D, 0xB6,
+            0xDB, 0x6D, 0xB6, 0xDB, 0x6D, 0xB7, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+        ];
+        assert_eq!(a_inv_bytes, expected);
+    }
+
+    #[test]
+    fn test_inv_of_larger_value() {
+        let bytes: [u8; 32] = [
+            0xDE, 0xAD, 0xBE, 0xEF, 0xCA, 0xFE, 0xBA, 0xBE, 0x01, 0x23, 0x45, 0x67, 0x89, 0xAB,
+            0xCD, 0xEF, 0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10, 0x11, 0x22, 0x33, 0x44,
+            0x55, 0x66, 0x77, 0x88,
+        ];
+        let a = P256FieldElement::from_bytes(&bytes);
+        let a_inv = a.inv();
+        assert_eq!(a.mul(&a_inv), P256FieldElement::ONE);
+    }
+
+    #[test]
+    fn test_double_inv() {
+        // (a^(-1))^(-1) = a
+        let a = fe_from_u64(42);
+        assert_eq!(a.inv().inv(), a);
+    }
+
+    #[test]
+    fn test_distributive_law() {
+        // a * (b + c) = a*b + a*c
+        let a = fe_from_u64(7);
+        let b = fe_from_u64(11);
+        let c = fe_from_u64(13);
+        let lhs = a.mul(&b.add(&c));
+        let rhs = a.mul(&b).add(&a.mul(&c));
+        assert_eq!(lhs, rhs);
+    }
+
+    #[test]
+    fn test_add_sub_inverse() {
+        let a = fe_from_u64(999);
+        let b = fe_from_u64(777);
+        assert_eq!(a.add(&b).sub(&b), a);
+    }
+
+    #[test]
+    fn test_mul_associativity() {
+        let a = fe_from_u64(7);
+        let b = fe_from_u64(11);
+        let c = fe_from_u64(13);
+        assert_eq!(a.mul(&b).mul(&c), a.mul(&b.mul(&c)));
+    }
+
+    #[test]
+    fn test_large_values_roundtrip() {
+        // p - 1
+        let pm1_bytes: [u8; 32] = [
+            0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+            0xFF, 0xFF, 0xFF, 0xFE,
+        ];
+        let fe = P256FieldElement::from_bytes(&pm1_bytes);
+        assert_eq!(fe.to_bytes(), pm1_bytes);
+
+        // (p-1) + 1 = 0 mod p
+        let sum = fe.add(&P256FieldElement::ONE);
+        assert_eq!(sum, P256FieldElement::ZERO);
+    }
+
+    #[test]
+    fn test_is_zero() {
+        assert!(P256FieldElement::ZERO.is_zero());
+        assert!(!P256FieldElement::ONE.is_zero());
+        assert!(!fe_from_u64(42).is_zero());
+    }
+
+    #[test]
+    fn test_cmp_u256_helper() {
+        let a = [1u64, 0, 0, 0];
+        let b = [2u64, 0, 0, 0];
+        assert_eq!(cmp_u256(&a, &b), Ordering::Less);
+        assert_eq!(cmp_u256(&b, &a), Ordering::Greater);
+        assert_eq!(cmp_u256(&a, &a), Ordering::Equal);
+
+        let c = [0u64, 0, 0, 1];
+        let d = [u64::MAX, u64::MAX, u64::MAX, 0];
+        assert_eq!(cmp_u256(&c, &d), Ordering::Greater);
+    }
+
+    #[test]
+    fn test_large_mul_roundtrip() {
+        // Test with two large values near p
+        let a_bytes: [u8; 32] = [
+            0xAA, 0xBB, 0xCC, 0xDD, 0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99,
+            0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF, 0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,
+            0x88, 0x99, 0xAA, 0xBB,
+        ];
+        let b_bytes: [u8; 32] = [
+            0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE,
+            0xFF, 0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC,
+            0xDD, 0xEE, 0xFF, 0x00,
+        ];
+        let a = P256FieldElement::from_bytes(&a_bytes);
+        let b = P256FieldElement::from_bytes(&b_bytes);
+
+        // a * b * b^(-1) = a
+        let product = a.mul(&b);
+        let b_inv = b.inv();
+        assert_eq!(product.mul(&b_inv), a);
+    }
+
+    #[test]
+    fn test_repeated_squaring_consistency() {
+        // a^16 computed via repeated squaring should equal a*a*a*...*a (16 times)
+        let a = fe_from_u64(3);
+        let a2 = a.sqr();
+        let a4 = a2.sqr();
+        let a8 = a4.sqr();
+        let a16 = a8.sqr();
+
+        // 3^16 = 43046721
+        let expected = fe_from_u64(43046721);
+        assert_eq!(a16, expected);
+    }
+
+    #[test]
+    fn test_inv_of_p_minus_one() {
+        // (p-1)^(-1) = p-1 (since (p-1)^2 = 1 mod p)
+        let pm1_bytes: [u8; 32] = [
+            0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+            0xFF, 0xFF, 0xFF, 0xFE,
+        ];
+        let pm1 = P256FieldElement::from_bytes(&pm1_bytes);
+        assert_eq!(pm1.inv(), pm1);
+    }
+}
