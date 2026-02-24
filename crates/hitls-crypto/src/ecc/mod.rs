@@ -470,7 +470,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // Slow for 521-bit curve in debug mode
     fn test_order_times_g_is_infinity_p521() {
         let group = EcGroup::new(EccCurveId::NistP521).unwrap();
         let n = group.order().clone();

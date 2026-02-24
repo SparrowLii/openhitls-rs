@@ -45,6 +45,14 @@ proptest = ">=1.5, <1.7"
 flate2 = "1"
 serde_json = "1"
 
+# Optimize compute-intensive crates in dev/test builds.
+# This makes most #[ignore]d crypto tests fast enough to run by default.
+[profile.dev.package.hitls-bignum]
+opt-level = 2
+
+[profile.dev.package.hitls-crypto]
+opt-level = 1
+
 [profile.release]
 lto = true
 codegen-units = 1

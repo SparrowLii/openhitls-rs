@@ -324,7 +324,6 @@ mod tests {
 
     /// GB/T 32905-2016 test: Hash 1,000,000 × 'a'.
     #[test]
-    #[ignore] // slow (~2s)
     fn test_sm3_1million_a() {
         let expected = "c8aaf89429554029e231941a2acc0ad61ff2a5acd8fadd25847a3a732b3b02c3";
         let mut ctx = Sm3::new();

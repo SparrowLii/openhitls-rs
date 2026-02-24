@@ -236,7 +236,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // Pairing is very slow in debug mode
     fn test_sm9_pairing_bilinearity() {
         // e(aP, bQ) == e(P, Q)^(ab)
         let p1 = ecp::EcPointG1::generator();
@@ -258,7 +257,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn test_sm9_pairing_frobenius_check() {
         // Verify Frobenius constants and Q1 on curve
         let p = curve::p();
@@ -314,7 +312,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn test_sm9_pairing_deterministic() {
         // e(P, Q) computed twice should be equal
         let p1 = ecp::EcPointG1::generator();
@@ -332,7 +329,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn test_sm9_pairing_debug_stages() {
         // Step 1: Verify the hard part exponent is exact
         let p = curve::p();
@@ -433,7 +429,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // Very slow in debug mode
     fn test_sm9_sign_verify() {
         let master = Sm9MasterKey::generate(Sm9KeyType::Sign).unwrap();
         let user = master.extract_user_key(b"Alice").unwrap();
@@ -443,7 +438,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // Very slow in debug mode
     fn test_sm9_sign_wrong_id() {
         let master = Sm9MasterKey::generate(Sm9KeyType::Sign).unwrap();
         let user = master.extract_user_key(b"Alice").unwrap();
@@ -453,7 +447,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // Very slow in debug mode
     fn test_sm9_encrypt_decrypt() {
         let master = Sm9MasterKey::generate(Sm9KeyType::Encrypt).unwrap();
         let user = master.extract_user_key(b"Bob").unwrap();
@@ -464,7 +457,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // Very slow in debug mode
     fn test_sm9_encrypt_tampered() {
         let master = Sm9MasterKey::generate(Sm9KeyType::Encrypt).unwrap();
         let user = master.extract_user_key(b"Bob").unwrap();

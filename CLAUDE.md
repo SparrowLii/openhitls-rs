@@ -8,7 +8,7 @@ openHiTLS-rs is a pure Rust rewrite of [openHiTLS](https://gitee.com/openhitls/o
 
 - **Language**: Rust (MSRV 1.75, edition 2021)
 - **License**: MulanPSL-2.0
-- **Status**: Phase 97 complete + Phase T129 — SLH-DSA params + hash abstraction + address scheme deepening (3036 tests)
+- **Status**: Phase 97 complete + Phase T129 + Phase R112 dev profile optimization (3065 tests, 21 ignored)
 
 ## Workspace Structure
 
@@ -18,12 +18,12 @@ openhitls-rs/
 │   ├── hitls-types/     # Shared types: algorithm IDs, error enums
 │   ├── hitls-utils/     # Hex, ASN.1, Base64, PEM, OID utilities
 │   ├── hitls-bignum/    # Big number arithmetic (Montgomery, Miller-Rabin)
-│   ├── hitls-crypto/    # Cryptographic algorithms (feature-gated): AES, SM4, ChaCha20, SHA-2/3, SM3, HMAC, RSA, ECC, Ed25519/448, X25519/448, DH, DSA, SM2, SM9, PQC (ML-KEM/ML-DSA/SLH-DSA/XMSS/FrodoKEM/McEliece), DRBG, FIPS/CMVP, entropy health, hardware AES/SHA-2/GHASH/ChaCha20, P-256 fast path (900 tests + 15 Wycheproof, 41 ignored)
+│   ├── hitls-crypto/    # Cryptographic algorithms (feature-gated): AES, SM4, ChaCha20, SHA-2/3, SM3, HMAC, RSA, ECC, Ed25519/448, X25519/448, DH, DSA, SM2, SM9, PQC (ML-KEM/ML-DSA/SLH-DSA/XMSS/FrodoKEM/McEliece), DRBG, FIPS/CMVP, entropy health, hardware AES/SHA-2/GHASH/ChaCha20, P-256 fast path (925 tests + 15 Wycheproof, 16 ignored)
 │   ├── hitls-tls/       # TLS 1.3/1.2 (91 cipher suites), DTLS 1.2, TLCP, DTLCP; 10 connection types (5 sync + 5 async via tokio); 15 TLS extensions; 10 callbacks; session cache, hostname verification, renegotiation, GREASE, custom extensions, NSS key logging, middlebox compat (1290 tests)
-│   ├── hitls-pki/       # X.509, PKCS#8 (incl. Encrypted PBES2), PKCS#12, CMS (SignedData/EnvelopedData/EncryptedData/DigestedData/AuthenticatedData), hostname verification (374 tests, 1 ignored)
+│   ├── hitls-pki/       # X.509, PKCS#8 (incl. Encrypted PBES2), PKCS#12, CMS (SignedData/EnvelopedData/EncryptedData/DigestedData/AuthenticatedData), hostname verification (375 tests)
 │   ├── hitls-auth/      # HOTP/TOTP, SPAKE2+, Privacy Pass (33 tests)
 │   └── hitls-cli/       # CLI tool: dgst, genpkey, x509, verify, enc, pkey, crl, req, s-client, s-server, list, rand, pkeyutl, speed, pkcs12, mac (117 tests, 5 ignored)
-├── tests/interop/       # Integration tests (149 cross-crate tests, 3 ignored) — 12 test files + helper lib
+├── tests/interop/       # Integration tests (152 cross-crate tests) — 12 test files + helper lib
 ├── tests/vectors/       # Standard test vectors (NIST, Wycheproof, GM/T)
 ├── fuzz/                # Fuzz targets (cargo-fuzz, 10 targets)
 └── benches/             # Criterion benchmarks
@@ -35,19 +35,19 @@ openhitls-rs/
 # Build
 cargo build --workspace --all-features
 
-# Run all tests (3036 tests, 50 ignored)
+# Run all tests (3065 tests, 21 ignored)
 cargo test --workspace --all-features
 
 # Run tests for a specific crate
-cargo test -p hitls-crypto --all-features   # 900 tests (41 ignored) + 15 Wycheproof
+cargo test -p hitls-crypto --all-features   # 925 tests (16 ignored) + 15 Wycheproof
 cargo test -p hitls-tls --all-features      # 1290 tests
 
-cargo test -p hitls-pki --all-features      # 374 tests (1 ignored)
+cargo test -p hitls-pki --all-features      # 375 tests
 cargo test -p hitls-bignum                  # 64 tests
 cargo test -p hitls-utils                   # 66 tests
 cargo test -p hitls-auth --all-features     # 33 tests
 cargo test -p hitls-cli --all-features      # 117 tests (5 ignored)
-cargo test -p hitls-integration-tests       # 149 tests (3 ignored)
+cargo test -p hitls-integration-tests       # 152 tests
 
 # Lint (must pass with zero warnings)
 RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets
@@ -113,7 +113,7 @@ The original C implementation is at `/Users/dongqiu/Dev/code/openhitls/`:
 
 ## Migration Roadmap
 
-Phase 0–97 complete + Phase T73–T129 + Phase R102–R111 (3036 tests, 50 ignored). **100% C→Rust feature parity achieved. Architecture refactoring complete. Performance optimization phase complete.**
+Phase 0–97 complete + Phase T73–T129 + Phase R102–R112 (3065 tests, 21 ignored). **100% C→Rust feature parity achieved. Architecture refactoring complete. Performance optimization phase complete.**
 
 ### Completed Phases (Summary)
 

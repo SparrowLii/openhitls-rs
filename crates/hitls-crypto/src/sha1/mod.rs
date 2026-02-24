@@ -249,7 +249,6 @@ mod tests {
 
     // NIST vector: SHA-1 of one million "a" characters
     #[test]
-    #[ignore] // slow (~0.3s)
     fn test_sha1_million_a() {
         let mut ctx = Sha1::new();
         let chunk = [b'a'; 1000];

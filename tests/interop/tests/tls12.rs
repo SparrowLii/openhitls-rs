@@ -91,7 +91,6 @@ fn test_tcp_tls12_loopback_ecdsa() {
 // 18. TCP loopback: TLS 1.2 RSA
 // -------------------------------------------------------
 #[test]
-#[ignore] // RSA 2048 key generation is slow
 fn test_tcp_tls12_loopback_rsa() {
     use hitls_tls::config::TlsConfig;
     use hitls_tls::connection12::{Tls12ClientConnection, Tls12ServerConnection};
@@ -424,7 +423,6 @@ fn test_tcp_tls12_ems_etm_loopback() {
 // 22. TCP loopback: TLS 1.2 RSA static key exchange
 // -------------------------------------------------------
 #[test]
-#[ignore] // RSA 2048 key generation is slow
 fn test_tcp_tls12_loopback_rsa_static() {
     use hitls_tls::config::TlsConfig;
     use hitls_tls::connection12::{Tls12ClientConnection, Tls12ServerConnection};
@@ -514,7 +512,6 @@ fn test_tcp_tls12_loopback_rsa_static() {
 // 23. TCP loopback: TLS 1.2 DHE_RSA key exchange
 // -------------------------------------------------------
 #[test]
-#[ignore] // RSA 2048 key generation is slow
 fn test_tcp_tls12_loopback_dhe_rsa() {
     use hitls_tls::config::TlsConfig;
     use hitls_tls::connection12::{Tls12ClientConnection, Tls12ServerConnection};

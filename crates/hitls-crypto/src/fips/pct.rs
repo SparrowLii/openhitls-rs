@@ -126,13 +126,11 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // slow: RSA-2048 key generation
     fn test_pct_rsa_sign_verify() {
         pct_rsa_sign_verify().unwrap();
     }
 
     #[test]
-    #[ignore] // slow: includes RSA-2048 keygen
     fn test_run_all_pct() {
         run_all_pct().unwrap();
     }

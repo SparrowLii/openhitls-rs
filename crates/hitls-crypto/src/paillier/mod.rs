@@ -240,7 +240,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // Slow: prime generation in debug mode
     fn test_paillier_generate_512bit() {
         let kp = PaillierKeyPair::generate(512).unwrap();
         let m = BigNum::from_u64(12345);

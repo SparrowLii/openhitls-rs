@@ -8837,3 +8837,54 @@ Added 15 tests across 3 parameter set files validating cross-variant consistency
 - `cargo test --workspace --all-features`: 2924 passed, 0 failed, 50 ignored
 - `RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets`: 0 warnings
 - `cargo fmt --all -- --check`: clean
+
+---
+
+## Phase R112 — Dev Profile Optimization: Accelerate Ignored Tests
+
+**Date**: 2026-02-25
+
+### Summary
+
+Added per-crate Cargo profile overrides to optimize compute-intensive crates (`hitls-bignum` at `opt-level=2`, `hitls-crypto` at `opt-level=1`) in dev/test builds. This accelerated most previously-ignored crypto tests from minutes to seconds, enabling 29 tests to be un-ignored and run by default.
+
+### Changes
+
+**Root cause**: 83% of `#[ignore]` tests were slow due to `opt-level=0` in debug mode, causing Montgomery multiplication, modular exponentiation, and Miller-Rabin primality testing in `hitls-bignum` to run 50-100x slower than release mode.
+
+**Solution**: Per-crate `[profile.dev.package.*]` overrides in workspace `Cargo.toml`:
+- `hitls-bignum`: `opt-level = 2` — pure computation library, maximum optimization benefit (~1,900 lines)
+- `hitls-crypto`: `opt-level = 1` — balance between compile time and runtime speed (~36,000 lines)
+- All other crates retain `opt-level = 0` for full debug information
+
+**Tests un-ignored (29)**: RSA keygen, ElGamal, Paillier, DH 4096/6144/8192 x2, SHA-1/SM3/SM4 million-iteration, FIPS PCT x2, FrodoKEM 976/1344, SM9 pairing x4, SM9 sign/encrypt x4, ECC P-521, CMS enveloped RSA, TLS 1.2 loopback x3.
+
+**Tests still ignored (11)**: 5 s_client network tests, X448 iterated (~25s), SLH-DSA SHA2/SHAKE 128s (~22s/~110s), McEliece 6688128/8192128, XMSS h=16.
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `Cargo.toml` | Added `[profile.dev.package.hitls-bignum]` (opt-level=2) and `[profile.dev.package.hitls-crypto]` (opt-level=1) |
+| `crates/hitls-crypto/src/fips/pct.rs` | Removed `#[ignore]` from 2 tests |
+| `crates/hitls-crypto/src/sha1/mod.rs` | Removed `#[ignore]` from 1 test |
+| `crates/hitls-crypto/src/sm3/mod.rs` | Removed `#[ignore]` from 1 test |
+| `crates/hitls-crypto/src/sm4/mod.rs` | Removed `#[ignore]` from 1 test |
+| `crates/hitls-crypto/src/rsa/mod.rs` | Removed `#[ignore]` from 1 test |
+| `crates/hitls-crypto/src/dh/mod.rs` | Removed `#[ignore]` from 6 tests |
+| `crates/hitls-crypto/src/ecc/mod.rs` | Removed `#[ignore]` from 1 test |
+| `crates/hitls-crypto/src/elgamal/mod.rs` | Removed `#[ignore]` from 1 test |
+| `crates/hitls-crypto/src/paillier/mod.rs` | Removed `#[ignore]` from 1 test |
+| `crates/hitls-crypto/src/frodokem/mod.rs` | Removed `#[ignore]` from 2 tests |
+| `crates/hitls-crypto/src/sm9/mod.rs` | Removed `#[ignore]` from 8 tests |
+| `crates/hitls-crypto/src/x448/mod.rs` | Updated `#[ignore]` comment |
+| `crates/hitls-crypto/src/slh_dsa/mod.rs` | Updated `#[ignore]` comments (2 tests) |
+| `crates/hitls-crypto/src/mceliece/mod.rs` | Updated `#[ignore]` comments (2 tests) |
+| `crates/hitls-crypto/src/xmss/mod.rs` | Updated `#[ignore]` comment |
+| `crates/hitls-pki/src/cms/enveloped.rs` | Removed `#[ignore]` from 1 test |
+| `tests/interop/tests/tls12.rs` | Removed `#[ignore]` from 3 tests |
+
+### Build Status
+- `cargo test --workspace --all-features`: 3065 passed, 0 failed, 21 ignored
+- `RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets`: 0 warnings
+- `cargo fmt --all -- --check`: clean

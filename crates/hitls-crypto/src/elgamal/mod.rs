@@ -280,7 +280,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // Slow: safe prime generation
     fn test_elgamal_generate() {
         let kp = ElGamalKeyPair::generate(256).unwrap();
         let m = BigNum::from_u64(12345);

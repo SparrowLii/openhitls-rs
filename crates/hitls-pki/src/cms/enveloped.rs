@@ -638,7 +638,6 @@ mod tests {
     use super::*;
 
     #[test]
-    #[ignore] // RSA key generation is slow (~5-10s)
     fn test_cms_enveloped_rsa_roundtrip() {
         // Generate RSA key pair
         let rsa_key = hitls_crypto::rsa::RsaPrivateKey::generate(2048).unwrap();

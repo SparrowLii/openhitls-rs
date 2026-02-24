@@ -240,7 +240,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // ~5s in debug mode
     fn test_frodokem_976_shake_roundtrip() {
         let kp = FrodoKemKeyPair::generate(FrodoKemParamId::FrodoKem976Shake).unwrap();
         let (ct, ss1) = kp.encapsulate().unwrap();
@@ -249,7 +248,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // ~15s in debug mode
     fn test_frodokem_1344_shake_roundtrip() {
         let kp = FrodoKemKeyPair::generate(FrodoKemParamId::FrodoKem1344Shake).unwrap();
         let (ct, ss1) = kp.encapsulate().unwrap();

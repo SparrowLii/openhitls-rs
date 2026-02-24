@@ -292,7 +292,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // slow: 4096-bit modexp
     fn test_dh_rfc3526_4096_key_exchange() {
         let params = DhParams::from_group(DhParamId::Rfc3526_4096).unwrap();
         assert_eq!(params.prime_size(), 512);
@@ -307,7 +306,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // slow: 6144-bit modexp
     fn test_dh_rfc3526_6144_key_exchange() {
         let params = DhParams::from_group(DhParamId::Rfc3526_6144).unwrap();
         assert_eq!(params.prime_size(), 768);
@@ -322,7 +320,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // slow: 8192-bit modexp
     fn test_dh_rfc3526_8192_key_exchange() {
         let params = DhParams::from_group(DhParamId::Rfc3526_8192).unwrap();
         assert_eq!(params.prime_size(), 1024);
@@ -353,7 +350,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // slow: 4096-bit modexp
     fn test_dh_rfc7919_4096_key_exchange() {
         let params = DhParams::from_group(DhParamId::Rfc7919_4096).unwrap();
         assert_eq!(params.prime_size(), 512);
@@ -368,7 +364,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // slow: 6144-bit modexp
     fn test_dh_rfc7919_6144_key_exchange() {
         let params = DhParams::from_group(DhParamId::Rfc7919_6144).unwrap();
         assert_eq!(params.prime_size(), 768);
@@ -383,7 +378,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // slow: 8192-bit modexp
     fn test_dh_rfc7919_8192_key_exchange() {
         let params = DhParams::from_group(DhParamId::Rfc7919_8192).unwrap();
         assert_eq!(params.prime_size(), 1024);

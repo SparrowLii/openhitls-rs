@@ -483,7 +483,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // Slow in debug mode (~minutes); run with: cargo test --release -- --ignored
     fn test_rsa_keygen_basic() {
         let key = RsaPrivateKey::generate(2048).unwrap();
         assert_eq!(key.bits, 2048);

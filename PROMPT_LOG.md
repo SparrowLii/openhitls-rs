@@ -2759,3 +2759,21 @@ Targeted coverage gaps in connection_info, handshake enums, lib.rs constants, co
 **Result**:
 - 16 source files modified/created across hitls-tls and hitls-crypto. +67 tests on aarch64. hitls-crypto: 824→885, hitls-tls: 1284→1290, total: 2954→3021 (50 ignored unchanged).
 - All 3021 workspace tests pass, 0 clippy warnings, formatting clean.
+
+---
+
+### Phase R112 — Dev Profile Optimization: Accelerate Ignored Tests
+
+**Prompt**: Implement per-crate Cargo profile overrides to optimize `hitls-bignum` (opt-level=2) and `hitls-crypto` (opt-level=1) in dev/test builds. Remove `#[ignore]` from tests that now complete under 10 seconds. Update documentation.
+
+**Scope**: 50 `#[ignore]` test cases where most were slow due to `opt-level=0` in debug mode. Root cause was `hitls-bignum` Montgomery/modexp operations being 50-100x slower without optimization.
+
+**Work performed**:
+1. Added `[profile.dev.package.hitls-bignum]` (opt-level=2) and `[profile.dev.package.hitls-crypto]` (opt-level=1) to workspace `Cargo.toml`
+2. Ran ignored tests with timing. 29 completed in <10s, remaining kept as-is
+3. Removed `#[ignore]` from 29 tests across 13 files (hitls-crypto, hitls-pki, integration tests)
+4. Updated `#[ignore]` comments on remaining slow crypto tests with measured timing data
+
+**Result**:
+- 18 source files modified. 29 tests un-ignored, remaining ignored tests kept.
+- All workspace tests pass, 0 clippy warnings, formatting clean.

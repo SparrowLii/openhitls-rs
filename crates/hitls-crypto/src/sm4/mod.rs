@@ -226,7 +226,6 @@ mod tests {
 
     /// GB/T 32907-2016 Appendix A.2: Encrypt block 1,000,000 times.
     #[test]
-    #[ignore] // slow
     fn test_sm4_1million_iterations() {
         let key = hex("0123456789abcdeffedcba9876543210");
         let cipher = Sm4Key::new(&key).unwrap();

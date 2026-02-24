@@ -269,7 +269,7 @@ mod tests {
 
     /// RFC 7748 §6.2 iterated test (1000 iterations).
     #[test]
-    #[ignore] // Slow: ~1000 scalar muls
+    #[ignore] // ~25s even with opt-level=1: 1000 scalar muls
     fn test_x448_iterated_1000() {
         let mut k = [0u8; 56];
         k[0] = 5;
