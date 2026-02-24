@@ -211,4 +211,66 @@ mod tests {
 
         assert_eq!(pk, recovered);
     }
+
+    #[test]
+    fn test_base_b_two_bit() {
+        // 0xA5 = 1010_0101 → 2-bit groups: 10, 10, 01, 01
+        assert_eq!(base_b(&[0xA5], 2, 4), vec![2, 2, 1, 1]);
+    }
+
+    #[test]
+    fn test_base_b_one_bit() {
+        // 0xA5 = 1010_0101 → individual bits
+        assert_eq!(base_b(&[0xA5], 1, 8), vec![1, 0, 1, 0, 0, 1, 0, 1]);
+    }
+
+    #[test]
+    fn test_base_b_empty_output() {
+        assert_eq!(base_b(&[], 4, 0), Vec::<u32>::new());
+    }
+
+    #[test]
+    fn test_msg_to_base_w_all_zeros_max_checksum() {
+        let p = get_params(SlhDsaParamId::Shake128f);
+        let n = p.n; // 16
+        let msg = vec![0x00u8; n];
+        let values = msg_to_base_w(&msg, n);
+
+        let len_1 = 2 * n; // 32
+        let len_2 = 3;
+        assert_eq!(values.len(), len_1 + len_2);
+
+        // All message digits should be 0
+        for &v in &values[..len_1] {
+            assert_eq!(v, 0);
+        }
+
+        // Checksum = len_1 * 15 = 480, left-shifted by 4 = 7680
+        // 7680 = 0x1E00 → base-16 digits: [1, 14, 0]
+        assert_eq!(values[len_1], 1);
+        assert_eq!(values[len_1 + 1], 14);
+        assert_eq!(values[len_1 + 2], 0);
+    }
+
+    #[test]
+    fn test_msg_to_base_w_all_ff_min_checksum() {
+        let p = get_params(SlhDsaParamId::Shake128f);
+        let n = p.n; // 16
+        let msg = vec![0xFFu8; n];
+        let values = msg_to_base_w(&msg, n);
+
+        let len_1 = 2 * n; // 32
+        let len_2 = 3;
+        assert_eq!(values.len(), len_1 + len_2);
+
+        // All message digits should be 15
+        for &v in &values[..len_1] {
+            assert_eq!(v, 15);
+        }
+
+        // Checksum = 0, left-shifted = 0 → base-16 digits: [0, 0, 0]
+        for &v in &values[len_1..] {
+            assert_eq!(v, 0);
+        }
+    }
 }

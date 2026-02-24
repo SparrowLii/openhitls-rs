@@ -2511,3 +2511,19 @@ Targeted coverage gaps in connection_info, handshake enums, lib.rs constants, co
 **Result**:
 - 3 source files modified, 0 files created. hitls-tls: 1274→1284, hitls-crypto: 709→714, total: 2784→2799.
 - All 2799 workspace tests pass, 0 clippy warnings, formatting clean.
+
+## Phase T118: X.509 Extension Parsing + SLH-DSA WOTS+ Base Conversion + ASN.1 Tag Edge Cases
+
+**Prompt**: Implement Phase T118 — X.509 Extension Parsing + SLH-DSA WOTS+ Base Conversion + ASN.1 Tag Edge Cases. Add 5 X.509 extension parsing tests (BasicConstraints CA+pathLen, empty sequence, KeyUsage bit flags, SAN DNS+IP, AKI key identifier). Add 5 WOTS+ tests (2-bit/1-bit base_b, empty output, all-zeros max checksum, all-FF min checksum). Add 5 ASN.1 tag tests (all 4 classes roundtrip, long-form tag 200, empty input error, truncated long-form error, large tag 0x4000).
+
+**Scope**: Three files across different crates remained under-tested: extensions.rs (X.509 extension parsing, 519 lines, 0 tests), wots.rs (SLH-DSA WOTS+, base_b only tested for 4-bit/8-bit, msg_to_base_w untested), tag.rs (ASN.1 tag parsing, missing long-form/error/class coverage).
+
+**Work performed**:
+1. Added 5 extension parsing tests to `crates/hitls-pki/src/x509/extensions.rs`: BasicConstraints CA with pathLen=3, empty sequence defaults, KeyUsage digitalSignature+keyCertSign, SAN with DNS "a.com" + IPv4 192.168.1.1, AKI key_identifier [1,2,3,4]
+2. Added 5 WOTS+ tests to `crates/hitls-crypto/src/slh_dsa/wots.rs`: 2-bit base_b, 1-bit base_b, empty output, msg_to_base_w all-zeros max checksum, all-0xFF min checksum
+3. Added 5 ASN.1 tag tests to `crates/hitls-utils/src/asn1/tag.rs`: all 4 classes × 2 constructed roundtrip, long-form tag 200, empty input NullInput error, truncated long-form DecodeAsn1Fail, large tag 0x4000 encoding
+4. Updated CLAUDE.md, DEV_LOG.md, TEST_LOG.md, PROMPT_LOG.md, README.md
+
+**Result**:
+- 3 source files modified, 0 files created. hitls-pki: 349→354, hitls-crypto: 714→719, hitls-utils: 61→66, total: 2799→2814.
+- All 2814 workspace tests pass, 0 clippy warnings, formatting clean.

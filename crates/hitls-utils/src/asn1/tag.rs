@@ -125,4 +125,74 @@ mod tests {
         let (parsed, _) = Tag::from_bytes(&bytes).unwrap();
         assert_eq!(tag, parsed);
     }
+
+    #[test]
+    fn test_tag_all_four_classes_roundtrip() {
+        let classes = [
+            TagClass::Universal,
+            TagClass::Application,
+            TagClass::ContextSpecific,
+            TagClass::Private,
+        ];
+        for &class in &classes {
+            for constructed in [false, true] {
+                let tag = Tag {
+                    class,
+                    constructed,
+                    number: 5,
+                };
+                let bytes = tag.to_bytes();
+                let (parsed, len) = Tag::from_bytes(&bytes).unwrap();
+                assert_eq!(len, 1);
+                assert_eq!(tag, parsed);
+            }
+        }
+    }
+
+    #[test]
+    fn test_tag_long_form_number_roundtrip() {
+        // Tag number 200 (> 30) requires long-form encoding
+        let tag = Tag {
+            class: TagClass::Universal,
+            constructed: false,
+            number: 200,
+        };
+        let bytes = tag.to_bytes();
+        assert!(bytes.len() > 1); // Must be multi-byte
+        assert_eq!(bytes[0] & 0x1F, 0x1F); // Long-form indicator
+        let (parsed, len) = Tag::from_bytes(&bytes).unwrap();
+        assert_eq!(len, bytes.len());
+        assert_eq!(tag, parsed);
+    }
+
+    #[test]
+    fn test_tag_empty_input_error() {
+        let result = Tag::from_bytes(&[]);
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), CryptoError::NullInput));
+    }
+
+    #[test]
+    fn test_tag_long_form_truncated_error() {
+        // 0x1F = long form, 0x81 = continuation bit set but no following byte
+        let result = Tag::from_bytes(&[0x1F, 0x81]);
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), CryptoError::DecodeAsn1Fail));
+    }
+
+    #[test]
+    fn test_tag_large_number_encoding() {
+        // Tag number 0x4000 (16384) — needs 3 base-128 bytes
+        let tag = Tag {
+            class: TagClass::ContextSpecific,
+            constructed: true,
+            number: 0x4000,
+        };
+        let bytes = tag.to_bytes();
+        assert_eq!(bytes[0] & 0x1F, 0x1F); // Long-form indicator
+        assert!(bytes.len() >= 4); // 1 header + 3 number bytes
+        let (parsed, len) = Tag::from_bytes(&bytes).unwrap();
+        assert_eq!(len, bytes.len());
+        assert_eq!(tag, parsed);
+    }
 }

@@ -8304,3 +8304,29 @@ Added 15 edge-case tests across 3 modules in 2 crates:
 - `cargo test --workspace --all-features`: 2799 passed, 0 failed, 40 ignored
 - `RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets`: 0 warnings
 - `cargo fmt --all -- --check`: clean
+
+## Phase T118: X.509 Extension Parsing + SLH-DSA WOTS+ Base Conversion + ASN.1 Tag Edge Cases (+15 tests, 2,799→2,814)
+
+**Date**: 2026-02-24
+**Scope**: X.509 extension parsing (BasicConstraints, KeyUsage, SAN, AKI), SLH-DSA WOTS+ base conversion and checksum, ASN.1 tag long-form encoding/decoding edge cases.
+
+### Summary
+
+Added 15 edge-case tests across 3 modules in 3 crates:
+
+- **X.509 extensions** (5 tests in hitls-pki): BasicConstraints CA with pathLen, empty sequence defaults, KeyUsage bit flags, SAN with DNS+IP entries, AKI key identifier extraction
+- **WOTS+ base conversion** (5 tests in hitls-crypto): 2-bit and 1-bit base_b extraction, empty output, msg_to_base_w all-zeros max checksum, all-0xFF min checksum
+- **ASN.1 tag encoding** (5 tests in hitls-utils): All 4 classes roundtrip, long-form tag number 200, empty input error, truncated long-form error, large tag number 0x4000
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `crates/hitls-pki/src/x509/extensions.rs` | Added `#[cfg(test)] mod tests` with 5 extension parsing tests |
+| `crates/hitls-crypto/src/slh_dsa/wots.rs` | Added 5 base_b / msg_to_base_w tests |
+| `crates/hitls-utils/src/asn1/tag.rs` | Added 5 ASN.1 tag edge-case tests |
+
+### Build Status
+- `cargo test --workspace --all-features`: 2814 passed, 0 failed, 40 ignored
+- `RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets`: 0 warnings
+- `cargo fmt --all -- --check`: clean

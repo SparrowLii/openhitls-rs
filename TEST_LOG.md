@@ -9,12 +9,12 @@
 
 | Metric | Value |
 |--------|-------|
-| **Total tests** | **2,799** (40 ignored) |
-| **Test growth** | 1,104 → 2,799 (+154% since baseline) |
+| **Total tests** | **2,814** (40 ignored) |
+| **Test growth** | 1,104 → 2,814 (+155% since baseline) |
 | **Crates covered** | 8/8 (100% crate-level coverage) |
 | **Fuzz targets** | 10 (with 66 seed corpus files) |
 | **Wycheproof vectors** | 5,000+ (15 test groups) |
-| **Zero failures** | All 2,799 tests pass, clippy clean, fmt clean |
+| **Zero failures** | All 2,814 tests pass, clippy clean, fmt clean |
 
 ### Test Growth Timeline
 
@@ -61,6 +61,7 @@ Phase T114  2,754     +15   Record layer encryption edge cases & AEAD failure mo
 Phase T115  2,769     +15   TLS 1.2 CBC padding + DTLS parsing + TLS 1.3 inner plaintext (*)
 Phase T116  2,784     +15   DTLS fragmentation/retransmission + CertificateVerify (*)
 Phase T117  2,799     +15   DTLS codec edge cases + anti-replay boundaries + entropy (*)
+Phase T118  2,814     +15   X.509 extension parsing + WOTS+ base conversion + ASN.1 tag (*)
 ```
 
 (*) Testing-only phases (no new features, pure test coverage)
@@ -89,7 +90,7 @@ Phase T117  2,799     +15   DTLS codec edge cases + anti-replay boundaries + ent
 |-------|------:|--------:|:----------:|-------|
 | hitls-tls | 1,199 | 0 | 45.4% | TLS 1.3/1.2/DTLS/TLCP/DTLCP handshake, record, extensions, callbacks |
 | hitls-crypto | 697 | 31 | 25.9% | 48 algorithm modules + hardware acceleration |
-| hitls-pki | 349 | 1 | 13.4% | X.509, PKCS#8/12, CMS (5 content types) |
+| hitls-pki | 354 | 1 | 13.4% | X.509, PKCS#8/12, CMS (5 content types) |
 | hitls-integration | 149 | 3 | 5.6% | Cross-crate TCP loopback, error scenarios, concurrency |
 | hitls-cli | 117 | 5 | 4.5% | 14 CLI commands (dgst, x509, genpkey, etc.) |
 | hitls-utils | 53 | 0 | 2.1% | ASN.1, Base64, PEM, OID |
@@ -2172,6 +2173,45 @@ Added 20 proptest property-based tests across hitls-crypto and hitls-utils, plus
 | doc-tests | 2 | 0 |
 | **Total** | **2799** | **40** |
 
+### Phase T118: X.509 Extension Parsing + SLH-DSA WOTS+ Base Conversion + ASN.1 Tag Edge Cases (+15 tests, 2,799→2,814)
+
+**Date**: 2026-02-24
+
+| # | Test | File | Property |
+|---|------|------|----------|
+| 1 | `test_parse_basic_constraints_ca_with_path_len` | extensions.rs | DER `30 06 01 01 FF 02 01 03` → isCA=true, pathLen=3 |
+| 2 | `test_parse_basic_constraints_not_ca_empty` | extensions.rs | DER `30 00` (empty SEQUENCE) → isCA=false, pathLen=None |
+| 3 | `test_parse_key_usage_digital_signature_and_cert_sign` | extensions.rs | BIT STRING with bits 0+5 set → DIGITAL_SIGNATURE and KEY_CERT_SIGN true |
+| 4 | `test_parse_subject_alt_name_dns_and_ip` | extensions.rs | SAN with DNS "a.com" + IPv4 192.168.1.1 → both populated |
+| 5 | `test_parse_authority_key_identifier_with_key_id` | extensions.rs | AKI `30 06 80 04 01 02 03 04` → key_identifier = [1,2,3,4] |
+| 6 | `test_base_b_two_bit` | wots.rs | 2-bit extraction: `0xA5` → [2, 2, 1, 1] |
+| 7 | `test_base_b_one_bit` | wots.rs | 1-bit extraction: `0xA5` → [1, 0, 1, 0, 0, 1, 0, 1] |
+| 8 | `test_base_b_empty_output` | wots.rs | Empty input with out_len=0 → empty vec |
+| 9 | `test_msg_to_base_w_all_zeros_max_checksum` | wots.rs | All-zero msg → checksum maximal (len_1 * 15) |
+| 10 | `test_msg_to_base_w_all_ff_min_checksum` | wots.rs | All-0xFF msg → checksum zero |
+| 11 | `test_tag_all_four_classes_roundtrip` | tag.rs | All 4 classes × 2 constructed → encode/decode roundtrip |
+| 12 | `test_tag_long_form_number_roundtrip` | tag.rs | Tag number=200 (>30) multi-byte roundtrip |
+| 13 | `test_tag_empty_input_error` | tag.rs | Empty slice → NullInput error |
+| 14 | `test_tag_long_form_truncated_error` | tag.rs | 0x1F + 0x81 (no continuation) → DecodeAsn1Fail |
+| 15 | `test_tag_large_number_encoding` | tag.rs | Tag number=0x4000 → 3-byte long-form roundtrip |
+
+**Per-crate counts after Phase T118**:
+
+| Crate | Tests | Ignored |
+|-------|------:|-------:|
+| hitls-auth | 33 | 0 |
+| hitls-bignum | 49 | 0 |
+| hitls-cli | 117 | 5 |
+| hitls-crypto | 719 | 31 |
+| wycheproof | 15 | 0 |
+| hitls-integration | 149 | 3 |
+| hitls-pki | 354 | 1 |
+| hitls-tls | 1284 | 0 |
+| hitls-types | 26 | 0 |
+| hitls-utils | 66 | 0 |
+| doc-tests | 2 | 0 |
+| **Total** | **2814** | **40** |
+
 ---
 
 ## 8. Verification & Quality Gates
@@ -2179,9 +2219,9 @@ Added 20 proptest property-based tests across hitls-crypto and hitls-utils, plus
 All phases verified with the same quality gates:
 
 ```bash
-# Full test suite — all 2,799 tests pass
+# Full test suite — all 2,814 tests pass
 cargo test --workspace --all-features
-# Result: 2,799 passed, 0 failed, 40 ignored
+# Result: 2,814 passed, 0 failed, 40 ignored
 
 # Clippy — zero warnings enforced
 RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets

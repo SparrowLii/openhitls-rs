@@ -517,3 +517,64 @@ impl Certificate {
         self.basic_constraints().is_some_and(|bc| bc.is_ca)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_basic_constraints_ca_with_path_len() {
+        // SEQUENCE { BOOLEAN TRUE, INTEGER 3 }
+        let der = [0x30, 0x06, 0x01, 0x01, 0xFF, 0x02, 0x01, 0x03];
+        let bc = parse_basic_constraints(&der).unwrap();
+        assert!(bc.is_ca);
+        assert_eq!(bc.path_len_constraint, Some(3));
+    }
+
+    #[test]
+    fn test_parse_basic_constraints_not_ca_empty() {
+        // Empty SEQUENCE → defaults: isCA=false, pathLen=None
+        let der = [0x30, 0x00];
+        let bc = parse_basic_constraints(&der).unwrap();
+        assert!(!bc.is_ca);
+        assert_eq!(bc.path_len_constraint, None);
+    }
+
+    #[test]
+    fn test_parse_key_usage_digital_signature_and_cert_sign() {
+        // BIT STRING: unused_bits=0, data=[0x84] (bits 0 + 5 set)
+        // digitalSignature(0)=0x80, keyCertSign(5)=0x04 → 0x84
+        let der = [0x03, 0x02, 0x00, 0x84];
+        let ku = parse_key_usage(&der).unwrap();
+        assert!(ku.has(KeyUsage::DIGITAL_SIGNATURE));
+        assert!(ku.has(KeyUsage::KEY_CERT_SIGN));
+        assert!(!ku.has(KeyUsage::KEY_ENCIPHERMENT));
+        assert!(!ku.has(KeyUsage::CRL_SIGN));
+    }
+
+    #[test]
+    fn test_parse_subject_alt_name_dns_and_ip() {
+        // SEQUENCE {
+        //   [2] "a.com"          (dNSName)
+        //   [7] C0 A8 01 01      (iPAddress 192.168.1.1)
+        // }
+        let der = [
+            0x30, 0x0D, // SEQUENCE, 13 bytes
+            0x82, 0x05, 0x61, 0x2E, 0x63, 0x6F, 0x6D, // [2] "a.com"
+            0x87, 0x04, 0xC0, 0xA8, 0x01, 0x01, // [7] 192.168.1.1
+        ];
+        let san = parse_subject_alt_name(&der).unwrap();
+        assert_eq!(san.dns_names, vec!["a.com"]);
+        assert_eq!(san.ip_addresses, vec![vec![192, 168, 1, 1]]);
+        assert!(san.email_addresses.is_empty());
+        assert!(san.uris.is_empty());
+    }
+
+    #[test]
+    fn test_parse_authority_key_identifier_with_key_id() {
+        // SEQUENCE { [0] IMPLICIT OCTET STRING 01 02 03 04 }
+        let der = [0x30, 0x06, 0x80, 0x04, 0x01, 0x02, 0x03, 0x04];
+        let aki = parse_authority_key_identifier(&der).unwrap();
+        assert_eq!(aki.key_identifier, Some(vec![0x01, 0x02, 0x03, 0x04]));
+    }
+}
