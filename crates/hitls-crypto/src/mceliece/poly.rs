@@ -219,4 +219,84 @@ mod tests {
         p.set_coeff(1, 0);
         assert_eq!(p.degree, -1);
     }
+
+    #[test]
+    fn test_gfpoly_eval_roots_matches_eval() {
+        // f(x) = 3x^2 + 5x + 7
+        let mut f = GfPoly::new(4);
+        f.set_coeff(0, 7);
+        f.set_coeff(1, 5);
+        f.set_coeff(2, 3);
+
+        let support: Vec<GfElement> = vec![0, 1, 2, 3, 10, 100, 255, 8191];
+        let mut out = vec![0u16; support.len()];
+        let coeffs = [7u16, 5, 3];
+        GfPoly::eval_roots(&mut out, &coeffs, &support, support.len(), 2);
+
+        for (i, &x) in support.iter().enumerate() {
+            assert_eq!(out[i], f.eval(x), "mismatch at x={}", x);
+        }
+    }
+
+    #[test]
+    fn test_gf_vec_mul_by_identity() {
+        // [1, 0, 0, 0] * [a0, a1, a2, a3] should give [a0, a1, a2, a3]
+        // since there's no reduction for t=4
+        let t = 4;
+        let identity = [1u16, 0, 0, 0];
+        let input = [42u16, 7, 1000, 3];
+        let mut out = [0u16; 4];
+        gf_vec_mul(&mut out, &identity, &input, t);
+        assert_eq!(out, input);
+
+        // Commutativity: swap arguments
+        let mut out2 = [0u16; 4];
+        gf_vec_mul(&mut out2, &input, &identity, t);
+        assert_eq!(out2, input);
+    }
+
+    #[test]
+    fn test_gf_vec_mul_constants() {
+        // [c, 0, 0, 0] * [d, 0, 0, 0] = [gf_mul(c, d), 0, 0, 0]
+        let t = 4;
+        let a = [7u16, 0, 0, 0];
+        let b = [13u16, 0, 0, 0];
+        let mut out = [0u16; 4];
+        gf_vec_mul(&mut out, &a, &b, t);
+        assert_eq!(out[0], gf::gf_mul(7, 13));
+        assert!(out[1..].iter().all(|&v| v == 0));
+    }
+
+    #[test]
+    fn test_gfpoly_eval_quadratic() {
+        // f(x) = x^2 + x + 1
+        let mut f = GfPoly::new(4);
+        f.set_coeff(0, 1);
+        f.set_coeff(1, 1);
+        f.set_coeff(2, 1);
+        assert_eq!(f.degree, 2);
+
+        // f(0) = 0 + 0 + 1 = 1
+        assert_eq!(f.eval(0), 1);
+        // f(1) = gf_mul(1,1) ^ 1 ^ 1 = 1 ^ 1 ^ 1 = 1
+        assert_eq!(f.eval(1), 1);
+        // f(2) = gf_mul(2,2) ^ 2 ^ 1 = 4 ^ 2 ^ 1 = 7
+        assert_eq!(f.eval(2), 7);
+        // f(3) = gf_mul(3,3) ^ 3 ^ 1 = 5 ^ 3 ^ 1 = 7
+        // gf_mul(3,3): 3*3 in GF(2^13). 3 = x+1, (x+1)^2 = x^2+1 = 5
+        assert_eq!(f.eval(3), 7);
+    }
+
+    #[test]
+    fn test_gfpoly_eval_identity_polynomial() {
+        // f(x) = x → coeffs[0]=0, coeffs[1]=1
+        let mut f = GfPoly::new(4);
+        f.set_coeff(1, 1);
+        assert_eq!(f.degree, 1);
+
+        // f(k) = k for all k
+        for k in [0u16, 1, 2, 5, 100, 255, 1000, 8191] {
+            assert_eq!(f.eval(k), k, "f({}) should equal {}", k, k);
+        }
+    }
 }

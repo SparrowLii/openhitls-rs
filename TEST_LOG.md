@@ -9,12 +9,12 @@
 
 | Metric | Value |
 |--------|-------|
-| **Total tests** | **2,897** (47 ignored) |
-| **Test growth** | 1,104 → 2,897 (+163% since baseline) |
+| **Total tests** | **2,909** (50 ignored) |
+| **Test growth** | 1,104 → 2,909 (+163% since baseline) |
 | **Crates covered** | 8/8 (100% crate-level coverage) |
 | **Fuzz targets** | 10 (with 66 seed corpus files) |
 | **Wycheproof vectors** | 5,000+ (15 test groups) |
-| **Zero failures** | All 2,897 tests pass, clippy clean, fmt clean |
+| **Zero failures** | All 2,909 tests pass, clippy clean, fmt clean |
 
 ### Test Growth Timeline
 
@@ -68,6 +68,7 @@ Phase T121  2,857     +13   SM9 hash functions + algorithm helpers + curve param
 Phase T122  2,872     +15   McEliece keygen helpers + encoding + decoding (*)
 Phase T123  2,882     +10   XMSS tree ops + WOTS+ deepening + FORS deepening (*)
 Phase T124  2,897     +15   McEliece GF(2^13) + Benes network + matrix deepening (*)
+Phase T125  2,909     +12   FrodoKEM matrix ops + SLH-DSA hypertree + McEliece poly (*)
 ```
 
 (*) Testing-only phases (no new features, pure test coverage)
@@ -2467,6 +2468,46 @@ Added 20 proptest property-based tests across hitls-crypto and hitls-utils, plus
 | doc-tests | 2 | 0 |
 | **Total** | **2844** | **40** |
 
+### Phase T125: FrodoKEM Matrix Ops + SLH-DSA Hypertree + McEliece Polynomial Deepening (+15 tests, 2,897→2,909)
+
+**Date**: 2026-02-24
+**Scope**: Deepen test coverage for three PQC internal modules with low test density: FrodoKEM matrix operations (matrix.rs, 343 lines, 1 test), SLH-DSA hypertree (hypertree.rs, 343 lines, 1 test), McEliece polynomial operations (poly.rs, 222 lines, 2 tests).
+
+| # | Test | File | Property |
+|---|------|------|----------|
+| 1 | `test_matrix_add_zero_identity` | matrix.rs | `matrix_add(a, zeros)` == a (additive identity) |
+| 2 | `test_matrix_sub_wrapping` | matrix.rs | `0 - 1` wrapping: result = q_mask, roundtrip to 0 |
+| 3 | `test_mul_add_sb_plus_e_zero_sp_returns_epp` | matrix.rs | S'=0 → V = E'' (algebraic identity) |
+| 4 | `test_mul_bs_zero_st_returns_zeros` | matrix.rs | S^T=0 → result is all zeros |
+| 5 | `test_mul_add_as_plus_e_zero_s_returns_e` | matrix.rs | [ignore] S=0, A·0+E=E (SHAKE A generation) |
+| 6 | `test_xmss_root_different_seeds_differ` | hypertree.rs | Different sk_seed → different XMSS root |
+| 7 | `test_xmss_auth_path_different_leaves_same_root` | hypertree.rs | Different leaf_idx → same root, different auth_path |
+| 8 | `test_xmss_root_from_sig_recovers_root` | hypertree.rs | WOTS+ sign → sig‖auth → root_from_sig matches root |
+| 9 | `test_hypertree_sign_verify_roundtrip` | hypertree.rs | [ignore] sign → verify → true (d=22 layers) |
+| 10 | `test_hypertree_verify_wrong_message_fails` | hypertree.rs | [ignore] sign msg1, verify msg2 → false |
+| 11 | `test_gfpoly_eval_roots_matches_eval` | poly.rs | eval_roots matches individual eval for degree-2 poly |
+| 12 | `test_gf_vec_mul_by_identity` | poly.rs | [1,0,0,0] × v = v (multiplicative identity) |
+| 13 | `test_gf_vec_mul_constants` | poly.rs | [c,0,0,0] × [d,0,0,0] = [gf_mul(c,d), 0,0,0] |
+| 14 | `test_gfpoly_eval_quadratic` | poly.rs | f(x)=x²+x+1: f(0)=1, f(1)=1, f(2)=7, f(3)=7 |
+| 15 | `test_gfpoly_eval_identity_polynomial` | poly.rs | f(x)=x: f(k)=k for k in {0,1,2,5,100,255,1000,8191} |
+
+**Per-crate counts after Phase T125**:
+
+| Crate | Tests | Ignored |
+|-------|------:|-------:|
+| hitls-auth | 33 | 0 |
+| hitls-bignum | 49 | 0 |
+| hitls-cli | 117 | 5 |
+| hitls-crypto | 794 | 41 |
+| wycheproof | 15 | 0 |
+| hitls-integration | 149 | 3 |
+| hitls-pki | 374 | 1 |
+| hitls-tls | 1284 | 0 |
+| hitls-types | 26 | 0 |
+| hitls-utils | 66 | 0 |
+| doc-tests | 2 | 0 |
+| **Total** | **2909** | **50** |
+
 ---
 
 ## 8. Verification & Quality Gates
@@ -2474,9 +2515,9 @@ Added 20 proptest property-based tests across hitls-crypto and hitls-utils, plus
 All phases verified with the same quality gates:
 
 ```bash
-# Full test suite — all 2,872 tests pass
+# Full test suite — all 2,909 tests pass
 cargo test --workspace --all-features
-# Result: 2,872 passed, 0 failed, 42 ignored
+# Result: 2,909 passed, 0 failed, 50 ignored
 
 # Clippy — zero warnings enforced
 RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets
@@ -2485,4 +2526,4 @@ RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets
 cargo fmt --all -- --check
 ```
 
-**Ignored tests** (42 total): Slow operations marked `#[ignore]` — RSA/DH/DSA key generation, ML-KEM/ML-DSA full-parameter tests, SM9 pairing operations (sign/verify and encrypt/decrypt roundtrips), and long-running XMSS/McEliece tests. All pass when explicitly run with `cargo test -- --ignored`.
+**Ignored tests** (50 total): Slow operations marked `#[ignore]` — RSA/DH/DSA key generation, ML-KEM/ML-DSA full-parameter tests, SM9 pairing operations (sign/verify and encrypt/decrypt roundtrips), long-running XMSS/McEliece tests, FrodoKEM A-generation tests, and SLH-DSA hypertree sign/verify (d=22 layers). All pass when explicitly run with `cargo test -- --ignored`.

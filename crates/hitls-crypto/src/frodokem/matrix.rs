@@ -319,7 +319,9 @@ pub(crate) fn matrix_sub(a: &[u16], b: &[u16], q_mask: u16) -> Vec<u16> {
 
 #[cfg(test)]
 mod tests {
+    use super::super::params::get_params;
     use super::*;
+    use hitls_types::FrodoKemParamId;
 
     #[test]
     fn test_matrix_add_sub_roundtrip() {
@@ -339,5 +341,72 @@ mod tests {
         // sub(a, a) = zeros
         let zeros = matrix_sub(&a, &a, q_mask);
         assert!(zeros.iter().all(|&v| v == 0));
+    }
+
+    #[test]
+    fn test_matrix_add_zero_identity() {
+        let q_mask = 0x7FFFu16;
+        let a = vec![1u16, 100, 32767, 0, 16384, 12345, 9999, 31111];
+        let zeros = vec![0u16; a.len()];
+        assert_eq!(matrix_add(&a, &zeros, q_mask), a);
+        assert_eq!(matrix_add(&zeros, &a, q_mask), a);
+    }
+
+    #[test]
+    fn test_matrix_sub_wrapping() {
+        let q_mask = 0x7FFFu16; // 32767
+                                // 0 - 1 with wrapping: 0u16.wrapping_sub(1) = 0xFFFF, & 0x7FFF = 0x7FFF = 32767
+        let a = vec![0u16];
+        let b = vec![1u16];
+        let result = matrix_sub(&a, &b, q_mask);
+        assert_eq!(result[0], q_mask);
+        // And adding it back: (q_mask + 1) & q_mask = 0
+        let roundtrip = matrix_add(&result, &b, q_mask);
+        assert_eq!(roundtrip[0], 0);
+    }
+
+    #[test]
+    fn test_mul_add_sb_plus_e_zero_sp_returns_epp() {
+        let p = get_params(FrodoKemParamId::FrodoKem640Shake);
+        let n = p.n;
+        let n_bar = p.n_bar;
+        let sp = vec![0u16; n_bar * n]; // S' = 0
+        let b = vec![1u16; n * n_bar]; // B arbitrary
+        let mut epp = vec![0u16; n_bar * n_bar];
+        for (i, v) in epp.iter_mut().enumerate() {
+            *v = (i as u16 + 42) & p.q_mask();
+        }
+        let result = mul_add_sb_plus_e(&sp, &b, &epp, p);
+        // V = 0*B + E'' = E''
+        assert_eq!(result, epp);
+    }
+
+    #[test]
+    fn test_mul_bs_zero_st_returns_zeros() {
+        let p = get_params(FrodoKemParamId::FrodoKem640Shake);
+        let n = p.n;
+        let n_bar = p.n_bar;
+        let s_t = vec![0u16; n_bar * n]; // S^T = 0
+        let c1 = vec![42u16; n_bar * n]; // C1 arbitrary
+        let result = mul_bs(&s_t, &c1, p);
+        // result = C1 · S = C1 · 0 = 0
+        assert!(result.iter().all(|&v| v == 0));
+    }
+
+    #[test]
+    #[ignore]
+    fn test_mul_add_as_plus_e_zero_s_returns_e() {
+        let p = get_params(FrodoKemParamId::FrodoKem640Shake);
+        let n = p.n;
+        let n_bar = p.n_bar;
+        let seed_a = vec![0xAAu8; p.seed_a_len];
+        let s = vec![0u16; n * n_bar]; // S = 0
+        let mut e = vec![0u16; n * n_bar];
+        for (i, v) in e.iter_mut().enumerate() {
+            *v = ((i * 7 + 13) as u16) & p.q_mask();
+        }
+        // B = A*0 + E = E
+        let result = mul_add_as_plus_e(&seed_a, &s, &e, p).unwrap();
+        assert_eq!(result, e);
     }
 }

@@ -2562,6 +2562,42 @@ Targeted coverage gaps in connection_info, handshake enums, lib.rs constants, co
 
 ---
 
+## Phase T125: FrodoKEM Matrix Ops + SLH-DSA Hypertree + McEliece Polynomial Deepening
+
+**Prompt**: Continue implementing Phase T125. Deepen test coverage for three PQC internal modules with low test density: FrodoKEM matrix operations (matrix.rs, 343 lines, 1 test), SLH-DSA hypertree (hypertree.rs, 343 lines, 1 test), McEliece polynomial operations (poly.rs, 222 lines, 2 tests).
+
+**Scope**: FrodoKEM lattice matrix arithmetic (mul_add_sb_plus_e, mul_bs, matrix_add/sub, SHAKE A generation), SLH-DSA multi-layer XMSS hypertree (xmss_compute_root, xmss_root_from_sig, hypertree_sign/verify), McEliece GF(2^13) polynomial evaluation and vector multiplication (GfPoly::eval, eval_roots, gf_vec_mul).
+
+**Work performed**:
+1. Added 5 FrodoKEM matrix tests to `crates/hitls-crypto/src/frodokem/matrix.rs`: matrix_add zero identity, matrix_sub wrapping, mul_add_sb_plus_e zero S'→E'', mul_bs zero S^T→zeros, mul_add_as_plus_e zero S→E (ignored — SHAKE A generation)
+2. Added 5 SLH-DSA hypertree tests to `crates/hitls-crypto/src/slh_dsa/hypertree.rs`: different seeds→different roots, different leaves→same root/different auth, root_from_sig roundtrip, hypertree sign→verify roundtrip (ignored), wrong message fails (ignored)
+3. Added 5 McEliece polynomial tests to `crates/hitls-crypto/src/mceliece/poly.rs`: eval_roots matches eval, gf_vec_mul identity, gf_vec_mul constants, quadratic evaluation, identity polynomial
+4. Updated CLAUDE.md, DEV_LOG.md, TEST_LOG.md, PROMPT_LOG.md, README.md, QUALITY_REPORT.md
+
+**Result**:
+- 3 source files modified, 0 files created. hitls-crypto: 782→794 (38→41 ignored), total: 2897→2909 (47→50 ignored).
+- All 2909 workspace tests pass, 0 clippy warnings, formatting clean.
+
+---
+
+## Phase T124: McEliece GF(2^13) + Benes Network + Binary Matrix Deepening
+
+**Prompt**: Continue implementing Phase T124. Deepen test coverage for three McEliece internal modules with low test density: GF(2^13) arithmetic (gf.rs, 135 lines, 1 test), Benes network (benes.rs, 380 lines, 1 test), binary matrix (matrix.rs, 433 lines, 1 test).
+
+**Scope**: McEliece GF(2^13) finite field arithmetic (gf_mul, gf_pow, gf_div, gf_inv), Benes network control bit computation (cbits, bitrev, sort_u32_le, support_swap_permutation), binary matrix operations (BitMatrix, reduce_to_systematic, same_mask).
+
+**Work performed**:
+1. Added 5 GF(2^13) tests to `crates/hitls-crypto/src/mceliece/gf.rs`: mul commutativity, pow/mul consistency, div/inv relationship, inv(0)=0, pow(-1)=inv
+2. Added 5 Benes network tests to `crates/hitls-crypto/src/mceliece/benes.rs`: reverse perm roundtrip, output length, bitrev involution, radix sort, adjacent-swap permutation
+3. Added 5 binary matrix tests to `crates/hitls-crypto/src/mceliece/matrix.rs`: new all-zeros, identity diagonal, reduce_to_systematic on identity, same_mask equal, same_mask unequal
+4. Updated CLAUDE.md, DEV_LOG.md, TEST_LOG.md, PROMPT_LOG.md, README.md, QUALITY_REPORT.md
+
+**Result**:
+- 3 source files modified, 0 files created. hitls-crypto: 767→782 (38 ignored unchanged), total: 2882→2897 (47 ignored unchanged).
+- All 2897 workspace tests pass, 0 clippy warnings, formatting clean.
+
+---
+
 ## Phase T123: XMSS Tree Operations + XMSS WOTS+ Deepening + SLH-DSA FORS Deepening
 
 **Prompt**: Continue implementing Phase T123. Shift from zero-test files to low-density deepening: XMSS tree.rs (161 lines, 0 tests — last untested file), XMSS wots.rs (198 lines, 1 test), SLH-DSA fors.rs (146 lines, 1 test). Add 5 tree tests (all #[ignore] due to h=10 → 1024 leaves), 5 WOTS+ tests (msg_to_base_w, chain, l_tree, roundtrip), 5 FORS tests (sk_gen, sign length, node, pk independence).

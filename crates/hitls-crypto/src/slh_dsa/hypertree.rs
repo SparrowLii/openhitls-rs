@@ -340,4 +340,193 @@ mod tests {
         // Auth path: hp * n bytes = 3 * 16 = 48 bytes
         assert_eq!(auth_path.len(), p.hp * p.n);
     }
+
+    #[test]
+    fn test_xmss_root_different_seeds_differ() {
+        let p = get_params(SlhDsaParamId::Shake128f);
+        let pk_seed = vec![0xAAu8; p.n];
+        let pk_root = vec![0xBBu8; p.n];
+        let h = make_hasher(p, &pk_seed, &pk_root);
+
+        let sk_seed_a = vec![0x11u8; p.n];
+        let sk_seed_b = vec![0x22u8; p.n];
+
+        let mut adrs1 = Adrs::new(false);
+        adrs1.set_layer_addr(0);
+        adrs1.set_tree_addr(0);
+        let root_a = xmss_compute_root(&*h, &sk_seed_a, &mut adrs1, p).unwrap();
+
+        let mut adrs2 = Adrs::new(false);
+        adrs2.set_layer_addr(0);
+        adrs2.set_tree_addr(0);
+        let root_b = xmss_compute_root(&*h, &sk_seed_b, &mut adrs2, p).unwrap();
+
+        assert_ne!(root_a, root_b);
+    }
+
+    #[test]
+    fn test_xmss_auth_path_different_leaves_same_root() {
+        let p = get_params(SlhDsaParamId::Shake128f);
+        let pk_seed = vec![0xAAu8; p.n];
+        let pk_root = vec![0xBBu8; p.n];
+        let sk_seed = vec![0xCCu8; p.n];
+        let h = make_hasher(p, &pk_seed, &pk_root);
+
+        let mut adrs0 = Adrs::new(false);
+        adrs0.set_layer_addr(0);
+        adrs0.set_tree_addr(0);
+        let (root0, auth0) = xmss_compute_root_with_auth(&*h, &sk_seed, 0, &mut adrs0, p).unwrap();
+
+        let mut adrs1 = Adrs::new(false);
+        adrs1.set_layer_addr(0);
+        adrs1.set_tree_addr(0);
+        let (root1, auth1) = xmss_compute_root_with_auth(&*h, &sk_seed, 1, &mut adrs1, p).unwrap();
+
+        // Same tree → same root
+        assert_eq!(root0, root1);
+        // Different leaf → different auth path
+        assert_ne!(auth0, auth1);
+    }
+
+    #[test]
+    fn test_xmss_root_from_sig_recovers_root() {
+        let p = get_params(SlhDsaParamId::Shake128f);
+        let pk_seed = vec![0xAAu8; p.n];
+        let pk_root = vec![0xBBu8; p.n];
+        let sk_seed = vec![0xCCu8; p.n];
+        let h = make_hasher(p, &pk_seed, &pk_root);
+
+        let leaf_idx = 2u32;
+        let msg = vec![0x42u8; p.n];
+
+        // Compute root and auth path
+        let mut adrs = Adrs::new(false);
+        adrs.set_layer_addr(0);
+        adrs.set_tree_addr(0);
+        let (root, auth) =
+            xmss_compute_root_with_auth(&*h, &sk_seed, leaf_idx, &mut adrs, p).unwrap();
+
+        // WOTS+ sign the message
+        let mut sign_adrs = Adrs::new(false);
+        sign_adrs.set_layer_addr(0);
+        sign_adrs.set_tree_addr(0);
+        sign_adrs.set_type(AdrsType::WotsHash);
+        sign_adrs.set_key_pair_addr(leaf_idx);
+        let wots_sig = wots::wots_sign(&*h, &msg, &sk_seed, &mut sign_adrs, p).unwrap();
+
+        // Construct full sig = wots_sig || auth_path
+        let mut full_sig = wots_sig;
+        full_sig.extend_from_slice(&auth);
+
+        // Recover root from sig
+        let mut verify_adrs = Adrs::new(false);
+        verify_adrs.set_layer_addr(0);
+        verify_adrs.set_tree_addr(0);
+        let recovered =
+            xmss_root_from_sig(&*h, &msg, &full_sig, leaf_idx, &mut verify_adrs, p).unwrap();
+
+        assert_eq!(recovered, root);
+    }
+
+    #[test]
+    #[ignore]
+    fn test_hypertree_sign_verify_roundtrip() {
+        let p = get_params(SlhDsaParamId::Shake128f);
+        let pk_seed = vec![0xAAu8; p.n];
+        let pk_root_dummy = vec![0xBBu8; p.n];
+        let sk_seed = vec![0xCCu8; p.n];
+        let h = make_hasher(p, &pk_seed, &pk_root_dummy);
+
+        let msg = vec![0x42u8; p.n];
+        let tree_idx = 0u64;
+        let leaf_idx = 3u32;
+
+        // Compute the actual pk_root (top-layer XMSS root)
+        let mut root_adrs = Adrs::new(false);
+        root_adrs.set_layer_addr((p.d - 1) as u32);
+        root_adrs.set_tree_addr(0);
+        let pk_root = xmss_compute_root(&*h, &sk_seed, &mut root_adrs, p).unwrap();
+
+        let h_real = make_hasher(p, &pk_seed, &pk_root);
+
+        let mut sign_adrs = Adrs::new(false);
+        let sig = hypertree_sign(
+            &*h_real,
+            &sk_seed,
+            &msg,
+            tree_idx,
+            leaf_idx,
+            &mut sign_adrs,
+            p,
+        )
+        .unwrap();
+
+        let expected_sig_len = p.d * (p.wots_len + p.hp) * p.n;
+        assert_eq!(sig.len(), expected_sig_len);
+
+        let mut verify_adrs = Adrs::new(false);
+        let valid = hypertree_verify(
+            &*h_real,
+            &msg,
+            &sig,
+            tree_idx,
+            leaf_idx,
+            &pk_root,
+            &mut verify_adrs,
+            p,
+        )
+        .unwrap();
+        assert!(valid);
+    }
+
+    #[test]
+    #[ignore]
+    fn test_hypertree_verify_wrong_message_fails() {
+        let p = get_params(SlhDsaParamId::Shake128f);
+        let pk_seed = vec![0xAAu8; p.n];
+        let pk_root_dummy = vec![0xBBu8; p.n];
+        let sk_seed = vec![0xCCu8; p.n];
+        let h = make_hasher(p, &pk_seed, &pk_root_dummy);
+
+        let msg1 = vec![0x42u8; p.n];
+        let msg2 = vec![0x99u8; p.n];
+        let tree_idx = 0u64;
+        let leaf_idx = 0u32;
+
+        // Compute pk_root for top layer
+        let mut root_adrs = Adrs::new(false);
+        root_adrs.set_layer_addr((p.d - 1) as u32);
+        root_adrs.set_tree_addr(0);
+        let pk_root = xmss_compute_root(&*h, &sk_seed, &mut root_adrs, p).unwrap();
+
+        let h_real = make_hasher(p, &pk_seed, &pk_root);
+
+        // Sign msg1
+        let mut sign_adrs = Adrs::new(false);
+        let sig = hypertree_sign(
+            &*h_real,
+            &sk_seed,
+            &msg1,
+            tree_idx,
+            leaf_idx,
+            &mut sign_adrs,
+            p,
+        )
+        .unwrap();
+
+        // Verify with msg2 — should fail
+        let mut verify_adrs = Adrs::new(false);
+        let valid = hypertree_verify(
+            &*h_real,
+            &msg2,
+            &sig,
+            tree_idx,
+            leaf_idx,
+            &pk_root,
+            &mut verify_adrs,
+            p,
+        )
+        .unwrap();
+        assert!(!valid);
+    }
 }

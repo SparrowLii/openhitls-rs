@@ -8494,3 +8494,103 @@ Added 15 tests across 3 files that previously had zero test coverage:
 - `cargo test --workspace --all-features`: 2844 passed, 0 failed, 40 ignored
 - `RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets`: 0 warnings
 - `cargo fmt --all -- --check`: clean
+
+---
+
+## Phase T121: SM9 Hash Functions + SM9 Algorithm Helpers + SM9 Curve Parameters (+15 tests, 2,844→2,857)
+
+**Date**: 2026-02-24
+**Scope**: Three SM9 module files with zero test coverage: hash.rs (H1/H2 hash-to-range and KDF), alg.rs (sign/verify/encrypt/decrypt and serialization helpers), curve.rs (BN256 domain parameter constants).
+
+### Summary
+
+Added 15 tests across 3 files: 5 hash function tests (h1/h2 range, determinism, KDF output length, different IDs), 5 algorithm helper tests (bignum_to_32bytes zero/small, fp12_to_bytes length, sign/verify roundtrip [ignored], encrypt/decrypt roundtrip [ignored]), 5 curve parameter tests (prime/order 256-bit, order < prime, b_coeff == 5, generator coordinates nonzero).
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `crates/hitls-crypto/src/sm9/hash.rs` | Added `#[cfg(test)] mod tests` with 5 hash function tests |
+| `crates/hitls-crypto/src/sm9/alg.rs` | Added `#[cfg(test)] mod tests` with 5 algorithm helper tests (2 ignored) |
+| `crates/hitls-crypto/src/sm9/curve.rs` | Added `#[cfg(test)] mod tests` with 5 curve parameter tests |
+
+### Build Status
+- `cargo test --workspace --all-features`: 2857 passed, 0 failed, 42 ignored
+- `RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets`: 0 warnings
+- `cargo fmt --all -- --check`: clean
+
+---
+
+## Phase T122: McEliece Keygen Helpers + McEliece Encoding + McEliece Decoding (+15 tests, 2,857→2,872)
+
+**Date**: 2026-02-24
+**Scope**: Three McEliece internal files with zero test coverage: keygen.rs (key generation), encoding.rs (error vector encoding), decoding.rs (syndrome decoding/Berlekamp-Massey).
+
+### Summary
+
+Added 15 tests across 3 files covering McEliece internal operations.
+
+### Build Status
+- `cargo test --workspace --all-features`: 2872 passed, 0 failed, 42 ignored
+- `RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets`: 0 warnings
+- `cargo fmt --all -- --check`: clean
+
+---
+
+## Phase T123: XMSS Tree Operations + XMSS WOTS+ Deepening + SLH-DSA FORS Deepening (+15 tests, 2,872→2,882)
+
+**Date**: 2026-02-24
+**Scope**: Deepen test coverage for three PQC internal modules: XMSS tree operations (tree.rs, 161 lines, 0 tests), XMSS WOTS+ (wots.rs, 198 lines, 1 test), SLH-DSA FORS (fors.rs, 146 lines, 1 test).
+
+### Summary
+
+Added 15 tests: 5 XMSS tree tests (all #[ignore] due to h=10 → 1024 leaves), 5 WOTS+ deepening tests, 5 FORS deepening tests.
+
+### Build Status
+- `cargo test --workspace --all-features`: 2882 passed, 0 failed, 47 ignored
+- `RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets`: 0 warnings
+- `cargo fmt --all -- --check`: clean
+
+---
+
+## Phase T124: McEliece GF(2^13) + Benes Network + Binary Matrix Deepening (+15 tests, 2,882→2,897)
+
+**Date**: 2026-02-24
+**Scope**: Deepen test coverage for three McEliece internal modules with low test density: GF(2^13) finite field arithmetic (gf.rs, 135 lines, 1 test), Benes network control bits (benes.rs, 380 lines, 1 test), binary matrix operations (matrix.rs, 433 lines, 1 test).
+
+### Summary
+
+Added 15 tests: 5 GF arithmetic tests (commutativity, pow/mul consistency, div/inv relationship, inv(0)=0, pow(-1)=inv), 5 Benes network tests (reverse perm roundtrip, output length, bitrev involution, radix sort, adjacent-swap permutation), 5 binary matrix tests (new all-zeros, identity diagonal, reduce_to_systematic, same_mask equal, same_mask unequal).
+
+### Build Status
+- `cargo test --workspace --all-features`: 2897 passed, 0 failed, 47 ignored
+- `RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets`: 0 warnings
+- `cargo fmt --all -- --check`: clean
+
+---
+
+## Phase T125: FrodoKEM Matrix Ops + SLH-DSA Hypertree + McEliece Polynomial Deepening (+15 tests, 2,897→2,909)
+
+**Date**: 2026-02-24
+**Scope**: Deepen test coverage for three PQC internal modules with low test density: FrodoKEM matrix operations (matrix.rs, 343 lines, 1 test), SLH-DSA hypertree (hypertree.rs, 343 lines, 1 test), McEliece polynomial operations (poly.rs, 222 lines, 2 tests).
+
+### Summary
+
+Added 15 tests across 3 files (12 non-ignored + 3 ignored):
+
+- **FrodoKEM matrix ops** (5 tests, 1 ignored): matrix_add zero identity, matrix_sub wrapping behavior, mul_add_sb_plus_e with zero S' returns E'', mul_bs with zero S^T returns zeros, mul_add_as_plus_e with zero S returns E (ignored — SHAKE A generation)
+- **SLH-DSA hypertree** (5 tests, 2 ignored): different sk_seeds produce different roots, different leaf indices give same root/different auth paths, WOTS+ sign → xmss_root_from_sig recovers root, hypertree sign→verify roundtrip (ignored — d=22 layers), wrong message verification fails (ignored)
+- **McEliece polynomial** (5 tests): eval_roots matches individual eval, gf_vec_mul by identity [1,0,...,0], gf_vec_mul constant multiplication, quadratic evaluation verification, identity polynomial f(x)=x
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `crates/hitls-crypto/src/frodokem/matrix.rs` | Added 5 tests to existing `#[cfg(test)] mod tests` (1 ignored) |
+| `crates/hitls-crypto/src/slh_dsa/hypertree.rs` | Added 5 tests to existing `#[cfg(test)] mod tests` (2 ignored) |
+| `crates/hitls-crypto/src/mceliece/poly.rs` | Added 5 tests to existing `#[cfg(test)] mod tests` |
+
+### Build Status
+- `cargo test --workspace --all-features`: 2909 passed, 0 failed, 50 ignored
+- `RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets`: 0 warnings
+- `cargo fmt --all -- --check`: clean
