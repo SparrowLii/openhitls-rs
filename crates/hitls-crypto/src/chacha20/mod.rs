@@ -2,6 +2,11 @@
 //!
 //! Implements RFC 8439 (ChaCha20 and Poly1305 for IETF Protocols).
 
+#[cfg(target_arch = "aarch64")]
+mod chacha20_neon;
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+mod chacha20_x86;
+
 use hitls_types::CryptoError;
 use subtle::ConstantTimeEq;
 use zeroize::Zeroize;
@@ -35,8 +40,25 @@ fn quarter_round(state: &mut [u32; 16], a: usize, b: usize, c: usize, d: usize) 
     state[b] = state[b].rotate_left(7);
 }
 
-/// Generate a 64-byte keystream block.
+/// Generate a 64-byte keystream block, dispatching to SIMD when available.
 fn chacha20_block(key: &[u8; 32], counter: u32, nonce: &[u8; 12]) -> [u8; 64] {
+    #[cfg(target_arch = "aarch64")]
+    {
+        if std::arch::is_aarch64_feature_detected!("neon") {
+            return unsafe { chacha20_neon::chacha20_block_neon(key, counter, nonce) };
+        }
+    }
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    {
+        if is_x86_feature_detected!("sse2") {
+            return unsafe { chacha20_x86::chacha20_block_x86(key, counter, nonce) };
+        }
+    }
+    chacha20_block_soft(key, counter, nonce)
+}
+
+/// Software-only 64-byte keystream block generation.
+pub(crate) fn chacha20_block_soft(key: &[u8; 32], counter: u32, nonce: &[u8; 12]) -> [u8; 64] {
     let mut state = [0u32; 16];
 
     // Constants: "expand 32-byte k"
