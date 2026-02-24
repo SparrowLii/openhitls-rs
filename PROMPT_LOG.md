@@ -2479,3 +2479,19 @@ Targeted coverage gaps in connection_info, handshake enums, lib.rs constants, co
 **Result**:
 - 3 source files modified, 0 files created. hitls-tls: 1244→1259, total: 2754→2769.
 - All 2769 workspace tests pass, 0 clippy warnings, formatting clean.
+
+## Phase T116: DTLS Fragmentation/Retransmission + CertificateVerify Edge Cases
+
+**Prompt**: Implement Phase T116 — DTLS Fragmentation/Retransmission + CertificateVerify Edge Cases. Add 5 DTLS fragmentation tests (ReassemblyManager multi-message sequential, old message ignored, out-of-order messages, single-byte payload, overlapping fragments). Add 5 DTLS retransmission tests (start not immediately expired, backoff after reset, multiple reset cycles, backoff count independent of timeout cap, Flight clone independence). Add 5 CertificateVerify tests (ECDSA P-256 wrong signature, Ed25519 empty signature, RSA malformed key, build_verify_content determinism, Ed25519 wrong public key).
+
+**Scope**: Three handshake-layer files remained under-tested: fragment.rs (DTLS fragmentation & reassembly, ReassemblyManager untested), retransmit.rs (DTLS retransmission timer, missing start+expired timing and backoff-after-reset), verify.rs (TLS 1.3 CertificateVerify, missing wrong-signature/empty-signature/malformed-key edge cases).
+
+**Work performed**:
+1. Added 5 fragmentation tests to `crates/hitls-tls/src/handshake/fragment.rs`: ReassemblyManager multi-message sequential delivery, old message ignored, out-of-order buffering, single-byte payload, overlapping fragments
+2. Added 5 retransmission tests to `crates/hitls-tls/src/handshake/retransmit.rs`: start not immediately expired, backoff after reset, multiple reset cycles, backoff count vs timeout cap, Flight clone independence
+3. Added 5 CertificateVerify tests to `crates/hitls-tls/src/handshake/verify.rs`: ECDSA P-256 wrong signature, Ed25519 empty signature, RSA malformed key parse error, build_verify_content determinism, Ed25519 wrong public key
+4. Updated CLAUDE.md, DEV_LOG.md, TEST_LOG.md, PROMPT_LOG.md, README.md
+
+**Result**:
+- 3 source files modified, 0 files created. hitls-tls: 1259→1274, total: 2769→2784.
+- All 2784 workspace tests pass, 0 clippy warnings, formatting clean.

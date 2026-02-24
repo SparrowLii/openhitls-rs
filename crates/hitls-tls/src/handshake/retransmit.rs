@@ -219,4 +219,82 @@ mod tests {
         let flight = Flight::default();
         assert!(flight.is_empty());
     }
+
+    #[test]
+    fn test_retransmit_timer_start_not_immediately_expired() {
+        let mut timer = RetransmitTimer::new();
+        timer.start();
+        // 1-second timeout just started → should NOT be expired yet
+        assert!(!timer.is_expired());
+    }
+
+    #[test]
+    fn test_retransmit_timer_backoff_after_reset() {
+        let mut timer = RetransmitTimer::new();
+        // Backoff a few times to move away from initial
+        timer.backoff();
+        timer.backoff();
+        assert_eq!(timer.timeout(), Duration::from_secs(4));
+
+        // Reset → back to 1s
+        timer.reset();
+        assert_eq!(timer.timeout(), Duration::from_secs(1));
+
+        // First backoff from fresh state → 2s
+        timer.backoff();
+        assert_eq!(timer.timeout(), Duration::from_secs(2));
+    }
+
+    #[test]
+    fn test_retransmit_timer_multiple_reset_cycles() {
+        let mut timer = RetransmitTimer::new();
+
+        // Backoff 3× → 1→2→4→8
+        timer.backoff();
+        timer.backoff();
+        timer.backoff();
+        assert_eq!(timer.timeout(), Duration::from_secs(8));
+
+        // Reset → 1s
+        timer.reset();
+        assert_eq!(timer.timeout(), Duration::from_secs(1));
+        assert_eq!(timer.retransmit_count(), 0);
+
+        // Backoff once → 2s
+        timer.backoff();
+        assert_eq!(timer.timeout(), Duration::from_secs(2));
+        assert_eq!(timer.retransmit_count(), 1);
+    }
+
+    #[test]
+    fn test_retransmit_timer_backoff_count_independent_of_timeout_cap() {
+        let mut timer = RetransmitTimer::new();
+
+        // Backoff 8 times: 1→2→4→8→16→32→60→60→60
+        for _ in 0..8 {
+            timer.backoff();
+        }
+        // Timeout is capped at 60s
+        assert_eq!(timer.timeout(), Duration::from_secs(60));
+        // But count still tracks each backoff
+        assert_eq!(timer.retransmit_count(), 8);
+    }
+
+    #[test]
+    fn test_flight_clone_independence() {
+        let mut flight = Flight::new();
+        flight.push(vec![0x01, 0x02]);
+        flight.push(vec![0x03]);
+
+        let cloned = flight.clone();
+
+        // Modify original
+        flight.push(vec![0x04, 0x05, 0x06]);
+        flight.records[0] = vec![0xFF];
+
+        // Clone should be unaffected
+        assert_eq!(cloned.records.len(), 2);
+        assert_eq!(cloned.records[0], vec![0x01, 0x02]);
+        assert_eq!(cloned.records[1], vec![0x03]);
+    }
 }

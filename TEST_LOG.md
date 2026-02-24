@@ -2090,6 +2090,45 @@ Added 20 proptest property-based tests across hitls-crypto and hitls-utils, plus
 | doc-tests | 2 | 0 |
 | **Total** | **2769** | **40** |
 
+### Phase T116: DTLS Fragmentation/Retransmission + CertificateVerify Edge Cases (+15 tests, 2,769→2,784)
+
+**Date**: 2026-02-24
+
+| # | Test | File | Property |
+|---|------|------|----------|
+| 1 | `test_reassembly_manager_multi_message_sequential` | fragment.rs | Messages seq 0,1,2 arrive complete in order → all 3 delivered in sequence |
+| 2 | `test_reassembly_manager_old_message_ignored` | fragment.rs | After delivering seq 0, duplicate fragment for seq 0 returns None |
+| 3 | `test_reassembly_manager_out_of_order_messages` | fragment.rs | seq 1 arrives before seq 0 → None until seq 0 completes |
+| 4 | `test_fragment_single_byte_payload` | fragment.rs | 1-byte body → single fragment with correct header fields |
+| 5 | `test_reassembly_overlapping_fragments` | fragment.rs | Overlapping fragments [0..6) then [4..10) → completes correctly |
+| 6 | `test_retransmit_timer_start_not_immediately_expired` | retransmit.rs | After start(), is_expired() returns false (1s not elapsed) |
+| 7 | `test_retransmit_timer_backoff_after_reset` | retransmit.rs | reset() → backoff() → timeout = 2s |
+| 8 | `test_retransmit_timer_multiple_reset_cycles` | retransmit.rs | backoff 3× (→8s) → reset (→1s) → backoff (→2s) |
+| 9 | `test_retransmit_timer_backoff_count_independent_of_timeout_cap` | retransmit.rs | Backoff 8× → timeout capped at 60s but count = 8 |
+| 10 | `test_flight_clone_independence` | retransmit.rs | Clone a Flight → modify original → clone unaffected |
+| 11 | `test_verify_certificate_verify_ecdsa_p256_wrong_signature` | verify.rs | Valid P-256 cert + tampered signature → error |
+| 12 | `test_verify_certificate_verify_ed25519_empty_signature` | verify.rs | Empty signature bytes → error (not panic) |
+| 13 | `test_verify_certificate_verify_rsa_malformed_key` | verify.rs | Non-DER garbage as RSA public_key → parse error |
+| 14 | `test_build_verify_content_deterministic` | verify.rs | Same (hash, is_server) → identical output; different → different |
+| 15 | `test_verify_certificate_verify_ed25519_wrong_public_key` | verify.rs | Valid signature but different Ed25519 key → verification fails |
+
+**Per-crate counts after Phase T116**:
+
+| Crate | Tests | Ignored |
+|-------|------:|-------:|
+| hitls-auth | 33 | 0 |
+| hitls-bignum | 49 | 0 |
+| hitls-cli | 117 | 5 |
+| hitls-crypto | 709 | 31 |
+| wycheproof | 15 | 0 |
+| hitls-integration | 149 | 3 |
+| hitls-pki | 349 | 1 |
+| hitls-tls | 1274 | 0 |
+| hitls-types | 26 | 0 |
+| hitls-utils | 61 | 0 |
+| doc-tests | 2 | 0 |
+| **Total** | **2784** | **40** |
+
 ---
 
 ## 8. Verification & Quality Gates
@@ -2097,9 +2136,9 @@ Added 20 proptest property-based tests across hitls-crypto and hitls-utils, plus
 All phases verified with the same quality gates:
 
 ```bash
-# Full test suite — all 2,769 tests pass
+# Full test suite — all 2,784 tests pass
 cargo test --workspace --all-features
-# Result: 2,769 passed, 0 failed, 40 ignored
+# Result: 2,784 passed, 0 failed, 40 ignored
 
 # Clippy — zero warnings enforced
 RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets

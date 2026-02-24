@@ -345,4 +345,115 @@ mod tests {
         let result = mgr.process_fragment(&header, b"hello");
         assert!(result.is_ok());
     }
+
+    #[test]
+    fn test_reassembly_manager_multi_message_sequential() {
+        let mut mgr = ReassemblyManager::new();
+
+        // Deliver 3 complete messages in sequence (seq 0, 1, 2)
+        for seq in 0u16..3 {
+            let body = vec![0x10 + seq as u8; 8];
+            let header = DtlsHandshakeHeader {
+                msg_type: HandshakeType::Certificate,
+                length: 8,
+                message_seq: seq,
+                fragment_offset: 0,
+                fragment_length: 8,
+            };
+            let result = mgr.process_fragment(&header, &body).unwrap();
+            assert!(
+                result.is_some(),
+                "seq {seq} should be delivered immediately"
+            );
+            let msg = result.unwrap();
+            let (hdr, data, _) = parse_dtls_handshake_header(&msg).unwrap();
+            assert_eq!(hdr.message_seq, seq);
+            assert_eq!(data, &body);
+        }
+    }
+
+    #[test]
+    fn test_reassembly_manager_old_message_ignored() {
+        let mut mgr = ReassemblyManager::new();
+
+        // Deliver seq 0 completely
+        let header0 = DtlsHandshakeHeader {
+            msg_type: HandshakeType::Finished,
+            length: 4,
+            message_seq: 0,
+            fragment_offset: 0,
+            fragment_length: 4,
+        };
+        let result = mgr.process_fragment(&header0, b"done").unwrap();
+        assert!(result.is_some());
+
+        // Re-send a fragment for seq 0 (old) → should be ignored
+        let dup = mgr.process_fragment(&header0, b"done").unwrap();
+        assert!(
+            dup.is_none(),
+            "duplicate of already-delivered seq 0 should be ignored"
+        );
+    }
+
+    #[test]
+    fn test_reassembly_manager_out_of_order_messages() {
+        let mut mgr = ReassemblyManager::new();
+
+        // seq 1 arrives before seq 0 → buffered, not delivered
+        let header1 = DtlsHandshakeHeader {
+            msg_type: HandshakeType::Certificate,
+            length: 5,
+            message_seq: 1,
+            fragment_offset: 0,
+            fragment_length: 5,
+        };
+        let result = mgr.process_fragment(&header1, b"world").unwrap();
+        assert!(
+            result.is_none(),
+            "seq 1 should not be delivered before seq 0"
+        );
+
+        // Now seq 0 arrives → seq 0 delivered
+        let header0 = DtlsHandshakeHeader {
+            msg_type: HandshakeType::ClientHello,
+            length: 5,
+            message_seq: 0,
+            fragment_offset: 0,
+            fragment_length: 5,
+        };
+        let result0 = mgr.process_fragment(&header0, b"hello").unwrap();
+        assert!(result0.is_some(), "seq 0 should be delivered");
+        let msg0 = result0.unwrap();
+        let (hdr, data, _) = parse_dtls_handshake_header(&msg0).unwrap();
+        assert_eq!(hdr.message_seq, 0);
+        assert_eq!(data, b"hello");
+    }
+
+    #[test]
+    fn test_fragment_single_byte_payload() {
+        let body = &[0xFF];
+        let fragments = fragment_handshake(HandshakeType::Finished, body, 7, 100);
+        assert_eq!(fragments.len(), 1);
+
+        let (hdr, data, _) = parse_dtls_handshake_header(&fragments[0]).unwrap();
+        assert_eq!(hdr.msg_type, HandshakeType::Finished);
+        assert_eq!(hdr.message_seq, 7);
+        assert_eq!(hdr.length, 1);
+        assert_eq!(hdr.fragment_offset, 0);
+        assert_eq!(hdr.fragment_length, 1);
+        assert_eq!(data, &[0xFF]);
+    }
+
+    #[test]
+    fn test_reassembly_overlapping_fragments() {
+        // 10-byte message: overlapping fragments [0..6) then [4..10)
+        let body = b"ABCDEFGHIJ";
+        let mut buf = ReassemblyBuffer::new(HandshakeType::Certificate, 0, 10);
+
+        // First fragment covers bytes 0..6
+        assert!(!buf.insert_fragment(0, &body[0..6]).unwrap());
+        // Second fragment covers bytes 4..10 (overlaps 4..6)
+        assert!(buf.insert_fragment(4, &body[4..10]).unwrap());
+        assert_eq!(buf.message_body().unwrap(), body.as_slice());
+    }
 }

@@ -489,4 +489,114 @@ mod tests {
         )
         .unwrap();
     }
+
+    #[test]
+    fn test_verify_certificate_verify_ecdsa_p256_wrong_signature() {
+        let kp = hitls_crypto::ecdsa::EcdsaKeyPair::generate(EccCurveId::NistP256).unwrap();
+        let pub_key = kp.public_key_bytes().unwrap();
+
+        let transcript_hash = vec![0xAA; 32];
+        let content = build_verify_content(&transcript_hash, true);
+        let digest = compute_sha256(&content).unwrap();
+        let mut signature = kp.sign(&digest).unwrap();
+
+        // Tamper with signature
+        if let Some(last) = signature.last_mut() {
+            *last ^= 0xFF;
+        }
+
+        let cert = make_cert_with_spki(vec![0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02, 0x01], pub_key);
+
+        let result = verify_certificate_verify(
+            &cert,
+            SignatureScheme::ECDSA_SECP256R1_SHA256,
+            &signature,
+            &transcript_hash,
+            true,
+        );
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_verify_certificate_verify_ed25519_empty_signature() {
+        let seed = vec![0x42; 32];
+        let kp = hitls_crypto::ed25519::Ed25519KeyPair::from_seed(&seed).unwrap();
+        let pub_key = kp.public_key().to_vec();
+
+        let cert = make_cert_with_spki(vec![0x2b, 0x65, 0x70], pub_key);
+
+        // Empty signature should produce an error, not a panic
+        let result =
+            verify_certificate_verify(&cert, SignatureScheme::ED25519, &[], &[0xAA; 32], true);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_verify_certificate_verify_rsa_malformed_key() {
+        // Non-DER garbage as RSA public_key → should fail with parse error
+        let cert = make_cert_with_spki(
+            vec![0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x01], // RSA OID
+            vec![0xDE, 0xAD, 0xBE, 0xEF],                               // garbage
+        );
+
+        let result = verify_certificate_verify(
+            &cert,
+            SignatureScheme::RSA_PSS_RSAE_SHA256,
+            &[0x00; 64],
+            &[0xAA; 32],
+            true,
+        );
+        assert!(result.is_err());
+        let err_msg = format!("{}", result.unwrap_err());
+        assert!(
+            err_msg.contains("RSA") || err_msg.contains("parse"),
+            "expected RSA parse error, got: {err_msg}"
+        );
+    }
+
+    #[test]
+    fn test_build_verify_content_deterministic() {
+        let hash = vec![0xAA; 32];
+
+        // Same inputs → identical output
+        let content1 = build_verify_content(&hash, true);
+        let content2 = build_verify_content(&hash, true);
+        assert_eq!(content1, content2);
+
+        // Different hash → different output
+        let hash2 = vec![0xBB; 32];
+        let content3 = build_verify_content(&hash2, true);
+        assert_ne!(content1, content3);
+
+        // Different is_server → different output
+        let content4 = build_verify_content(&hash, false);
+        assert_ne!(content1, content4);
+    }
+
+    #[test]
+    fn test_verify_certificate_verify_ed25519_wrong_public_key() {
+        // Generate keypair and sign
+        let seed = vec![0x42; 32];
+        let kp = hitls_crypto::ed25519::Ed25519KeyPair::from_seed(&seed).unwrap();
+
+        let transcript_hash = vec![0xAA; 32];
+        let content = build_verify_content(&transcript_hash, true);
+        let signature = kp.sign(&content).unwrap();
+
+        // Use a different keypair's public key for verification
+        let other_seed = vec![0x99; 32];
+        let other_kp = hitls_crypto::ed25519::Ed25519KeyPair::from_seed(&other_seed).unwrap();
+        let wrong_pub_key = other_kp.public_key().to_vec();
+
+        let cert = make_cert_with_spki(vec![0x2b, 0x65, 0x70], wrong_pub_key);
+
+        let result = verify_certificate_verify(
+            &cert,
+            SignatureScheme::ED25519,
+            &signature,
+            &transcript_hash,
+            true,
+        );
+        assert!(result.is_err());
+    }
 }

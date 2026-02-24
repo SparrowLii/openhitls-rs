@@ -8252,3 +8252,29 @@ Added 15 edge-case tests across 3 record layer modules:
 - `cargo test --workspace --all-features`: 2769 passed, 0 failed, 40 ignored
 - `RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets`: 0 warnings
 - `cargo fmt --all -- --check`: clean
+
+## Phase T116: DTLS Fragmentation/Retransmission + CertificateVerify Edge Cases (+15 tests, 2,769→2,784)
+
+**Date**: 2026-02-24
+**Scope**: DTLS fragmentation reassembly manager, DTLS retransmission timer/Flight, TLS 1.3 CertificateVerify signature verification edge cases.
+
+### Summary
+
+Added 15 edge-case tests across 3 handshake-layer modules:
+
+- **DTLS fragmentation** (5 tests): ReassemblyManager multi-message sequential delivery, old message ignored after delivery, out-of-order message buffering, single-byte payload fragment, overlapping fragment reassembly
+- **DTLS retransmission** (5 tests): Timer start not immediately expired, backoff after reset, multiple reset cycles, backoff count independent of timeout cap, Flight clone independence
+- **CertificateVerify** (5 tests): ECDSA P-256 wrong signature, Ed25519 empty signature, RSA malformed key parse error, build_verify_content determinism, Ed25519 wrong public key
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `crates/hitls-tls/src/handshake/fragment.rs` | Added 5 DTLS fragmentation/reassembly tests |
+| `crates/hitls-tls/src/handshake/retransmit.rs` | Added 5 retransmit timer/Flight tests |
+| `crates/hitls-tls/src/handshake/verify.rs` | Added 5 CertificateVerify edge-case tests |
+
+### Build Status
+- `cargo test --workspace --all-features`: 2784 passed, 0 failed, 40 ignored
+- `RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets`: 0 warnings
+- `cargo fmt --all -- --check`: clean
