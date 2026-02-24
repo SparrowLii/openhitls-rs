@@ -396,6 +396,12 @@ pub struct TlsConfig {
     pub security_cb: Option<SecurityCallback>,
     /// Security level for the security callback (default: 1).
     pub security_level: u32,
+    /// Enable TLS 1.3 middlebox compatibility mode (RFC 8446 §D.4).
+    /// When true, ClientHello includes a 32-byte random legacy_session_id and
+    /// fake ChangeCipherSpec records are sent during the handshake for
+    /// compatibility with network middleboxes that expect TLS 1.2-like traffic.
+    /// Default: true.
+    pub middlebox_compat: bool,
 }
 
 impl fmt::Debug for TlsConfig {
@@ -553,6 +559,7 @@ pub struct TlsConfigBuilder {
     ticket_key_cb: Option<TicketKeyCallback>,
     security_cb: Option<SecurityCallback>,
     security_level: u32,
+    middlebox_compat: bool,
 }
 
 impl Default for TlsConfigBuilder {
@@ -636,6 +643,7 @@ impl Default for TlsConfigBuilder {
             ticket_key_cb: None,
             security_cb: None,
             security_level: 1,
+            middlebox_compat: true,
         }
     }
 }
@@ -992,6 +1000,11 @@ impl TlsConfigBuilder {
         self
     }
 
+    pub fn middlebox_compat(mut self, enabled: bool) -> Self {
+        self.middlebox_compat = enabled;
+        self
+    }
+
     pub fn build(self) -> TlsConfig {
         TlsConfig {
             min_version: self.min_version,
@@ -1064,6 +1077,7 @@ impl TlsConfigBuilder {
             ticket_key_cb: self.ticket_key_cb,
             security_cb: self.security_cb,
             security_level: self.security_level,
+            middlebox_compat: self.middlebox_compat,
         }
     }
 }
@@ -2187,5 +2201,27 @@ mod tests {
     fn test_config_security_level_builder() {
         let config = TlsConfig::builder().security_level(3).build();
         assert_eq!(config.security_level, 3);
+    }
+
+    // -------------------------------------------------------
+    // Phase 93 — Middlebox compatibility mode config tests
+    // -------------------------------------------------------
+
+    #[test]
+    fn test_config_middlebox_compat_default_true() {
+        let config = TlsConfig::builder().build();
+        assert!(config.middlebox_compat);
+    }
+
+    #[test]
+    fn test_config_middlebox_compat_disabled() {
+        let config = TlsConfig::builder().middlebox_compat(false).build();
+        assert!(!config.middlebox_compat);
+    }
+
+    #[test]
+    fn test_config_middlebox_compat_enabled_explicit() {
+        let config = TlsConfig::builder().middlebox_compat(true).build();
+        assert!(config.middlebox_compat);
     }
 }

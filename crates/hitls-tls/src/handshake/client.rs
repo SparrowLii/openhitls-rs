@@ -357,13 +357,15 @@ impl ClientHandshake {
         if self.config.padding_target > 0 {
             // Compute current ClientHello encoded size estimate:
             // type(1) + length(3) + version(2) + random(32) + session_id_len(1) +
-            // suites_len(2) + suites(2*N) + comp_len(1) + comp(1) + ext_len(2) + extensions
+            // session_id(0 or 32) + suites_len(2) + suites(2*N) + comp_len(1) + comp(1)
+            // + ext_len(2) + extensions
+            let sid_size = if self.config.middlebox_compat { 32 } else { 0 };
             let suites_size = 2 * self.config.cipher_suites.len();
             let ext_size: usize = extensions
                 .iter()
                 .map(|e| 4 + e.data.len()) // type(2) + length(2) + data
                 .sum();
-            let ch_size = 1 + 3 + 2 + 32 + 1 + 2 + suites_size + 1 + 1 + 2 + ext_size;
+            let ch_size = 1 + 3 + 2 + 32 + 1 + sid_size + 2 + suites_size + 1 + 1 + 2 + ext_size;
             let target = self.config.padding_target as usize;
             if ch_size + 4 < target {
                 // Need (target - ch_size) more bytes total. The PADDING extension itself
@@ -396,9 +398,19 @@ impl ClientHandshake {
             cipher_suites.insert(0, CipherSuite(grease_value()));
         }
 
+        // RFC 8446 §D.4: middlebox compat mode sends a 32-byte random session ID
+        let legacy_session_id = if self.config.middlebox_compat {
+            let mut sid = vec![0u8; 32];
+            getrandom::getrandom(&mut sid)
+                .map_err(|_| TlsError::HandshakeFailed("session_id random failed".into()))?;
+            sid
+        } else {
+            vec![]
+        };
+
         let ch = ClientHello {
             random,
-            legacy_session_id: vec![],
+            legacy_session_id,
             cipher_suites,
             extensions,
         };
@@ -1653,5 +1665,52 @@ mod tests {
             !hs.offered_early_data(),
             "session.max_early_data=0 → must not offer early data"
         );
+    }
+
+    // -------------------------------------------------------
+    // Phase 93 — Middlebox compat: ClientHello session ID tests
+    // -------------------------------------------------------
+
+    #[test]
+    fn test_middlebox_compat_session_id_32_bytes() {
+        // With middlebox_compat=true (default), ClientHello has 32-byte session ID
+        let config = TlsConfig::builder().build();
+        assert!(config.middlebox_compat);
+        let mut hs = ClientHandshake::new(config);
+        let ch_msg = hs.build_client_hello().unwrap();
+
+        // Parse: type(1) + length(3) + version(2) + random(32) + session_id_len(1)
+        let sid_len = ch_msg[38] as usize;
+        assert_eq!(sid_len, 32, "middlebox_compat=true → 32-byte session ID");
+    }
+
+    #[test]
+    fn test_middlebox_compat_disabled_empty_session_id() {
+        // With middlebox_compat=false, ClientHello has empty session ID
+        let config = TlsConfig::builder().middlebox_compat(false).build();
+        assert!(!config.middlebox_compat);
+        let mut hs = ClientHandshake::new(config);
+        let ch_msg = hs.build_client_hello().unwrap();
+
+        // Parse: type(1) + length(3) + version(2) + random(32) + session_id_len(1)
+        let sid_len = ch_msg[38] as usize;
+        assert_eq!(sid_len, 0, "middlebox_compat=false → empty session ID");
+    }
+
+    #[test]
+    fn test_middlebox_compat_session_id_is_random() {
+        // Two ClientHellos with middlebox_compat=true should have different session IDs
+        let config1 = TlsConfig::builder().build();
+        let mut hs1 = ClientHandshake::new(config1);
+        let ch1 = hs1.build_client_hello().unwrap();
+
+        let config2 = TlsConfig::builder().build();
+        let mut hs2 = ClientHandshake::new(config2);
+        let ch2 = hs2.build_client_hello().unwrap();
+
+        // Extract session IDs (offset 39..71)
+        let sid1 = &ch1[39..71];
+        let sid2 = &ch2[39..71];
+        assert_ne!(sid1, sid2, "session IDs should be random");
     }
 }

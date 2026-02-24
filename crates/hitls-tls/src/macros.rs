@@ -44,14 +44,37 @@ macro_rules! fill_buf_body {
 }
 
 /// Body for `read_record`: read a single TLS record from the stream.
+/// Automatically skips fake CCS records when `middlebox_compat` is true and
+/// the connection is in TLS 1.3 handshake mode (no TLS 1.2 decryptor active).
 macro_rules! read_record_body {
     ($mode:ident, $self:ident) => {{
-        maybe_await!($mode, $self.fill_buf(5))?;
-        let length = u16::from_be_bytes([$self.read_buf[3], $self.read_buf[4]]) as usize;
-        maybe_await!($mode, $self.fill_buf(5 + length))?;
-        let (ct, plaintext, consumed) = $self.record_layer.open_record(&$self.read_buf)?;
-        $self.read_buf.drain(..consumed);
-        Ok((ct, plaintext))
+        loop {
+            maybe_await!($mode, $self.fill_buf(5))?;
+            let length = u16::from_be_bytes([$self.read_buf[3], $self.read_buf[4]]) as usize;
+            maybe_await!($mode, $self.fill_buf(5 + length))?;
+            let (ct, plaintext, consumed) = $self.record_layer.open_record(&$self.read_buf)?;
+            $self.read_buf.drain(..consumed);
+            // RFC 8446 §D.4: silently ignore CCS during TLS 1.3 handshake
+            if ct == ContentType::ChangeCipherSpec
+                && $self.config.middlebox_compat
+                && plaintext == [0x01]
+            {
+                continue;
+            }
+            break Ok((ct, plaintext));
+        }
+    }};
+}
+
+/// Send a fake ChangeCipherSpec record for middlebox compatibility (RFC 8446 §D.4).
+/// The CCS payload is a single byte 0x01, sent as plaintext with legacy version 0x0303.
+macro_rules! send_fake_ccs_body {
+    ($mode:ident, $self:ident) => {{
+        if $self.config.middlebox_compat {
+            let ccs_record: [u8; 6] = [0x14, 0x03, 0x03, 0x00, 0x01, 0x01];
+            maybe_await!($mode, $self.stream.write_all(&ccs_record))
+                .map_err(|e| TlsError::RecordError(format!("write error: {e}")))?;
+        }
     }};
 }
 
@@ -327,6 +350,9 @@ macro_rules! tls13_client_do_handshake_body {
         // Read ServerHello (may be HRR)
         let sh_actions = maybe_await!($mode, $self.read_and_process_server_hello(&mut hs))?;
 
+        // RFC 8446 §D.4: client sends fake CCS after ServerHello, before encryption
+        send_fake_ccs_body!($mode, $self);
+
         // Activate handshake read decryption
         $self
             .record_layer
@@ -377,6 +403,9 @@ macro_rules! tls13_client_read_and_process_server_hello_body {
         match $hs.process_server_hello(sh_msg)? {
             ServerHelloResult::Actions(actions) => Ok(actions),
             ServerHelloResult::RetryNeeded(retry) => {
+                // RFC 8446 §D.4: send fake CCS after HRR, before second CH
+                send_fake_ccs_body!($mode, $self);
+
                 let ch2_msg = $hs.build_client_hello_retry(&retry)?;
                 let ch2_record = $self
                     .record_layer
@@ -880,6 +909,9 @@ macro_rules! tls13_server_do_handshake_body {
                 maybe_await!($mode, $self.stream.write_all(&hrr_record))
                     .map_err(|e| TlsError::RecordError(format!("write error: {e}")))?;
 
+                // RFC 8446 §D.4: server sends fake CCS after HRR
+                send_fake_ccs_body!($mode, $self);
+
                 let (ct2, ch2_data) = maybe_await!($mode, $self.read_record())?;
                 if ct2 != ContentType::Handshake {
                     return Err(TlsError::HandshakeFailed(format!(
@@ -908,6 +940,9 @@ macro_rules! tls13_server_do_handshake_body {
             .seal_record(ContentType::Handshake, &actions.server_hello_msg)?;
         maybe_await!($mode, $self.stream.write_all(&sh_record))
             .map_err(|e| TlsError::RecordError(format!("write error: {e}")))?;
+
+        // RFC 8446 §D.4: server sends fake CCS after ServerHello, before encryption
+        send_fake_ccs_body!($mode, $self);
 
         // Step 4: Activate handshake write encryption
         $self
