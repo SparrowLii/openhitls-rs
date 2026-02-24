@@ -2254,14 +2254,56 @@ Added 20 proptest property-based tests across hitls-crypto and hitls-utils, plus
 
 ---
 
+## Phase T120: X.509 Certificate Parsing + SM9 G2 Point Arithmetic + SM9 Pairing Helpers (+15 tests, 2,829→2,844)
+
+**Date**: 2026-02-24
+**Scope**: X.509 certificate core types and DER parsing (certificate.rs, 628 lines, 0 tests), SM9 G2 elliptic curve point operations on twist E'(Fp²) (ecp2.rs, 212 lines, 0 tests), R-ate pairing and Fp2 exponentiation helpers (pairing.rs, 286 lines, 0 tests).
+
+| # | Test | File | Property |
+|---|------|------|----------|
+| 1 | `test_distinguished_name_display` | certificate.rs | DN `[("CN","Test"),("O","Org")]` → Display `"CN=Test, O=Org"` |
+| 2 | `test_distinguished_name_get` | certificate.rs | `dn.get("CN")` → `Some("Test")`, `dn.get("XX")` → `None` |
+| 3 | `test_parse_algorithm_identifier_rsa_null` | certificate.rs | SEQUENCE { OID(sha256WithRSA), NULL } → `(oid, None)` |
+| 4 | `test_parse_algorithm_identifier_ec_params` | certificate.rs | SEQUENCE { OID(ecPublicKey), OID(prime256v1) } → `(oid, Some(curve_oid))` |
+| 5 | `test_certificate_roundtrip_self_signed` | certificate.rs | Build via CertificateBuilder → from_der → version=3, CN, is_self_signed |
+| 6 | `test_g2_infinity_properties` | ecp2.rs | `infinity().is_infinity()` true, `generator().is_infinity()` false |
+| 7 | `test_g2_add_identity` | ecp2.rs | P + O == P, O + P == P |
+| 8 | `test_g2_double_equals_add_self` | ecp2.rs | `G.double()` == `G.add(&G)` |
+| 9 | `test_g2_negate_then_add_gives_infinity` | ecp2.rs | G + (-G) == infinity |
+| 10 | `test_g2_serialize_roundtrip` | ecp2.rs | `generator().to_bytes()` → `from_bytes()` → equals generator |
+| 11 | `test_pairing_infinity_first_arg` | pairing.rs | `pairing(O_G1, G2)` == `Fp12::one()` |
+| 12 | `test_pairing_infinity_second_arg` | pairing.rs | `pairing(G1, O_G2)` == `Fp12::one()` |
+| 13 | `test_fp2_pow_zero_gives_one` | pairing.rs | `fp2_pow(x, 0)` == `Fp2::one()` |
+| 14 | `test_fp2_pow_one_gives_base` | pairing.rs | `fp2_pow(x, 1)` == x |
+| 15 | `test_fp2_pow_squaring` | pairing.rs | `fp2_pow(x, 2)` == `x.sqr()` |
+
+**Per-crate counts after Phase T120**:
+
+| Crate | Tests | Ignored |
+|-------|------:|-------:|
+| hitls-auth | 33 | 0 |
+| hitls-bignum | 49 | 0 |
+| hitls-cli | 117 | 5 |
+| hitls-crypto | 729 | 31 |
+| wycheproof | 15 | 0 |
+| hitls-integration | 149 | 3 |
+| hitls-pki | 374 | 1 |
+| hitls-tls | 1284 | 0 |
+| hitls-types | 26 | 0 |
+| hitls-utils | 66 | 0 |
+| doc-tests | 2 | 0 |
+| **Total** | **2844** | **40** |
+
+---
+
 ## 8. Verification & Quality Gates
 
 All phases verified with the same quality gates:
 
 ```bash
-# Full test suite — all 2,829 tests pass
+# Full test suite — all 2,844 tests pass
 cargo test --workspace --all-features
-# Result: 2,829 passed, 0 failed, 40 ignored
+# Result: 2,844 passed, 0 failed, 40 ignored
 
 # Clippy — zero warnings enforced
 RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets

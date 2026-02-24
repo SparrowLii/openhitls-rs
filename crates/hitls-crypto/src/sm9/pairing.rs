@@ -284,3 +284,47 @@ fn hard_part(f: &Fp12) -> Result<Fp12, CryptoError> {
 
     f.pow(&exp)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_pairing_infinity_first_arg() {
+        let inf = EcPointG1::infinity();
+        let g2 = EcPointG2::generator();
+        let result = pairing(&inf, &g2).unwrap();
+        assert_eq!(result, Fp12::one());
+    }
+
+    #[test]
+    fn test_pairing_infinity_second_arg() {
+        let g1 = EcPointG1::generator();
+        let inf = EcPointG2::infinity();
+        let result = pairing(&g1, &inf).unwrap();
+        assert_eq!(result, Fp12::one());
+    }
+
+    #[test]
+    fn test_fp2_pow_zero_gives_one() {
+        // A non-trivial Fp2 element raised to the 0th power should be one
+        let x = Fp2::new(Fp::from_u64(42), Fp::from_u64(7));
+        let result = fp2_pow(&x, &hitls_bignum::BigNum::from_u64(0)).unwrap();
+        assert_eq!(result, Fp2::one());
+    }
+
+    #[test]
+    fn test_fp2_pow_one_gives_base() {
+        let x = Fp2::new(Fp::from_u64(42), Fp::from_u64(7));
+        let result = fp2_pow(&x, &hitls_bignum::BigNum::from_u64(1)).unwrap();
+        assert_eq!(result, x);
+    }
+
+    #[test]
+    fn test_fp2_pow_squaring() {
+        let x = Fp2::new(Fp::from_u64(42), Fp::from_u64(7));
+        let pow2 = fp2_pow(&x, &hitls_bignum::BigNum::from_u64(2)).unwrap();
+        let sqr = x.sqr().unwrap();
+        assert_eq!(pow2, sqr);
+    }
+}

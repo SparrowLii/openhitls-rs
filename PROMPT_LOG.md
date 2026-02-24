@@ -2543,3 +2543,19 @@ Targeted coverage gaps in connection_info, handshake enums, lib.rs constants, co
 **Result**:
 - 3 source files modified, 0 files created. hitls-pki: 354→369, total: 2814→2829.
 - All 2829 workspace tests pass, 0 clippy warnings, formatting clean.
+
+## Phase T120: X.509 Certificate Parsing + SM9 G2 Point Arithmetic + SM9 Pairing Helpers
+
+**Prompt**: Implement Phase T120 — X.509 Certificate Parsing + SM9 G2 Point Arithmetic + SM9 Pairing Helpers. Add 5 certificate parsing tests (DN Display, DN get, parse_algorithm_identifier RSA+NULL, parse_algorithm_identifier EC params, self-signed cert roundtrip). Add 5 G2 point arithmetic tests (infinity properties, add identity, double=add self, negate+add=infinity, serialize roundtrip). Add 5 pairing helper tests (pairing infinity G1, pairing infinity G2, fp2_pow zero, fp2_pow one, fp2_pow squaring).
+
+**Scope**: Three core files across hitls-pki and hitls-crypto had zero test coverage: certificate.rs (628 lines, X.509 types + DER/PEM parsing + DN helpers), ecp2.rs (212 lines, G2 point operations on twist E'(Fp²)), pairing.rs (286 lines, R-ate pairing + fp2_pow + Frobenius map).
+
+**Work performed**:
+1. Added 5 certificate parsing tests to `crates/hitls-pki/src/x509/certificate.rs`: DN Display formatting, DN get() lookup with missing key, parse_algorithm_identifier RSA NULL normalization, parse_algorithm_identifier EC OID params, self-signed CertificateBuilder→from_der roundtrip
+2. Added 5 G2 point arithmetic tests to `crates/hitls-crypto/src/sm9/ecp2.rs`: infinity/generator properties, P+O=P additive identity, double==add(self) consistency, G+(-G)=infinity inverse, 128-byte serialize/deserialize roundtrip
+3. Added 5 pairing helper tests to `crates/hitls-crypto/src/sm9/pairing.rs`: pairing(O,Q)=1, pairing(P,O)=1, fp2_pow zero=one, fp2_pow one=base, fp2_pow two=sqr
+4. Updated CLAUDE.md, DEV_LOG.md, TEST_LOG.md, PROMPT_LOG.md, README.md
+
+**Result**:
+- 3 source files modified, 0 files created. hitls-crypto: 719→729, hitls-pki: 369→374, total: 2829→2844.
+- All 2844 workspace tests pass, 0 clippy warnings, formatting clean.

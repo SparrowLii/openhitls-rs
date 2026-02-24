@@ -8356,3 +8356,29 @@ Added 15 tests across 3 core PKI infrastructure files that previously had zero t
 - `cargo test --workspace --all-features`: 2829 passed, 0 failed, 40 ignored
 - `RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets`: 0 warnings
 - `cargo fmt --all -- --check`: clean
+
+## Phase T120: X.509 Certificate Parsing + SM9 G2 Point Arithmetic + SM9 Pairing Helpers (+15 tests, 2,829→2,844)
+
+**Date**: 2026-02-24
+**Scope**: X.509 certificate core types and DER parsing (certificate.rs, 628 lines, 0 tests), SM9 G2 elliptic curve point operations on twist E'(Fp²) (ecp2.rs, 212 lines, 0 tests), R-ate pairing and Fp2 exponentiation helpers (pairing.rs, 286 lines, 0 tests).
+
+### Summary
+
+Added 15 tests across 3 files that previously had zero test coverage:
+
+- **Certificate parsing** (5 tests in hitls-pki): DN Display formatting, DN get() lookup, parse_algorithm_identifier RSA+NULL normalization, parse_algorithm_identifier EC+OID params, self-signed certificate DER roundtrip via CertificateBuilder
+- **G2 point arithmetic** (5 tests in hitls-crypto): infinity properties, additive identity (P+O=P), double-equals-add-self consistency, negate-then-add-gives-infinity, 128-byte serialize/deserialize roundtrip
+- **Pairing helpers** (5 tests in hitls-crypto): pairing with infinity G1 returns Fp12::one, pairing with infinity G2 returns Fp12::one, fp2_pow zero exponent gives one, fp2_pow one exponent gives base, fp2_pow two exponent equals sqr
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `crates/hitls-pki/src/x509/certificate.rs` | Added `#[cfg(test)] mod tests` with 5 certificate parsing tests |
+| `crates/hitls-crypto/src/sm9/ecp2.rs` | Added `#[cfg(test)] mod tests` with 5 G2 point arithmetic tests |
+| `crates/hitls-crypto/src/sm9/pairing.rs` | Added `#[cfg(test)] mod tests` with 5 pairing helper tests |
+
+### Build Status
+- `cargo test --workspace --all-features`: 2844 passed, 0 failed, 40 ignored
+- `RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets`: 0 warnings
+- `cargo fmt --all -- --check`: clean

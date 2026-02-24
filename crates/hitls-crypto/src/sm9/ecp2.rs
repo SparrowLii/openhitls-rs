@@ -210,3 +210,53 @@ impl PartialEq for EcPointG2 {
 }
 
 impl Eq for EcPointG2 {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_g2_infinity_properties() {
+        let inf = EcPointG2::infinity();
+        assert!(inf.is_infinity());
+        let gen = EcPointG2::generator();
+        assert!(!gen.is_infinity());
+    }
+
+    #[test]
+    fn test_g2_add_identity() {
+        let g = EcPointG2::generator();
+        let inf = EcPointG2::infinity();
+        // P + O == P
+        let r1 = g.add(&inf).unwrap();
+        assert_eq!(r1, g);
+        // O + P == P
+        let r2 = inf.add(&g).unwrap();
+        assert_eq!(r2, g);
+    }
+
+    #[test]
+    fn test_g2_double_equals_add_self() {
+        let g = EcPointG2::generator();
+        let doubled = g.double().unwrap();
+        let added = g.add(&g).unwrap();
+        assert_eq!(doubled, added);
+    }
+
+    #[test]
+    fn test_g2_negate_then_add_gives_infinity() {
+        let g = EcPointG2::generator();
+        let neg_g = g.negate().unwrap();
+        let result = g.add(&neg_g).unwrap();
+        assert!(result.is_infinity());
+    }
+
+    #[test]
+    fn test_g2_serialize_roundtrip() {
+        let g = EcPointG2::generator();
+        let bytes = g.to_bytes().unwrap();
+        assert_eq!(bytes.len(), 128);
+        let recovered = EcPointG2::from_bytes(&bytes).unwrap();
+        assert_eq!(recovered, g);
+    }
+}

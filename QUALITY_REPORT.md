@@ -12,7 +12,7 @@
 | Layer | Mechanism | Coverage | Status |
 |:-----:|-----------|----------|:------:|
 | **L1** | Static Analysis | clippy zero-warning + rustfmt + MSRV 1.75 dual-version CI | Complete |
-| **L2** | Unit Tests | 2,829 tests (40 ignored), 100% pass rate | Comprehensive |
+| **L2** | Unit Tests | 2,844 tests (40 ignored), 100% pass rate | Comprehensive |
 | **L3** | Integration Tests | 149 cross-crate tests (TCP loopback + DTLS resilience) | Good |
 | **L4** | Fuzz Testing | 10 fuzz targets + 66 seed corpus files | Parse-only |
 | **L5** | Security Audit | rustsec/audit-check + Miri (bignum/utils) + cargo-tarpaulin coverage | Good |
@@ -37,8 +37,8 @@ GitHub Actions (.github/workflows/ci.yml)
 | Crate | Tests | Ignored | % of Total | Focus |
 |-------|------:|--------:|:----------:|-------|
 | hitls-tls | 1,284 | 0 | 45.4% | TLS 1.3/1.2/DTLS/TLCP/DTLCP handshake, record, extensions, callbacks |
-| hitls-crypto | 719 | 31 | 25.6% | 48 algorithm modules + hardware acceleration + proptest |
-| hitls-pki | 369 | 1 | 13.1% | X.509, PKCS#8/12, CMS (5 content types), encoding helpers |
+| hitls-crypto | 729 | 31 | 25.6% | 48 algorithm modules + hardware acceleration + proptest |
+| hitls-pki | 374 | 1 | 13.2% | X.509, PKCS#8/12, CMS (5 content types), encoding helpers |
 | hitls-integration | 149 | 3 | 5.3% | Cross-crate TCP loopback, error scenarios, concurrency, DTLS resilience |
 | hitls-cli | 117 | 5 | 4.1% | 14 CLI commands |
 | hitls-utils | 66 | 0 | 2.3% | ASN.1, Base64, PEM, OID, proptest roundtrips |
@@ -47,7 +47,7 @@ GitHub Actions (.github/workflows/ci.yml)
 | hitls-types | 26 | 0 | 0.9% | Enum definitions, error types |
 | Wycheproof | 15 | 0 | 0.5% | 5,000+ vectors across 15 test groups |
 | Doc-tests | 2 | 0 | 0.1% | API documentation examples |
-| **Total** | **2,829** | **40** | **100%** | |
+| **Total** | **2,844** | **40** | **100%** | |
 
 ### 1.4 Standard Compliance Coverage
 
@@ -235,9 +235,10 @@ Phase T116         +15      D4           DTLS fragmentation + retransmission    
 Phase T117         +15      D4           DTLS codec + anti-replay boundaries         ✅
 Phase T118         +15      D10          X.509 extensions + WOTS+ + ASN.1 tags       ✅
 Phase T119         +15      —            PKI encoding + signing dispatch + builder   ✅
+Phase T120         +15      —            X.509 cert parsing + SM9 G2 + pairing       ✅
 ```
 
-**Result**: 2,585 → 2,829 tests (+244), all planned deficiencies addressed.
+**Result**: 2,585 → 2,844 tests (+259), all planned deficiencies addressed.
 
 ### 3.2 Phase T102 — 0-RTT Early Data + Replay Protection (~8 tests) ✅
 
@@ -413,9 +414,9 @@ Phases T112–T119 continued hardening beyond the original roadmap:
 
 ## 4. Coverage Targets — Final Status
 
-| Metric | Original (T106) | Target (T111) | **Actual (T119)** |
+| Metric | Original (T106) | Target (T111) | **Actual (T120)** |
 |--------|:---------------:|:-------------:|:-----------------:|
-| Total tests | 2,634 | ~2,750+ | **2,829** |
+| Total tests | 2,634 | ~2,750+ | **2,844** |
 | Critical deficiencies (D1-D2) | 0 | 0 | **0** |
 | High deficiencies (D3-D5) | 2 partial | 0 | **0** (D4/D5 mostly closed) |
 | Crypto files with tests | 75% | 90%+ | **~90%** |

@@ -626,3 +626,105 @@ fn parse_csr_attributes(data: &[u8]) -> Result<Vec<X509Extension>, PkiError> {
     }
     Ok(extensions)
 }
+
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use hitls_utils::asn1::Encoder;
+
+    #[test]
+    fn test_distinguished_name_display() {
+        let dn = DistinguishedName {
+            entries: vec![
+                ("CN".to_string(), "Test".to_string()),
+                ("O".to_string(), "Org".to_string()),
+            ],
+        };
+        assert_eq!(format!("{dn}"), "CN=Test, O=Org");
+    }
+
+    #[test]
+    fn test_distinguished_name_get() {
+        let dn = DistinguishedName {
+            entries: vec![
+                ("CN".to_string(), "Test".to_string()),
+                ("O".to_string(), "Org".to_string()),
+            ],
+        };
+        assert_eq!(dn.get("CN"), Some("Test"));
+        assert_eq!(dn.get("O"), Some("Org"));
+        assert_eq!(dn.get("XX"), None);
+    }
+
+    #[test]
+    fn test_parse_algorithm_identifier_rsa_null() {
+        // Build SEQUENCE { OID(sha256WithRSAEncryption), NULL }
+        let oid_bytes = known::sha256_with_rsa_encryption().to_der_value();
+        let mut inner = Encoder::new();
+        inner.write_oid(&oid_bytes);
+        inner.write_null();
+        let inner_der = inner.finish();
+        let mut enc = Encoder::new();
+        enc.write_sequence(&inner_der);
+        let der = enc.finish();
+
+        let mut dec = Decoder::new(&der);
+        let (oid, params) = parse_algorithm_identifier(&mut dec).unwrap();
+        assert_eq!(oid, oid_bytes);
+        // NULL parameter is normalized to None
+        assert!(params.is_none(), "NULL params should be normalized to None");
+    }
+
+    #[test]
+    fn test_parse_algorithm_identifier_ec_params() {
+        // Build SEQUENCE { OID(ecPublicKey), OID(prime256v1) }
+        let alg_oid = known::ec_public_key().to_der_value();
+        let curve_oid = known::prime256v1().to_der_value();
+        let mut inner = Encoder::new();
+        inner.write_oid(&alg_oid);
+        inner.write_oid(&curve_oid);
+        let inner_der = inner.finish();
+        let mut enc = Encoder::new();
+        enc.write_sequence(&inner_der);
+        let der = enc.finish();
+
+        let mut dec = Decoder::new(&der);
+        let (oid, params) = parse_algorithm_identifier(&mut dec).unwrap();
+        assert_eq!(oid, alg_oid);
+        // The OID parameter should be present (not NULL)
+        let params = params.expect("EC params should be Some");
+        // The value should be the OID value bytes (prime256v1)
+        assert_eq!(params, curve_oid);
+    }
+
+    #[test]
+    fn test_certificate_roundtrip_self_signed() {
+        let kp = hitls_crypto::ed25519::Ed25519KeyPair::generate().unwrap();
+        let sk = super::super::signing::SigningKey::Ed25519(kp);
+        let subject = DistinguishedName {
+            entries: vec![
+                ("CN".to_string(), "Test CA".to_string()),
+                ("O".to_string(), "OpenHiTLS".to_string()),
+            ],
+        };
+        let cert = super::super::builder::CertificateBuilder::self_signed(
+            subject.clone(),
+            &sk,
+            1_700_000_000,
+            1_800_000_000,
+        )
+        .unwrap();
+
+        // Re-parse from DER
+        let parsed = Certificate::from_der(&cert.raw).unwrap();
+        assert_eq!(parsed.version, 3);
+        assert_eq!(parsed.subject.get("CN"), Some("Test CA"));
+        assert_eq!(parsed.subject.get("O"), Some("OpenHiTLS"));
+        assert!(parsed.is_self_signed());
+        assert_eq!(parsed.issuer, parsed.subject);
+    }
+}
