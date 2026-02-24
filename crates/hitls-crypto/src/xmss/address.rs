@@ -79,6 +79,74 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_xmss_adrs_new_all_zeros() {
+        let adrs = XmssAdrs::new();
+        assert_eq!(adrs.as_bytes(), &[0u8; 32]);
+    }
+
+    #[test]
+    fn test_xmss_adrs_ltree_type() {
+        let mut adrs = XmssAdrs::new();
+        adrs.set_type(XmssAdrsType::LTree);
+        // LTree = 1
+        assert_eq!(&adrs.as_bytes()[12..16], &1u32.to_be_bytes());
+        // set_ltree_addr writes to [16:20]
+        adrs.set_ltree_addr(42);
+        assert_eq!(&adrs.as_bytes()[16..20], &42u32.to_be_bytes());
+    }
+
+    #[test]
+    fn test_xmss_adrs_clone_independence() {
+        let mut adrs = XmssAdrs::new();
+        adrs.set_layer_addr(5);
+        adrs.set_tree_addr(100);
+
+        let mut cloned = adrs.clone();
+        cloned.set_layer_addr(99);
+
+        // Original unchanged
+        assert_eq!(&adrs.as_bytes()[0..4], &5u32.to_be_bytes());
+        assert_eq!(&cloned.as_bytes()[0..4], &99u32.to_be_bytes());
+    }
+
+    #[test]
+    fn test_xmss_adrs_tree_height_index_overlap() {
+        // set_tree_height writes to [20:24] (same offset as set_chain_addr)
+        // set_tree_index writes to [24:28] (same offset as set_hash_addr)
+        let mut adrs = XmssAdrs::new();
+        adrs.set_type(XmssAdrsType::HashTree);
+
+        adrs.set_tree_height(7);
+        assert_eq!(&adrs.as_bytes()[20..24], &7u32.to_be_bytes());
+
+        adrs.set_tree_index(1023);
+        assert_eq!(&adrs.as_bytes()[24..28], &1023u32.to_be_bytes());
+
+        // Verify these are the same byte ranges as chain/hash addr
+        let mut adrs2 = XmssAdrs::new();
+        adrs2.set_type(XmssAdrsType::Ots);
+        adrs2.set_chain_addr(7);
+        assert_eq!(&adrs2.as_bytes()[20..24], &adrs.as_bytes()[20..24]);
+        adrs2.set_hash_addr(1023);
+        assert_eq!(&adrs2.as_bytes()[24..28], &adrs.as_bytes()[24..28]);
+    }
+
+    #[test]
+    fn test_xmss_adrs_large_tree_address() {
+        let mut adrs = XmssAdrs::new();
+        // Max u64 tree address
+        adrs.set_tree_addr(u64::MAX);
+        assert_eq!(&adrs.as_bytes()[4..12], &u64::MAX.to_be_bytes());
+
+        // Max u32 layer
+        adrs.set_layer_addr(u32::MAX);
+        assert_eq!(&adrs.as_bytes()[0..4], &u32::MAX.to_be_bytes());
+
+        // Tree addr unchanged
+        assert_eq!(&adrs.as_bytes()[4..12], &u64::MAX.to_be_bytes());
+    }
+
+    #[test]
     fn test_xmss_adrs_set_get() {
         let mut adrs = XmssAdrs::new();
         adrs.set_layer_addr(3);

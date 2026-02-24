@@ -9,12 +9,12 @@
 
 | Metric | Value |
 |--------|-------|
-| **Total tests** | **2,924** (50 ignored) |
-| **Test growth** | 1,104 → 2,924 (+165% since baseline) |
+| **Total tests** | **2,939** (50 ignored) |
+| **Test growth** | 1,104 → 2,939 (+166% since baseline) |
 | **Crates covered** | 8/8 (100% crate-level coverage) |
 | **Fuzz targets** | 10 (with 66 seed corpus files) |
 | **Wycheproof vectors** | 5,000+ (15 test groups) |
-| **Zero failures** | All 2,924 tests pass, clippy clean, fmt clean |
+| **Zero failures** | All 2,939 tests pass, clippy clean, fmt clean |
 
 ### Test Growth Timeline
 
@@ -70,6 +70,7 @@ Phase T123  2,882     +10   XMSS tree ops + WOTS+ deepening + FORS deepening (*)
 Phase T124  2,897     +15   McEliece GF(2^13) + Benes network + matrix deepening (*)
 Phase T125  2,909     +12   FrodoKEM matrix ops + SLH-DSA hypertree + McEliece poly (*)
 Phase T126  2,924     +15   McEliece + FrodoKEM + XMSS parameter set validation (*)
+Phase T127  2,939     +15   XMSS hash + address + ML-KEM NTT deepening (*)
 ```
 
 (*) Testing-only phases (no new features, pure test coverage)
@@ -2551,6 +2552,46 @@ Added 20 proptest property-based tests across hitls-crypto and hitls-utils, plus
 | doc-tests | 2 | 0 |
 | **Total** | **2924** | **50** |
 
+### Phase T127: XMSS Hash Abstraction + XMSS Address Scheme + ML-KEM NTT Deepening (+15 tests, 2,924→2,939)
+
+**Date**: 2026-02-24
+**Scope**: Deepen test coverage for three PQC internal modules: XMSS hash abstraction (hash.rs, 247 lines, 2 tests), XMSS address scheme (address.rs, 120 lines, 2 tests), ML-KEM NTT (ntt.rs, 229 lines, 3 tests).
+
+| # | Test | File | Property |
+|---|------|------|----------|
+| 1 | `test_to_byte_padding` | xmss/hash.rs | toByte(0/1/3/256, 32) domain separation padding |
+| 2 | `test_xmss_hasher_prf_different_addresses` | xmss/hash.rs | Different ADRS → different PRF outputs |
+| 3 | `test_xmss_hasher_f_deterministic` | xmss/hash.rs | F(ADRS, msg) deterministic with SHAKE128 |
+| 4 | `test_xmss_hasher_h_msg_idx_sensitivity` | xmss/hash.rs | h_msg deterministic; different idx → different output |
+| 5 | `test_xmss_hasher_prf_msg_output` | xmss/hash.rs | prf_msg 32-byte output, deterministic, idx-sensitive |
+| 6 | `test_xmss_adrs_new_all_zeros` | xmss/address.rs | New address is 32 zero bytes |
+| 7 | `test_xmss_adrs_ltree_type` | xmss/address.rs | LTree type=1, set_ltree_addr at [16:20] |
+| 8 | `test_xmss_adrs_clone_independence` | xmss/address.rs | Clone modification doesn't affect original |
+| 9 | `test_xmss_adrs_tree_height_index_overlap` | xmss/address.rs | tree_height/tree_index same offsets as chain/hash |
+| 10 | `test_xmss_adrs_large_tree_address` | xmss/address.rs | u64::MAX tree addr + u32::MAX layer addr |
+| 11 | `test_ntt_zero_polynomial` | mlkem/ntt.rs | NTT(0) = 0, INTT(NTT(0)) = 0 |
+| 12 | `test_fqmul_properties` | mlkem/ntt.rs | fqmul(a,0)=0, commutativity |
+| 13 | `test_poly_add_sub_inverse` | mlkem/ntt.rs | poly_add then poly_sub recovers original |
+| 14 | `test_to_mont_and_reduce_poly` | mlkem/ntt.rs | to_mont changes nonzero coefficients; reduce_poly bounds |
+| 15 | `test_zetas_table_properties` | mlkem/ntt.rs | 128 entries, all nonzero, all in (-Q,Q), all distinct |
+
+**Per-crate counts after Phase T127**:
+
+| Crate | Tests | Ignored |
+|-------|------:|-------:|
+| hitls-auth | 33 | 0 |
+| hitls-bignum | 49 | 0 |
+| hitls-cli | 117 | 5 |
+| hitls-crypto | 824 | 41 |
+| wycheproof | 15 | 0 |
+| hitls-integration | 149 | 3 |
+| hitls-pki | 374 | 1 |
+| hitls-tls | 1284 | 0 |
+| hitls-types | 26 | 0 |
+| hitls-utils | 66 | 0 |
+| doc-tests | 2 | 0 |
+| **Total** | **2939** | **50** |
+
 ---
 
 ## 8. Verification & Quality Gates
@@ -2558,9 +2599,9 @@ Added 20 proptest property-based tests across hitls-crypto and hitls-utils, plus
 All phases verified with the same quality gates:
 
 ```bash
-# Full test suite — all 2,924 tests pass
+# Full test suite — all 2,939 tests pass
 cargo test --workspace --all-features
-# Result: 2,924 passed, 0 failed, 50 ignored
+# Result: 2,939 passed, 0 failed, 50 ignored
 
 # Clippy — zero warnings enforced
 RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets

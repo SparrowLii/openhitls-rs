@@ -2562,6 +2562,24 @@ Targeted coverage gaps in connection_info, handshake enums, lib.rs constants, co
 
 ---
 
+## Phase T127: XMSS Hash Abstraction + XMSS Address Scheme + ML-KEM NTT Deepening
+
+**Prompt**: Continue implementing Phase T127. Deepen test coverage for three PQC internal modules with low test density: XMSS hash abstraction (hash.rs, 247 lines, 2 tests), XMSS address scheme (address.rs, 120 lines, 2 tests), ML-KEM NTT (ntt.rs, 229 lines, 3 tests).
+
+**Scope**: XMSS RFC 8391 hash function domain separation (to_byte, PRF, F, H_msg, PRF_msg), XMSS 32-byte address structure manipulation (OTS/LTree/HashTree types, field overlaps, clone independence), ML-KEM NTT with Montgomery arithmetic (zero polynomial, fqmul, poly_add/sub, to_mont/reduce_poly, ZETAS table).
+
+**Work performed**:
+1. Added 5 XMSS hash tests to `crates/hitls-crypto/src/xmss/hash.rs`: to_byte padding, PRF address sensitivity, F determinism, h_msg idx sensitivity, prf_msg output
+2. Added 5 XMSS address tests to `crates/hitls-crypto/src/xmss/address.rs`: new all-zeros, LTree type, clone independence, tree height/index overlap, large tree address
+3. Added 5 ML-KEM NTT tests to `crates/hitls-crypto/src/mlkem/ntt.rs`: NTT zero polynomial, fqmul properties, poly_add/sub inverse, to_mont/reduce_poly, ZETAS table properties
+4. Updated CLAUDE.md, DEV_LOG.md, TEST_LOG.md, PROMPT_LOG.md, README.md, QUALITY_REPORT.md
+
+**Result**:
+- 3 source files modified, 0 files created. hitls-crypto: 809→824 (41 ignored unchanged), total: 2924→2939 (50 ignored unchanged).
+- All 2939 workspace tests pass, 0 clippy warnings, formatting clean.
+
+---
+
 ## Phase T126: McEliece Params + FrodoKEM Params + XMSS Params Deepening
 
 **Prompt**: Continue implementing Phase T126. Deepen test coverage for three PQC parameter set modules with low test density: McEliece params (params.rs, 284 lines, 1 test), FrodoKEM params (params.rs, 359 lines, 2 tests), XMSS params (params.rs, 169 lines, 1 test).

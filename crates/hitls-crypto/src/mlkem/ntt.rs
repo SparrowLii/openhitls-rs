@@ -186,6 +186,124 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_ntt_zero_polynomial() {
+        let mut f = [0i16; N];
+        ntt(&mut f);
+        // NTT of zero polynomial should remain zero
+        for (i, &coeff) in f.iter().enumerate() {
+            assert_eq!(coeff, 0, "NTT(0) should be 0 at index {i}");
+        }
+        invntt(&mut f);
+        for (i, &coeff) in f.iter().enumerate() {
+            assert_eq!(coeff, 0, "INTT(NTT(0)) should be 0 at index {i}");
+        }
+    }
+
+    #[test]
+    fn test_fqmul_properties() {
+        // fqmul(a, 0) = 0
+        assert_eq!(fqmul(100, 0), 0);
+        assert_eq!(fqmul(0, 100), 0);
+
+        // Commutativity: fqmul(a,b) == fqmul(b,a)
+        let a = 1234i16;
+        let b = 567i16;
+        assert_eq!(fqmul(a, b), fqmul(b, a));
+
+        // fqmul(1, R²) = montgomery_reduce(1 * R²) = R² * R⁻¹ = R mod q
+        // But in practice we just check consistency
+        let x = fqmul(100, 200);
+        let y = fqmul(200, 100);
+        assert_eq!(x, y, "fqmul should be commutative");
+    }
+
+    #[test]
+    fn test_poly_add_sub_inverse() {
+        let mut a = [0i16; N];
+        let mut b = [0i16; N];
+        for i in 0..N {
+            a[i] = (i as i16 * 13 + 7) % Q;
+            b[i] = (i as i16 * 29 + 11) % Q;
+        }
+
+        // r = a + b
+        let mut r = [0i16; N];
+        poly_add(&mut r, &a, &b);
+
+        // s = r - b = a
+        let mut s = [0i16; N];
+        poly_sub(&mut s, &r, &b);
+
+        for i in 0..N {
+            assert_eq!(
+                s[i], a[i],
+                "poly_add then poly_sub should recover original at {i}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_to_mont_and_reduce_poly() {
+        let mut f = [0i16; N];
+        for i in 0..N {
+            f[i] = (i as i16 % Q).min(Q - 1);
+        }
+
+        // to_mont multiplies by R mod q
+        let before = f;
+        to_mont(&mut f);
+
+        // After to_mont, values should generally differ (unless 0)
+        let mut any_changed = false;
+        for i in 0..N {
+            if before[i] != 0 && f[i] != before[i] {
+                any_changed = true;
+                break;
+            }
+        }
+        assert!(any_changed, "to_mont should change nonzero coefficients");
+
+        // reduce_poly should keep all coefficients in roughly [-Q, Q]
+        reduce_poly(&mut f);
+        for (i, &coeff) in f.iter().enumerate() {
+            assert!(
+                coeff.abs() <= Q,
+                "reduce_poly coefficient {coeff} at {i} should be in [-Q, Q]"
+            );
+        }
+    }
+
+    #[test]
+    fn test_zetas_table_properties() {
+        // 128 entries
+        assert_eq!(ZETAS.len(), 128);
+
+        // All entries nonzero
+        for (i, &z) in ZETAS.iter().enumerate() {
+            assert_ne!(z, 0, "ZETAS[{i}] should be nonzero");
+        }
+
+        // All entries in range (-Q, Q)
+        for (i, &z) in ZETAS.iter().enumerate() {
+            assert!(
+                z.abs() < Q,
+                "ZETAS[{i}] = {z} should be in range (-{Q}, {Q})"
+            );
+        }
+
+        // All entries distinct (zetas are distinct roots of unity)
+        for i in 0..ZETAS.len() {
+            for j in (i + 1)..ZETAS.len() {
+                assert_ne!(
+                    ZETAS[i], ZETAS[j],
+                    "ZETAS[{i}]={} should differ from ZETAS[{j}]={}",
+                    ZETAS[i], ZETAS[j]
+                );
+            }
+        }
+    }
+
+    #[test]
     fn test_ntt_invntt_roundtrip() {
         // F_INV128 = 1441 = R²/128 mod q (Kyber reference convention).
         // Standalone NTT → INTT returns result * R mod q (since basemul's R⁻¹ is absent).

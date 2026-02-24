@@ -8597,6 +8597,32 @@ Added 15 tests across 3 files (12 non-ignored + 3 ignored):
 
 ---
 
+## Phase T127: XMSS Hash Abstraction + XMSS Address Scheme + ML-KEM NTT Deepening (+15 tests, 2,924→2,939)
+
+**Date**: 2026-02-24
+**Scope**: Deepen test coverage for three PQC internal modules with low test density: XMSS hash abstraction (hash.rs, 247 lines, 2 tests), XMSS address scheme (address.rs, 120 lines, 2 tests), ML-KEM NTT (ntt.rs, 229 lines, 3 tests).
+
+### Summary
+
+Added 15 tests across 3 PQC internal modules validating hash function domain separation, address manipulation correctness, and NTT algebraic properties:
+
+- **XMSS hash** (5 tests): to_byte domain separation padding (0/1/3/256), PRF address sensitivity (different ADRS → different output), F function determinism with SHAKE128, h_msg determinism and idx sensitivity, prf_msg output length and idx sensitivity
+- **XMSS address** (5 tests): new() all-zeros initialization, LTree type=1 and set_ltree_addr, clone independence, tree_height/tree_index byte offset overlap with chain/hash addr, large u64::MAX tree address and u32::MAX layer
+- **ML-KEM NTT** (5 tests): NTT of zero polynomial stays zero, fqmul commutativity and zero-multiplication, poly_add/poly_sub inverse recovery, to_mont coefficient conversion and reduce_poly bounding, ZETAS table properties (128 nonzero distinct entries all in (-Q,Q))
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `crates/hitls-crypto/src/xmss/hash.rs` | Added 5 tests to existing `#[cfg(test)] mod tests` |
+| `crates/hitls-crypto/src/xmss/address.rs` | Added 5 tests to existing `#[cfg(test)] mod tests` |
+| `crates/hitls-crypto/src/mlkem/ntt.rs` | Added 5 tests to existing `#[cfg(test)] mod tests` |
+
+### Build Status
+- `cargo test --workspace --all-features`: 2939 passed, 0 failed, 50 ignored
+- `RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets`: 0 warnings
+- `cargo fmt --all -- --check`: clean
+
 ## Phase T126: McEliece + FrodoKEM + XMSS Parameter Set Validation Deepening (+15 tests, 2,909→2,924)
 
 **Date**: 2026-02-24

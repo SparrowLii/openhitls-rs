@@ -193,6 +193,113 @@ mod tests {
     use crate::xmss::address::XmssAdrs;
 
     #[test]
+    fn test_to_byte_padding() {
+        // toByte(0, 32) = all zeros
+        let b0 = super::to_byte(0, 32);
+        assert_eq!(b0.len(), 32);
+        assert!(b0.iter().all(|&x| x == 0));
+
+        // toByte(1, 32) = 31 zeros + 0x01
+        let b1 = super::to_byte(1, 32);
+        assert_eq!(b1.len(), 32);
+        assert!(b1[..31].iter().all(|&x| x == 0));
+        assert_eq!(b1[31], 1);
+
+        // toByte(3, 32) = 31 zeros + 0x03
+        let b3 = super::to_byte(3, 32);
+        assert_eq!(b3[31], 3);
+
+        // toByte(256, 32) = value 0x100 in big-endian
+        let b256 = super::to_byte(256, 32);
+        assert_eq!(b256[30], 1);
+        assert_eq!(b256[31], 0);
+    }
+
+    #[test]
+    fn test_xmss_hasher_prf_different_addresses() {
+        let hasher = XmssHasher {
+            n: 32,
+            mode: XmssHashMode::Sha256,
+            sk_seed: vec![0x11u8; 32],
+            pk_seed: vec![0x22u8; 32],
+        };
+
+        let seed = vec![0x33u8; 32];
+        let mut adrs1 = XmssAdrs::new();
+        adrs1.set_layer_addr(0);
+        let mut adrs2 = XmssAdrs::new();
+        adrs2.set_layer_addr(1);
+
+        let out1 = hasher.prf(&seed, &adrs1).unwrap();
+        let out2 = hasher.prf(&seed, &adrs2).unwrap();
+        assert_ne!(
+            out1, out2,
+            "different addresses should produce different PRF outputs"
+        );
+    }
+
+    #[test]
+    fn test_xmss_hasher_f_deterministic() {
+        let hasher = XmssHasher {
+            n: 32,
+            mode: XmssHashMode::Shake128,
+            sk_seed: vec![0xAAu8; 32],
+            pk_seed: vec![0xBBu8; 32],
+        };
+        let adrs = XmssAdrs::new();
+        let msg = vec![0x55u8; 32];
+
+        let f1 = hasher.f(&adrs, &msg).unwrap();
+        let f2 = hasher.f(&adrs, &msg).unwrap();
+        assert_eq!(f1, f2, "F should be deterministic");
+        assert_eq!(f1.len(), 32);
+    }
+
+    #[test]
+    fn test_xmss_hasher_h_msg_idx_sensitivity() {
+        let hasher = XmssHasher {
+            n: 32,
+            mode: XmssHashMode::Sha256,
+            sk_seed: vec![0xAAu8; 32],
+            pk_seed: vec![0xBBu8; 32],
+        };
+        let r = vec![0x11u8; 32];
+        let root = vec![0x22u8; 32];
+        let msg = b"test message";
+
+        // Same inputs → deterministic
+        let h1 = hasher.h_msg(&r, &root, 0, msg).unwrap();
+        let h2 = hasher.h_msg(&r, &root, 0, msg).unwrap();
+        assert_eq!(h1, h2);
+
+        // Different idx → different output
+        let h3 = hasher.h_msg(&r, &root, 1, msg).unwrap();
+        assert_ne!(h1, h3, "different idx should produce different h_msg");
+    }
+
+    #[test]
+    fn test_xmss_hasher_prf_msg_output() {
+        let hasher = XmssHasher {
+            n: 32,
+            mode: XmssHashMode::Shake256,
+            sk_seed: vec![0xAAu8; 32],
+            pk_seed: vec![0xBBu8; 32],
+        };
+        let sk_prf = vec![0xCCu8; 32];
+
+        let out = hasher.prf_msg(&sk_prf, 42, b"hello").unwrap();
+        assert_eq!(out.len(), 32);
+
+        // Deterministic
+        let out2 = hasher.prf_msg(&sk_prf, 42, b"hello").unwrap();
+        assert_eq!(out, out2);
+
+        // Different idx → different output
+        let out3 = hasher.prf_msg(&sk_prf, 43, b"hello").unwrap();
+        assert_ne!(out, out3);
+    }
+
+    #[test]
     fn test_xmss_hasher_prf_determinism() {
         let hasher = XmssHasher {
             n: 32,
