@@ -121,3 +121,62 @@ pub(crate) fn fixed_weight_vector(params: &McElieceParams) -> Result<Vec<u8>, Cr
 
     Err(CryptoError::McElieceKeygenFail)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::mceliece::params::get_params;
+    use crate::mceliece::vector::vec_weight;
+    use hitls_types::algorithm::McElieceParamId;
+
+    fn test_params() -> McElieceParams {
+        get_params(McElieceParamId::McEliece6688128)
+    }
+
+    #[test]
+    fn test_fixed_weight_vector_correct_weight() {
+        let params = test_params();
+        let e = fixed_weight_vector(&params).unwrap();
+        assert_eq!(
+            vec_weight(&e),
+            params.t,
+            "error vector must have exactly t bits set"
+        );
+    }
+
+    #[test]
+    fn test_fixed_weight_vector_correct_length() {
+        let params = test_params();
+        let e = fixed_weight_vector(&params).unwrap();
+        assert_eq!(e.len(), params.n_bytes);
+    }
+
+    #[test]
+    fn test_fixed_weight_vector_distinct_per_call() {
+        let params = test_params();
+        let e1 = fixed_weight_vector(&params).unwrap();
+        let e2 = fixed_weight_vector(&params).unwrap();
+        assert_ne!(e1, e2, "two random vectors should differ");
+    }
+
+    #[test]
+    fn test_encode_zero_error_gives_zero() {
+        let params = test_params();
+        let error_vector = vec![0u8; params.n_bytes];
+        let t_data = vec![0u8; params.mt * params.k_bytes];
+        let ct = encode_vector(&error_vector, &t_data, &params).unwrap();
+        assert!(
+            ct.iter().all(|&b| b == 0),
+            "encoding zero error must give zero ciphertext"
+        );
+    }
+
+    #[test]
+    fn test_encode_output_length() {
+        let params = test_params();
+        let error_vector = vec![0u8; params.n_bytes];
+        let t_data = vec![0u8; params.mt * params.k_bytes];
+        let ct = encode_vector(&error_vector, &t_data, &params).unwrap();
+        assert_eq!(ct.len(), params.mt_bytes);
+    }
+}

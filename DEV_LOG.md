@@ -8357,6 +8357,34 @@ Added 15 tests across 3 core PKI infrastructure files that previously had zero t
 - `RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets`: 0 warnings
 - `cargo fmt --all -- --check`: clean
 
+## Phase T122: McEliece Keygen Helpers + McEliece Encoding + McEliece Decoding (+15 tests, 2,857→2,872)
+
+**Date**: 2026-02-24
+**Scope**: Classic McEliece PQC algorithm internals — key generation helpers (keygen.rs, 242 lines, 0 tests), encoding and error vector generation (encode.rs, 123 lines, 0 tests), Goppa code decoding via Berlekamp-Massey (decode.rs, 180 lines, 0 tests).
+
+### Summary
+
+Added 15 tests across 3 McEliece module files that previously had zero test coverage:
+
+- **Key generation helpers** (5 tests): bitrev_u16 zero case, bitrev_u16 single-bit mapping, bitrev involution (self-inverse) property, SHAKE256 output length, McEliece PRG determinism
+- **Encoding** (5 tests): fixed_weight_vector correct Hamming weight, fixed_weight_vector correct length, fixed_weight_vector randomness (distinct calls), zero error encoding gives zero ciphertext, encode output length matches mt_bytes
+- **Decoding** (5 tests): decode zero received vector, Berlekamp-Massey zero syndrome → sigma=x^t, BM degree bounded by t, compute_syndrome zero received → all-zero syndrome, syndrome length = 2*t
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `crates/hitls-crypto/src/mceliece/keygen.rs` | Added `#[cfg(test)] mod tests` with 5 keygen helper tests |
+| `crates/hitls-crypto/src/mceliece/encode.rs` | Added `#[cfg(test)] mod tests` with 5 encoding tests |
+| `crates/hitls-crypto/src/mceliece/decode.rs` | Added `#[cfg(test)] mod tests` with 5 decoding tests |
+
+### Build Status
+- `cargo test --workspace --all-features`: 2872 passed, 0 failed, 42 ignored
+- `RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets`: 0 warnings
+- `cargo fmt --all -- --check`: clean
+
+---
+
 ## Phase T121: SM9 Hash Functions + SM9 Algorithm Helpers + SM9 Curve Parameters (+15 tests, 2,844→2,857)
 
 **Date**: 2026-02-24

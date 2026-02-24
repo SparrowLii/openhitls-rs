@@ -178,3 +178,80 @@ fn berlekamp_massey(
 
     Ok(sigma)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::mceliece::params::get_params;
+    use hitls_types::algorithm::McElieceParamId;
+
+    fn test_params() -> McElieceParams {
+        get_params(McElieceParamId::McEliece6688128)
+    }
+
+    /// Helper: create a dummy Goppa polynomial of degree t.
+    fn dummy_goppa(t: usize) -> GfPoly {
+        let mut g = GfPoly::new(t);
+        g.set_coeff(t, 1); // monic x^t
+        g.set_coeff(0, 2); // constant term
+        g
+    }
+
+    #[test]
+    fn test_decode_zero_received() {
+        let params = test_params();
+        let g = dummy_goppa(params.t);
+        let alpha: Vec<GfElement> = (0..params.n as u16).collect();
+        let received = vec![0u8; params.n_bytes];
+        let (error, success) = decode_goppa(&received, &g, &alpha, &params).unwrap();
+        assert!(success, "zero received should decode successfully");
+        assert!(
+            error.iter().all(|&b| b == 0),
+            "error vector should be all zeros"
+        );
+    }
+
+    #[test]
+    fn test_berlekamp_massey_zero_syndrome() {
+        let params = test_params();
+        let syndrome = vec![0u16; 2 * params.t];
+        let sigma = berlekamp_massey(&syndrome, &params).unwrap();
+        // With zero syndrome, C stays [1,0,...]. sigma[i]=C[t-i], so sigma[t]=1.
+        assert_eq!(sigma.coeffs[params.t], 1);
+        assert_eq!(sigma.degree, params.t as i32);
+    }
+
+    #[test]
+    fn test_berlekamp_massey_degree_bounded() {
+        let params = test_params();
+        let mut syndrome = vec![0u16; 2 * params.t];
+        syndrome[0] = 1;
+        syndrome[1] = 1;
+        let sigma = berlekamp_massey(&syndrome, &params).unwrap();
+        assert!(sigma.degree <= params.t as i32, "sigma degree must be <= t");
+        assert!(sigma.degree >= 0, "sigma must have non-negative degree");
+    }
+
+    #[test]
+    fn test_compute_syndrome_zero_received() {
+        let params = test_params();
+        let g = dummy_goppa(params.t);
+        let alpha: Vec<GfElement> = (0..params.n as u16).collect();
+        let received = vec![0u8; params.n_bytes];
+        let syn = compute_syndrome(&received, &g, &alpha, &params).unwrap();
+        assert!(
+            syn.iter().all(|&s| s == 0),
+            "zero received must give zero syndrome"
+        );
+    }
+
+    #[test]
+    fn test_compute_syndrome_length() {
+        let params = test_params();
+        let g = dummy_goppa(params.t);
+        let alpha: Vec<GfElement> = (0..params.n as u16).collect();
+        let received = vec![0u8; params.n_bytes];
+        let syn = compute_syndrome(&received, &g, &alpha, &params).unwrap();
+        assert_eq!(syn.len(), 2 * params.t, "syndrome must have 2*t elements");
+    }
+}

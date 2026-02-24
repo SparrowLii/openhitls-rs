@@ -240,3 +240,62 @@ fn bitrev_u16(x: u16, m: usize) -> u16 {
     }
     r & ((1u16 << m) - 1)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_bitrev_zero() {
+        assert_eq!(bitrev_u16(0, 13), 0);
+        assert_eq!(bitrev_u16(0, 4), 0);
+        assert_eq!(bitrev_u16(0, 1), 0);
+    }
+
+    #[test]
+    fn test_bitrev_single_bit() {
+        // bit 0 → bit 12 for m=13
+        assert_eq!(bitrev_u16(1, 13), 1 << 12);
+        // bit 12 → bit 0 for m=13
+        assert_eq!(bitrev_u16(1 << 12, 13), 1);
+        // bit 0 → bit 3 for m=4
+        assert_eq!(bitrev_u16(1, 4), 1 << 3);
+    }
+
+    #[test]
+    fn test_bitrev_involution() {
+        for &x in &[0u16, 1, 42, 255, 4096, 8191] {
+            let masked = x & ((1u16 << 13) - 1);
+            assert_eq!(
+                bitrev_u16(bitrev_u16(masked, 13), 13),
+                masked,
+                "bitrev must be its own inverse for x={masked}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_shake256_output_length() {
+        let out64 = shake256(b"test input", 64).unwrap();
+        assert_eq!(out64.len(), 64);
+        let out1 = shake256(b"test input", 1).unwrap();
+        assert_eq!(out1.len(), 1);
+        let out200 = shake256(b"test input", 200).unwrap();
+        assert_eq!(out200.len(), 200);
+    }
+
+    #[test]
+    fn test_mceliece_prg_deterministic() {
+        let seed = vec![0x42u8; L_BYTES];
+        let out1 = mceliece_prg(&seed, 128).unwrap();
+        let out2 = mceliece_prg(&seed, 128).unwrap();
+        assert_eq!(out1, out2, "same seed must produce same output");
+
+        let seed2 = vec![0x43u8; L_BYTES];
+        let out3 = mceliece_prg(&seed2, 128).unwrap();
+        assert_ne!(
+            out1, out3,
+            "different seeds should produce different output"
+        );
+    }
+}

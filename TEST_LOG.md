@@ -9,12 +9,12 @@
 
 | Metric | Value |
 |--------|-------|
-| **Total tests** | **2,857** (42 ignored) |
-| **Test growth** | 1,104 → 2,857 (+159% since baseline) |
+| **Total tests** | **2,872** (42 ignored) |
+| **Test growth** | 1,104 → 2,872 (+160% since baseline) |
 | **Crates covered** | 8/8 (100% crate-level coverage) |
 | **Fuzz targets** | 10 (with 66 seed corpus files) |
 | **Wycheproof vectors** | 5,000+ (15 test groups) |
-| **Zero failures** | All 2,857 tests pass, clippy clean, fmt clean |
+| **Zero failures** | All 2,872 tests pass, clippy clean, fmt clean |
 
 ### Test Growth Timeline
 
@@ -65,6 +65,7 @@ Phase T118  2,814     +15   X.509 extension parsing + WOTS+ base conversion + AS
 Phase T119  2,829     +15   PKI encoding helpers + X.509 signing dispatch + builder encoding (*)
 Phase T120  2,844     +15   X.509 certificate parsing + SM9 G2 + SM9 pairing (*)
 Phase T121  2,857     +13   SM9 hash functions + algorithm helpers + curve params (*)
+Phase T122  2,872     +15   McEliece keygen helpers + encoding + decoding (*)
 ```
 
 (*) Testing-only phases (no new features, pure test coverage)
@@ -2256,6 +2257,48 @@ Added 20 proptest property-based tests across hitls-crypto and hitls-utils, plus
 
 ---
 
+## Phase T122: McEliece Keygen Helpers + McEliece Encoding + McEliece Decoding (+15 tests, 2,857→2,872)
+
+**Date**: 2026-02-24
+**Scope**: Classic McEliece PQC algorithm internals — key generation helpers (keygen.rs, 242 lines, 0 tests), encoding and error vector generation (encode.rs, 123 lines, 0 tests), Goppa code decoding via Berlekamp-Massey (decode.rs, 180 lines, 0 tests).
+
+| # | Test | File | Property |
+|---|------|------|----------|
+| 1 | `test_bitrev_zero` | keygen.rs | `bitrev_u16(0, m)` = 0 for m ∈ {1, 4, 13} |
+| 2 | `test_bitrev_single_bit` | keygen.rs | `bitrev_u16(1, 13)` = 4096; `bitrev_u16(4096, 13)` = 1 |
+| 3 | `test_bitrev_involution` | keygen.rs | `bitrev(bitrev(x, 13), 13)` = x for x ∈ {0, 1, 42, 255, 4096, 8191} |
+| 4 | `test_shake256_output_length` | keygen.rs | SHAKE256 output matches requested length (1, 64, 200 bytes) |
+| 5 | `test_mceliece_prg_deterministic` | keygen.rs | Same seed → same output; different seed → different output |
+| 6 | `test_fixed_weight_vector_correct_weight` | encode.rs | Hamming weight of random error vector == t |
+| 7 | `test_fixed_weight_vector_correct_length` | encode.rs | Error vector length == n_bytes |
+| 8 | `test_fixed_weight_vector_distinct_per_call` | encode.rs | Two calls produce different random vectors |
+| 9 | `test_encode_zero_error_gives_zero` | encode.rs | Zero error vector → all-zero ciphertext |
+| 10 | `test_encode_output_length` | encode.rs | Ciphertext length == mt_bytes |
+| 11 | `test_decode_zero_received` | decode.rs | Zero received → (zero error, success=true) |
+| 12 | `test_berlekamp_massey_zero_syndrome` | decode.rs | All-zero syndrome → sigma = x^t (sigma.coeffs[t]=1, degree=t) |
+| 13 | `test_berlekamp_massey_degree_bounded` | decode.rs | Non-trivial syndrome → 0 ≤ degree ≤ t |
+| 14 | `test_compute_syndrome_zero_received` | decode.rs | Zero received → all-zero syndrome |
+| 15 | `test_compute_syndrome_length` | decode.rs | Syndrome has exactly 2*t elements |
+
+**Per-crate counts after Phase T122**:
+
+| Crate | Tests | Ignored |
+|-------|------:|-------:|
+| hitls-auth | 33 | 0 |
+| hitls-bignum | 49 | 0 |
+| hitls-cli | 117 | 5 |
+| hitls-crypto | 757 | 33 |
+| wycheproof | 15 | 0 |
+| hitls-integration | 149 | 3 |
+| hitls-pki | 374 | 1 |
+| hitls-tls | 1284 | 0 |
+| hitls-types | 26 | 0 |
+| hitls-utils | 66 | 0 |
+| doc-tests | 2 | 0 |
+| **Total** | **2872** | **42** |
+
+---
+
 ## Phase T121: SM9 Hash Functions + SM9 Algorithm Helpers + SM9 Curve Parameters (+15 tests, 2,844→2,857)
 
 **Date**: 2026-02-24
@@ -2345,9 +2388,9 @@ Added 20 proptest property-based tests across hitls-crypto and hitls-utils, plus
 All phases verified with the same quality gates:
 
 ```bash
-# Full test suite — all 2,857 tests pass
+# Full test suite — all 2,872 tests pass
 cargo test --workspace --all-features
-# Result: 2,857 passed, 0 failed, 42 ignored
+# Result: 2,872 passed, 0 failed, 42 ignored
 
 # Clippy — zero warnings enforced
 RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets

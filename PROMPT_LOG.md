@@ -2544,6 +2544,24 @@ Targeted coverage gaps in connection_info, handshake enums, lib.rs constants, co
 - 3 source files modified, 0 files created. hitls-pki: 354→369, total: 2814→2829.
 - All 2829 workspace tests pass, 0 clippy warnings, formatting clean.
 
+## Phase T122: McEliece Keygen Helpers + McEliece Encoding + McEliece Decoding
+
+**Prompt**: Implement Phase T122 — McEliece Keygen Helpers + McEliece Encoding + McEliece Decoding. Add 5 keygen helper tests (bitrev zero, bitrev single bit, bitrev involution, SHAKE256 output length, PRG determinism). Add 5 encoding tests (fixed_weight_vector weight, length, distinct calls, zero error encoding, encode output length). Add 5 decoding tests (decode zero received, BM zero syndrome, BM degree bounded, compute_syndrome zero, syndrome length).
+
+**Scope**: Three Classic McEliece module files with zero test coverage: keygen.rs (242 lines, key generation with bitrev/SHAKE256/PRG helpers), encode.rs (123 lines, error vector generation and syndrome encoding), decode.rs (180 lines, Goppa code decoding via Berlekamp-Massey and Chien search).
+
+**Work performed**:
+1. Added 5 keygen helper tests to `crates/hitls-crypto/src/mceliece/keygen.rs`: bitrev_u16 zero/single-bit/involution, SHAKE256 output length, PRG determinism
+2. Added 5 encoding tests to `crates/hitls-crypto/src/mceliece/encode.rs`: fixed_weight_vector weight/length/distinctness, zero error encoding, output length
+3. Added 5 decoding tests to `crates/hitls-crypto/src/mceliece/decode.rs`: decode zero received, BM zero syndrome (sigma=x^t), BM degree bounded, compute_syndrome zero received, syndrome length
+4. Updated CLAUDE.md, DEV_LOG.md, TEST_LOG.md, PROMPT_LOG.md, README.md, QUALITY_REPORT.md
+
+**Result**:
+- 3 source files modified, 0 files created. hitls-crypto: 742→757 (33 ignored unchanged), total: 2857→2872 (42 ignored unchanged).
+- All 2872 workspace tests pass, 0 clippy warnings, formatting clean.
+
+---
+
 ## Phase T121: SM9 Hash Functions + SM9 Algorithm Helpers + SM9 Curve Parameters
 
 **Prompt**: Implement Phase T121 — SM9 Hash Functions + SM9 Algorithm Helpers + SM9 Curve Parameters. Add 5 hash function tests (h1 range, h2 range, h1 deterministic, KDF output length, h1 different IDs). Add 5 algorithm helper tests (bignum_to_32bytes zero, bignum_to_32bytes small, fp12_to_bytes length, sign/verify roundtrip [ignored], encrypt/decrypt roundtrip [ignored]). Add 5 curve parameter tests (prime 256-bit, order 256-bit, order < prime, b_coeff == 5, generator coordinates nonzero).
