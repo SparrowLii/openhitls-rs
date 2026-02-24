@@ -285,4 +285,118 @@ mod tests {
         // Next new seq should succeed
         assert!(w.check_and_accept(5).is_ok());
     }
+
+    // -------------------------------------------------------
+    // Phase T117: anti-replay window boundary tests
+    // -------------------------------------------------------
+
+    #[test]
+    fn test_anti_replay_uninitialized_accepts_any() {
+        // Before any accept(), check() returns true for any sequence number
+        let w = AntiReplayWindow::new();
+        assert!(w.check(0));
+        assert!(w.check(1000));
+        assert!(w.check(u64::MAX));
+        assert!(!w.initialized);
+    }
+
+    #[test]
+    fn test_anti_replay_large_seq_near_max() {
+        // Works correctly with seq numbers near u64::MAX (no overflow)
+        let mut w = AntiReplayWindow::new();
+        let near_max = u64::MAX - 100;
+        w.accept(near_max);
+        assert_eq!(w.max_seq, near_max);
+
+        // Slightly ahead is accepted
+        assert!(w.check(near_max + 1));
+        w.accept(near_max + 1);
+
+        // Duplicate rejected
+        assert!(!w.check(near_max));
+
+        // Within window (near_max - 50) accepted since never seen
+        assert!(w.check(near_max - 50));
+
+        // Far behind rejected
+        assert!(!w.check(near_max - 100));
+    }
+
+    #[test]
+    fn test_anti_replay_shift_exactly_window_size() {
+        // Jump forward by exactly WINDOW_SIZE (64) → old bitmap fully cleared
+        let mut w = AntiReplayWindow::new();
+        // Accept some initial sequence numbers
+        for i in 0..10 {
+            w.accept(i);
+        }
+        assert_eq!(w.max_seq, 9);
+
+        // Jump forward by exactly 64
+        let new_seq = 9 + WINDOW_SIZE; // = 73
+        w.accept(new_seq);
+        assert_eq!(w.max_seq, new_seq);
+        // Bitmap should be exactly 1 (only new_seq marked)
+        assert_eq!(w.bitmap, 1);
+
+        // Old sequences all rejected (too old)
+        for i in 0..10 {
+            assert!(!w.check(i), "seq {i} should be rejected after window shift");
+        }
+
+        // New seq is duplicate → rejected
+        assert!(!w.check(new_seq));
+        // One past new_seq is accepted
+        assert!(w.check(new_seq + 1));
+    }
+
+    #[test]
+    fn test_anti_replay_reset_then_full_reuse() {
+        // After reset(), same sequence numbers are accepted again, duplicates rejected
+        let mut w = AntiReplayWindow::new();
+        for i in 0..5 {
+            w.accept(i);
+        }
+        // Verify duplicates rejected
+        for i in 0..5 {
+            assert!(!w.check(i));
+        }
+
+        w.reset();
+
+        // After reset, same sequences accepted again
+        for i in 0..5 {
+            assert!(w.check(i), "seq {i} should be accepted after reset");
+            w.accept(i);
+        }
+        // And duplicates rejected again
+        for i in 0..5 {
+            assert!(
+                !w.check(i),
+                "seq {i} should be rejected as duplicate after re-accept"
+            );
+        }
+    }
+
+    #[test]
+    fn test_anti_replay_accept_without_prior_check() {
+        // accept() works correctly without calling check() first (no precondition)
+        let mut w = AntiReplayWindow::new();
+        // Directly accept without check
+        w.accept(10);
+        assert_eq!(w.max_seq, 10);
+        assert!(w.initialized);
+
+        // Now check rejects the accepted seq
+        assert!(!w.check(10));
+
+        // accept another without check
+        w.accept(5);
+        assert!(!w.check(5));
+
+        // And check+accept still works normally afterward
+        assert!(w.check(11));
+        w.accept(11);
+        assert!(!w.check(11));
+    }
 }

@@ -586,4 +586,119 @@ mod tests {
         // Only 1 byte — too short for version(2)
         assert!(decode_dtls_client_hello(&[0xFE]).is_err());
     }
+
+    // -------------------------------------------------------
+    // Phase T117: DTLS codec edge-case tests
+    // -------------------------------------------------------
+
+    #[test]
+    fn test_match_handshake_type_all_valid() {
+        // All 11 valid DTLS handshake type bytes must parse correctly
+        let valid_types: [(u8, HandshakeType); 11] = [
+            (1, HandshakeType::ClientHello),
+            (2, HandshakeType::ServerHello),
+            (3, HandshakeType::HelloVerifyRequest),
+            (4, HandshakeType::NewSessionTicket),
+            (11, HandshakeType::Certificate),
+            (12, HandshakeType::ServerKeyExchange),
+            (13, HandshakeType::CertificateRequest),
+            (14, HandshakeType::ServerHelloDone),
+            (15, HandshakeType::CertificateVerify),
+            (16, HandshakeType::ClientKeyExchange),
+            (20, HandshakeType::Finished),
+        ];
+        for (byte, expected) in &valid_types {
+            // Build a minimal DTLS handshake message with empty body
+            let mut data = vec![*byte];
+            write_u24(&mut data, 0); // length = 0
+            data.extend_from_slice(&0u16.to_be_bytes()); // message_seq = 0
+            write_u24(&mut data, 0); // fragment_offset = 0
+            write_u24(&mut data, 0); // fragment_length = 0
+
+            let (header, body, consumed) = parse_dtls_handshake_header(&data).unwrap();
+            assert_eq!(header.msg_type, *expected, "type byte {byte}");
+            assert_eq!(header.length, 0);
+            assert_eq!(body.len(), 0);
+            assert_eq!(consumed, DTLS_HS_HEADER_LEN);
+        }
+    }
+
+    #[test]
+    fn test_wrap_dtls_handshake_with_fragment_offset() {
+        // Wrap with non-zero fragment_offset and fragment_length < total body
+        let body = b"ABCDEFGHIJ"; // 10 bytes
+        let msg = wrap_dtls_handshake(
+            HandshakeType::Certificate,
+            body,
+            7,  // message_seq
+            5,  // fragment_offset
+            10, // fragment_length
+        );
+
+        let (header, parsed_body, consumed) = parse_dtls_handshake_header(&msg).unwrap();
+        assert_eq!(header.msg_type, HandshakeType::Certificate);
+        assert_eq!(header.length, 10); // total_length = body.len()
+        assert_eq!(header.message_seq, 7);
+        assert_eq!(header.fragment_offset, 5);
+        assert_eq!(header.fragment_length, 10);
+        assert_eq!(parsed_body, body);
+        assert_eq!(consumed, DTLS_HS_HEADER_LEN + 10);
+    }
+
+    #[test]
+    fn test_tls_dtls_roundtrip_identity() {
+        // tls_to_dtls then dtls_to_tls must produce identical TLS message
+        let body = b"roundtrip test payload 1234567890";
+        let mut tls_msg = vec![20u8]; // Finished
+        write_u24(&mut tls_msg, body.len() as u32);
+        tls_msg.extend_from_slice(body);
+
+        let dtls_msg = tls_to_dtls_handshake(&tls_msg, 42).unwrap();
+        let roundtripped = dtls_to_tls_handshake(&dtls_msg).unwrap();
+
+        assert_eq!(
+            roundtripped, tls_msg,
+            "TLS→DTLS→TLS roundtrip must be identity"
+        );
+    }
+
+    #[test]
+    fn test_hello_verify_request_empty_cookie_roundtrip() {
+        let hvr = HelloVerifyRequest {
+            server_version: DTLS12_VERSION,
+            cookie: vec![],
+        };
+
+        let encoded = encode_hello_verify_request(&hvr);
+        assert_eq!(encoded.len(), 3); // version(2) + cookie_len(1)
+        assert_eq!(encoded[2], 0); // cookie_len = 0
+
+        let decoded = decode_hello_verify_request(&encoded).unwrap();
+        assert_eq!(decoded.server_version, DTLS12_VERSION);
+        assert!(decoded.cookie.is_empty());
+    }
+
+    #[test]
+    fn test_hello_verify_request_max_cookie_roundtrip() {
+        // Maximum cookie length: 255 bytes (u8::MAX)
+        let cookie: Vec<u8> = (0..=254).chain(std::iter::once(255)).collect();
+        assert_eq!(cookie.len(), 256);
+        // Actually 255 is max representable in 1 byte
+        let cookie: Vec<u8> = (0u8..=254).collect();
+        assert_eq!(cookie.len(), 255);
+
+        let hvr = HelloVerifyRequest {
+            server_version: DTLS12_VERSION,
+            cookie: cookie.clone(),
+        };
+
+        let encoded = encode_hello_verify_request(&hvr);
+        assert_eq!(encoded.len(), 3 + 255); // version(2) + cookie_len(1) + 255
+        assert_eq!(encoded[2], 255); // cookie_len = 255
+
+        let decoded = decode_hello_verify_request(&encoded).unwrap();
+        assert_eq!(decoded.server_version, DTLS12_VERSION);
+        assert_eq!(decoded.cookie.len(), 255);
+        assert_eq!(decoded.cookie, cookie);
+    }
 }

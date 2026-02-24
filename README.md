@@ -2,7 +2,7 @@
 
 A production-grade cryptographic and TLS library in pure Rust, rewritten from [openHiTLS](https://gitee.com/openhitls/openhitls) (C implementation).
 
-> **100% C→Rust feature parity achieved** — 2784 tests, 10 fuzz targets, 5000+ Wycheproof vectors
+> **100% C→Rust feature parity achieved** — 2799 tests, 10 fuzz targets, 5000+ Wycheproof vectors
 
 ## Feature Highlights
 
@@ -259,12 +259,12 @@ openhitls-rs/
 # Build
 cargo build --workspace --all-features
 
-# Run all tests (2784 tests, 40 ignored)
+# Run all tests (2799 tests, 40 ignored)
 cargo test --workspace --all-features
 
 # Run tests for a specific crate
-cargo test -p hitls-crypto --all-features   # 709 tests + 15 Wycheproof
-cargo test -p hitls-tls --all-features      # 1274 tests
+cargo test -p hitls-crypto --all-features   # 714 tests + 15 Wycheproof
+cargo test -p hitls-tls --all-features      # 1284 tests
 cargo test -p hitls-pki --all-features      # 349 tests
 cargo test -p hitls-bignum                  # 49 tests
 cargo test -p hitls-utils                   # 61 tests

@@ -111,4 +111,77 @@ mod tests {
         // 0 bits/byte (degenerate): returns usize::MAX
         assert_eq!(cond.needed_input_len(0), usize::MAX);
     }
+
+    // -------------------------------------------------------
+    // Phase T117: entropy conditioning edge-case tests
+    // -------------------------------------------------------
+
+    #[test]
+    fn test_conditioner_empty_input() {
+        // Empty input produces valid 32-byte output (no panic)
+        let cond = HashConditioner::new();
+        let output = cond.condition(&[]).unwrap();
+        assert_eq!(output.len(), 32);
+        // Output should not be all zeros (SHA-256 of non-empty prefix 0x01||len)
+        assert!(output.iter().any(|&b| b != 0));
+    }
+
+    #[test]
+    fn test_conditioner_single_byte_input() {
+        let cond = HashConditioner::new();
+        let output = cond.condition(&[0x42]).unwrap();
+        assert_eq!(output.len(), 32);
+
+        // Single byte output differs from empty input
+        let empty_output = cond.condition(&[]).unwrap();
+        assert_ne!(output, empty_output);
+    }
+
+    #[test]
+    fn test_conditioner_different_inputs_different_outputs() {
+        // 5 different inputs → 5 different outputs (avalanche property)
+        let cond = HashConditioner::new();
+        let inputs: [&[u8]; 5] = [b"alpha", b"bravo", b"charlie", b"delta", b"echo"];
+        let outputs: Vec<[u8; 32]> = inputs.iter().map(|i| cond.condition(i).unwrap()).collect();
+
+        // All outputs must be pairwise distinct
+        for i in 0..outputs.len() {
+            for j in (i + 1)..outputs.len() {
+                assert_ne!(
+                    outputs[i], outputs[j],
+                    "outputs for {:?} and {:?} must differ",
+                    inputs[i], inputs[j]
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_conditioner_needed_input_len_various_rates() {
+        // needed_bits = 256 + 64 = 320
+        let cond = HashConditioner::new();
+
+        // 2 bits/byte: ceil(320/2) = 160
+        assert_eq!(cond.needed_input_len(2), 160);
+        // 3 bits/byte: ceil(320/3) = 107
+        assert_eq!(cond.needed_input_len(3), 107);
+        // 4 bits/byte: ceil(320/4) = 80
+        assert_eq!(cond.needed_input_len(4), 80);
+        // 6 bits/byte: ceil(320/6) = 54
+        assert_eq!(cond.needed_input_len(6), 54);
+        // 7 bits/byte: ceil(320/7) = 46
+        assert_eq!(cond.needed_input_len(7), 46);
+    }
+
+    #[test]
+    fn test_conditioner_large_input() {
+        // 1000-byte input produces valid 32-byte output
+        let cond = HashConditioner::new();
+        let input = vec![0xAA; 1000];
+        let output = cond.condition(&input).unwrap();
+        assert_eq!(output.len(), 32);
+        // Deterministic: same input → same output
+        let output2 = cond.condition(&input).unwrap();
+        assert_eq!(output, output2);
+    }
 }

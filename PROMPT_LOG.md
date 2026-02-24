@@ -2495,3 +2495,19 @@ Targeted coverage gaps in connection_info, handshake enums, lib.rs constants, co
 **Result**:
 - 3 source files modified, 0 files created. hitls-tls: 1259→1274, total: 2769→2784.
 - All 2784 workspace tests pass, 0 clippy warnings, formatting clean.
+
+## Phase T117: DTLS Codec Edge Cases + Anti-Replay Window Boundaries + Entropy Conditioning
+
+**Prompt**: Implement Phase T117 — DTLS Codec Edge Cases + Anti-Replay Window Boundaries + Entropy Conditioning. Add 5 DTLS codec tests (all valid handshake types, fragment offset wrapping, TLS↔DTLS roundtrip identity, empty cookie HVR, max cookie HVR). Add 5 anti-replay window tests (uninitialized accepts any, large seq near max, shift exactly window size, reset then reuse, accept without prior check). Add 5 entropy conditioning tests (empty input, single byte, different inputs different outputs, various entropy rates, large input).
+
+**Scope**: Three files across different layers remained under-tested: codec_dtls.rs (DTLS handshake codec, missing fragmented wrap with non-zero offset, all handshake types roundtrip, HVR empty/max cookie), anti_replay.rs (DTLS anti-replay sliding window, missing uninitialized-accepts-any, large seq near u64 max, shift-by-exactly-WINDOW_SIZE), conditioning.rs (SHA-256 hash conditioning, missing empty input, different-inputs-different-outputs, various entropy rates).
+
+**Work performed**:
+1. Added 5 DTLS codec tests to `crates/hitls-tls/src/handshake/codec_dtls.rs`: all valid handshake type parsing, non-zero fragment offset, TLS↔DTLS roundtrip identity, empty cookie HVR, max 255-byte cookie HVR
+2. Added 5 anti-replay window tests to `crates/hitls-tls/src/record/anti_replay.rs`: uninitialized accepts any seq, large seq near u64::MAX, shift exactly WINDOW_SIZE, reset then full reuse, accept without prior check
+3. Added 5 entropy conditioning tests to `crates/hitls-crypto/src/entropy/conditioning.rs`: empty input, single byte, different inputs different outputs, various entropy rates, large 1000-byte input
+4. Updated CLAUDE.md, DEV_LOG.md, TEST_LOG.md, PROMPT_LOG.md, README.md
+
+**Result**:
+- 3 source files modified, 0 files created. hitls-tls: 1274→1284, hitls-crypto: 709→714, total: 2784→2799.
+- All 2799 workspace tests pass, 0 clippy warnings, formatting clean.

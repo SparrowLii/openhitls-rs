@@ -8278,3 +8278,29 @@ Added 15 edge-case tests across 3 handshake-layer modules:
 - `cargo test --workspace --all-features`: 2784 passed, 0 failed, 40 ignored
 - `RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets`: 0 warnings
 - `cargo fmt --all -- --check`: clean
+
+## Phase T117: DTLS Codec Edge Cases + Anti-Replay Window Boundaries + Entropy Conditioning (+15 tests, 2,784→2,799)
+
+**Date**: 2026-02-24
+**Scope**: DTLS handshake codec edge cases, DTLS anti-replay sliding window boundaries, SHA-256 hash conditioning function edge cases.
+
+### Summary
+
+Added 15 edge-case tests across 3 modules in 2 crates:
+
+- **DTLS codec** (5 tests in hitls-tls): All valid handshake type byte parsing, non-zero fragment offset wrapping, TLS↔DTLS roundtrip identity, empty cookie HVR, max 255-byte cookie HVR
+- **Anti-replay window** (5 tests in hitls-tls): Uninitialized window accepts any seq, large seq near u64::MAX (no overflow), shift by exactly WINDOW_SIZE clears bitmap, reset then full reuse cycle, accept without prior check
+- **Entropy conditioning** (5 tests in hitls-crypto): Empty input, single byte input, different inputs produce different outputs, various entropy rates ceiling division, large 1000-byte input
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `crates/hitls-tls/src/handshake/codec_dtls.rs` | Added 5 DTLS codec edge-case tests |
+| `crates/hitls-tls/src/record/anti_replay.rs` | Added 5 anti-replay window boundary tests |
+| `crates/hitls-crypto/src/entropy/conditioning.rs` | Added 5 entropy conditioning tests |
+
+### Build Status
+- `cargo test --workspace --all-features`: 2799 passed, 0 failed, 40 ignored
+- `RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets`: 0 warnings
+- `cargo fmt --all -- --check`: clean

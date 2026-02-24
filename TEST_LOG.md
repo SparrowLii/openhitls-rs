@@ -9,12 +9,12 @@
 
 | Metric | Value |
 |--------|-------|
-| **Total tests** | **2,739** (40 ignored) |
-| **Test growth** | 1,104 → 2,739 (+148% since baseline) |
+| **Total tests** | **2,799** (40 ignored) |
+| **Test growth** | 1,104 → 2,799 (+154% since baseline) |
 | **Crates covered** | 8/8 (100% crate-level coverage) |
 | **Fuzz targets** | 10 (with 66 seed corpus files) |
 | **Wycheproof vectors** | 5,000+ (15 test groups) |
-| **Zero failures** | All 2,739 tests pass, clippy clean, fmt clean |
+| **Zero failures** | All 2,799 tests pass, clippy clean, fmt clean |
 
 ### Test Growth Timeline
 
@@ -57,6 +57,10 @@ Phase T110  2,689     +15   McEliece + FrodoKEM + XMSS internal tests (*)
 Phase T111  2,709     +20   proptest property-based + coverage CI (*)
 Phase T112  2,724     +15   TLCP SM3 cryptographic path coverage (*)
 Phase T113  2,739     +15   TLS 1.3 key schedule & HKDF robustness (*)
+Phase T114  2,754     +15   Record layer encryption edge cases & AEAD failure modes (*)
+Phase T115  2,769     +15   TLS 1.2 CBC padding + DTLS parsing + TLS 1.3 inner plaintext (*)
+Phase T116  2,784     +15   DTLS fragmentation/retransmission + CertificateVerify (*)
+Phase T117  2,799     +15   DTLS codec edge cases + anti-replay boundaries + entropy (*)
 ```
 
 (*) Testing-only phases (no new features, pure test coverage)
@@ -2129,6 +2133,45 @@ Added 20 proptest property-based tests across hitls-crypto and hitls-utils, plus
 | doc-tests | 2 | 0 |
 | **Total** | **2784** | **40** |
 
+### Phase T117: DTLS Codec Edge Cases + Anti-Replay Window Boundaries + Entropy Conditioning (+15 tests, 2,784→2,799)
+
+**Date**: 2026-02-24
+
+| # | Test | File | Property |
+|---|------|------|----------|
+| 1 | `test_match_handshake_type_all_valid` | codec_dtls.rs | All 11 valid DTLS handshake type bytes parse correctly |
+| 2 | `test_wrap_dtls_handshake_with_fragment_offset` | codec_dtls.rs | Non-zero fragment_offset/fragment_length → parsed header fields match |
+| 3 | `test_tls_dtls_roundtrip_identity` | codec_dtls.rs | tls_to_dtls then dtls_to_tls produces identical TLS message |
+| 4 | `test_hello_verify_request_empty_cookie_roundtrip` | codec_dtls.rs | HVR with empty cookie encodes/decodes correctly |
+| 5 | `test_hello_verify_request_max_cookie_roundtrip` | codec_dtls.rs | HVR with 255-byte cookie encodes/decodes correctly |
+| 6 | `test_anti_replay_uninitialized_accepts_any` | anti_replay.rs | Before any accept(), check() returns true for seq 0, 1000, u64::MAX |
+| 7 | `test_anti_replay_large_seq_near_max` | anti_replay.rs | Works correctly with seq numbers near u64::MAX (no overflow) |
+| 8 | `test_anti_replay_shift_exactly_window_size` | anti_replay.rs | Jump forward by exactly WINDOW_SIZE (64) → old bitmap fully cleared |
+| 9 | `test_anti_replay_reset_then_full_reuse` | anti_replay.rs | After reset(), same sequences accepted again, duplicates rejected |
+| 10 | `test_anti_replay_accept_without_prior_check` | anti_replay.rs | accept() works correctly without calling check() first |
+| 11 | `test_conditioner_empty_input` | conditioning.rs | Empty input produces valid 32-byte output (no panic) |
+| 12 | `test_conditioner_single_byte_input` | conditioning.rs | 1-byte input → 32-byte output, different from empty input |
+| 13 | `test_conditioner_different_inputs_different_outputs` | conditioning.rs | 5 different inputs → 5 different outputs (avalanche) |
+| 14 | `test_conditioner_needed_input_len_various_rates` | conditioning.rs | Rates 2,3,4,6,7 bits/byte → correct ceiling-division results |
+| 15 | `test_conditioner_large_input` | conditioning.rs | 1000-byte input produces valid 32-byte output |
+
+**Per-crate counts after Phase T117**:
+
+| Crate | Tests | Ignored |
+|-------|------:|-------:|
+| hitls-auth | 33 | 0 |
+| hitls-bignum | 49 | 0 |
+| hitls-cli | 117 | 5 |
+| hitls-crypto | 714 | 31 |
+| wycheproof | 15 | 0 |
+| hitls-integration | 149 | 3 |
+| hitls-pki | 349 | 1 |
+| hitls-tls | 1284 | 0 |
+| hitls-types | 26 | 0 |
+| hitls-utils | 61 | 0 |
+| doc-tests | 2 | 0 |
+| **Total** | **2799** | **40** |
+
 ---
 
 ## 8. Verification & Quality Gates
@@ -2136,9 +2179,9 @@ Added 20 proptest property-based tests across hitls-crypto and hitls-utils, plus
 All phases verified with the same quality gates:
 
 ```bash
-# Full test suite — all 2,784 tests pass
+# Full test suite — all 2,799 tests pass
 cargo test --workspace --all-features
-# Result: 2,784 passed, 0 failed, 40 ignored
+# Result: 2,799 passed, 0 failed, 40 ignored
 
 # Clippy — zero warnings enforced
 RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets
