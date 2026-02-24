@@ -356,4 +356,142 @@ mod tests {
             assert_eq!(p.n_bar, 8);
         }
     }
+
+    #[test]
+    fn test_frodo_shake_aes_same_dimensions() {
+        // SHAKE and AES variants with same n share identical dimensions
+        let pairs = [
+            (
+                FrodoKemParamId::FrodoKem640Shake,
+                FrodoKemParamId::FrodoKem640Aes,
+            ),
+            (
+                FrodoKemParamId::FrodoKem976Shake,
+                FrodoKemParamId::FrodoKem976Aes,
+            ),
+            (
+                FrodoKemParamId::FrodoKem1344Shake,
+                FrodoKemParamId::FrodoKem1344Aes,
+            ),
+            (
+                FrodoKemParamId::EFrodoKem640Shake,
+                FrodoKemParamId::EFrodoKem640Aes,
+            ),
+            (
+                FrodoKemParamId::EFrodoKem976Shake,
+                FrodoKemParamId::EFrodoKem976Aes,
+            ),
+            (
+                FrodoKemParamId::EFrodoKem1344Shake,
+                FrodoKemParamId::EFrodoKem1344Aes,
+            ),
+        ];
+        for (shake_id, aes_id) in &pairs {
+            let s = get_params(*shake_id);
+            let a = get_params(*aes_id);
+            assert_eq!(s.n, a.n);
+            assert_eq!(s.n_bar, a.n_bar);
+            assert_eq!(s.logq, a.logq);
+            assert_eq!(s.extracted_bits, a.extracted_bits);
+            assert_eq!(s.pk_size, a.pk_size);
+            assert_eq!(s.sk_size, a.sk_size);
+            assert_eq!(s.ct_size, a.ct_size);
+            assert_eq!(s.ss_len, a.ss_len);
+            assert!(matches!(s.prg, PrgMode::Shake));
+            assert!(matches!(a.prg, PrgMode::Aes));
+        }
+    }
+
+    #[test]
+    fn test_frodo_efrodo_salt_len_zero() {
+        // eFrodoKEM: salt_len = 0; FrodoKEM: salt_len > 0
+        let efrodo = [
+            FrodoKemParamId::EFrodoKem640Shake,
+            FrodoKemParamId::EFrodoKem976Shake,
+            FrodoKemParamId::EFrodoKem1344Shake,
+            FrodoKemParamId::EFrodoKem640Aes,
+            FrodoKemParamId::EFrodoKem976Aes,
+            FrodoKemParamId::EFrodoKem1344Aes,
+        ];
+        for id in &efrodo {
+            assert_eq!(
+                get_params(*id).salt_len,
+                0,
+                "eFrodoKEM should have salt_len=0"
+            );
+        }
+        let frodo = [
+            FrodoKemParamId::FrodoKem640Shake,
+            FrodoKemParamId::FrodoKem976Shake,
+            FrodoKemParamId::FrodoKem1344Shake,
+            FrodoKemParamId::FrodoKem640Aes,
+            FrodoKemParamId::FrodoKem976Aes,
+            FrodoKemParamId::FrodoKem1344Aes,
+        ];
+        for id in &frodo {
+            assert!(
+                get_params(*id).salt_len > 0,
+                "FrodoKEM should have salt_len>0"
+            );
+        }
+    }
+
+    #[test]
+    fn test_frodo_cdf_tables_monotonic_ending() {
+        // CDF tables must be strictly monotonically increasing and end with 2^15-1
+        for cdf in [&CDF_640[..], &CDF_976[..], &CDF_1344[..]] {
+            // Strictly increasing
+            for w in cdf.windows(2) {
+                assert!(
+                    w[1] > w[0],
+                    "CDF not strictly increasing: {} >= {}",
+                    w[1],
+                    w[0]
+                );
+            }
+            // Last value is 2^15 - 1
+            assert_eq!(*cdf.last().unwrap(), 32767);
+            // First value > 0
+            assert!(cdf[0] > 0);
+        }
+    }
+
+    #[test]
+    fn test_frodo_security_levels() {
+        // n=640 → 128-bit security (ss_len=16)
+        // n=976 → 192-bit security (ss_len=24)
+        // n=1344 → 256-bit security (ss_len=32)
+        let p640 = get_params(FrodoKemParamId::FrodoKem640Shake);
+        let p976 = get_params(FrodoKemParamId::FrodoKem976Shake);
+        let p1344 = get_params(FrodoKemParamId::FrodoKem1344Shake);
+
+        assert_eq!(p640.ss_len, 16);
+        assert_eq!(p976.ss_len, 24);
+        assert_eq!(p1344.ss_len, 32);
+
+        // extracted_bits also increases with security level
+        assert_eq!(p640.extracted_bits, 2);
+        assert_eq!(p976.extracted_bits, 3);
+        assert_eq!(p1344.extracted_bits, 4);
+
+        // logq: 640 uses 15, 976/1344 use 16
+        assert_eq!(p640.logq, 15);
+        assert_eq!(p976.logq, 16);
+        assert_eq!(p1344.logq, 16);
+    }
+
+    #[test]
+    fn test_frodo_cdf_table_lengths_match_security() {
+        // Higher security → smaller CDF table (tighter noise distribution)
+        assert_eq!(CDF_640.len(), 13);
+        assert_eq!(CDF_976.len(), 11);
+        assert_eq!(CDF_1344.len(), 7);
+        // Verify params reference the correct CDF table for their n
+        let p640 = get_params(FrodoKemParamId::FrodoKem640Shake);
+        let p976 = get_params(FrodoKemParamId::FrodoKem976Shake);
+        let p1344 = get_params(FrodoKemParamId::FrodoKem1344Shake);
+        assert_eq!(p640.cdf_table.len(), 13);
+        assert_eq!(p976.cdf_table.len(), 11);
+        assert_eq!(p1344.cdf_table.len(), 7);
+    }
 }

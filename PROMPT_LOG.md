@@ -2562,6 +2562,24 @@ Targeted coverage gaps in connection_info, handshake enums, lib.rs constants, co
 
 ---
 
+## Phase T126: McEliece Params + FrodoKEM Params + XMSS Params Deepening
+
+**Prompt**: Continue implementing Phase T126. Deepen test coverage for three PQC parameter set modules with low test density: McEliece params (params.rs, 284 lines, 1 test), FrodoKEM params (params.rs, 359 lines, 2 tests), XMSS params (params.rs, 169 lines, 1 test).
+
+**Scope**: Post-quantum parameter set validation — McEliece 12 parameter IDs (3 base × 4 variants: plain/F/Pc/Pcf) with public key formula and byte-field consistency, FrodoKEM SHAKE/AES dimensional equivalence and CDF table monotonicity, XMSS 9 parameter sets (3 hash modes × 3 tree heights) with OID uniqueness and signature size monotonicity.
+
+**Work performed**:
+1. Added 5 McEliece params tests to `crates/hitls-crypto/src/mceliece/params.rs`: all_param_ids_count (12 IDs in groups of 4), F variants semi flag, public_key_bytes formula (mt × k_bytes), byte field consistency (k_bytes=ceil(k/8), mt_bytes≥ceil(mt/8)), constants valid (Q=8192, Q_1=8191, etc.)
+2. Added 5 FrodoKEM params tests to `crates/hitls-crypto/src/frodokem/params.rs`: SHAKE/AES same dimensions, eFrodoKEM salt_len zero, CDF tables monotonic ending at 32767, security levels (n→ss_len/extracted_bits/logq), CDF table lengths match security (640→13, 976→11, 1344→7)
+3. Added 5 XMSS params tests to `crates/hitls-crypto/src/xmss/params.rs`: all heights valid (h∈{10,16,20}), OID uniqueness (9 distinct), hash mode consistency, same height same sig size, sig_bytes monotonic with height
+4. Updated CLAUDE.md, DEV_LOG.md, TEST_LOG.md, PROMPT_LOG.md, README.md, QUALITY_REPORT.md
+
+**Result**:
+- 3 source files modified, 0 files created. hitls-crypto: 794→809 (41 ignored unchanged), total: 2909→2924 (50 ignored unchanged).
+- All 2924 workspace tests pass, 0 clippy warnings, formatting clean.
+
+---
+
 ## Phase T125: FrodoKEM Matrix Ops + SLH-DSA Hypertree + McEliece Polynomial Deepening
 
 **Prompt**: Continue implementing Phase T125. Deepen test coverage for three PQC internal modules with low test density: FrodoKEM matrix operations (matrix.rs, 343 lines, 1 test), SLH-DSA hypertree (hypertree.rs, 343 lines, 1 test), McEliece polynomial operations (poly.rs, 222 lines, 2 tests).

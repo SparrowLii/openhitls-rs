@@ -281,4 +281,85 @@ mod tests {
             }
         }
     }
+
+    #[test]
+    fn test_mceliece_all_param_ids_count() {
+        assert_eq!(ALL_PARAM_IDS.len(), 12);
+        // 3 base sets × 4 variants (plain, F, Pc, Pcf)
+        for chunk in ALL_PARAM_IDS.chunks(4) {
+            let p0 = get_params(chunk[0]);
+            let p1 = get_params(chunk[1]);
+            let p2 = get_params(chunk[2]);
+            let p3 = get_params(chunk[3]);
+            // Same n and t within each group of 4
+            assert_eq!(p0.n, p1.n);
+            assert_eq!(p0.n, p2.n);
+            assert_eq!(p0.n, p3.n);
+            assert_eq!(p0.t, p1.t);
+        }
+    }
+
+    #[test]
+    fn test_mceliece_f_variants_semi_flag() {
+        // Within each group of 4: [plain, F, Pc, Pcf]
+        // F and Pcf have semi=true; plain and Pc have semi=false
+        for chunk in ALL_PARAM_IDS.chunks(4) {
+            let plain = get_params(chunk[0]);
+            let f = get_params(chunk[1]);
+            let pc = get_params(chunk[2]);
+            let pcf = get_params(chunk[3]);
+            assert!(!plain.semi, "plain should not be semi for n={}", plain.n);
+            assert!(f.semi, "F should be semi for n={}", f.n);
+            assert!(!pc.semi, "Pc should not be semi for n={}", pc.n);
+            assert!(pcf.semi, "Pcf should be semi for n={}", pcf.n);
+        }
+    }
+
+    #[test]
+    fn test_mceliece_public_key_bytes_formula() {
+        // Public key is mt columns × k rows, stored column-major:
+        // public_key_bytes = mt * k_bytes
+        for id in &ALL_PARAM_IDS {
+            let p = get_params(*id);
+            let expected_pk = p.mt * p.k_bytes;
+            assert_eq!(
+                p.public_key_bytes, expected_pk,
+                "pk_bytes mismatch for n={}, t={}",
+                p.n, p.t
+            );
+        }
+    }
+
+    #[test]
+    fn test_mceliece_byte_field_consistency() {
+        for id in &ALL_PARAM_IDS {
+            let p = get_params(*id);
+            // k_bytes == ceil(k/8) for all variants
+            assert_eq!(p.k_bytes, p.k.div_ceil(8), "k_bytes for n={}", p.n);
+            // mt_bytes >= ceil(mt/8) (pc variants may include confirmation hash)
+            assert!(
+                p.mt_bytes >= p.mt.div_ceil(8),
+                "mt_bytes too small for n={}",
+                p.n
+            );
+            // For non-pc variants, mt_bytes == ceil(mt/8) exactly
+            if !p.pc {
+                assert_eq!(p.mt_bytes, p.mt.div_ceil(8), "mt_bytes for n={}", p.n);
+            }
+        }
+    }
+
+    #[test]
+    fn test_mceliece_constants_valid() {
+        assert_eq!(Q, 8192); // 2^13
+        assert_eq!(Q_1, 8191); // 2^13 - 1
+        assert_eq!(L_BYTES, 32);
+        assert_eq!(SIGMA1, 16);
+        assert_eq!(SIGMA2, 32);
+        assert_eq!(MU, 32);
+        assert_eq!(NU, 64);
+        // Q must be a power of 2
+        assert!(Q.is_power_of_two());
+        assert_eq!(Q_1 as usize, Q - 1);
+    }
 }

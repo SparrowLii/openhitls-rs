@@ -9,12 +9,12 @@
 
 | Metric | Value |
 |--------|-------|
-| **Total tests** | **2,909** (50 ignored) |
-| **Test growth** | 1,104 → 2,909 (+163% since baseline) |
+| **Total tests** | **2,924** (50 ignored) |
+| **Test growth** | 1,104 → 2,924 (+165% since baseline) |
 | **Crates covered** | 8/8 (100% crate-level coverage) |
 | **Fuzz targets** | 10 (with 66 seed corpus files) |
 | **Wycheproof vectors** | 5,000+ (15 test groups) |
-| **Zero failures** | All 2,909 tests pass, clippy clean, fmt clean |
+| **Zero failures** | All 2,924 tests pass, clippy clean, fmt clean |
 
 ### Test Growth Timeline
 
@@ -69,6 +69,7 @@ Phase T122  2,872     +15   McEliece keygen helpers + encoding + decoding (*)
 Phase T123  2,882     +10   XMSS tree ops + WOTS+ deepening + FORS deepening (*)
 Phase T124  2,897     +15   McEliece GF(2^13) + Benes network + matrix deepening (*)
 Phase T125  2,909     +12   FrodoKEM matrix ops + SLH-DSA hypertree + McEliece poly (*)
+Phase T126  2,924     +15   McEliece + FrodoKEM + XMSS parameter set validation (*)
 ```
 
 (*) Testing-only phases (no new features, pure test coverage)
@@ -2510,14 +2511,56 @@ Added 20 proptest property-based tests across hitls-crypto and hitls-utils, plus
 
 ---
 
+### Phase T126: McEliece + FrodoKEM + XMSS Parameter Set Validation Deepening (+15 tests, 2,909→2,924)
+
+**Date**: 2026-02-24
+**Scope**: Deepen parameter set validation for three PQC modules: McEliece params (params.rs, 284 lines, 1 test), FrodoKEM params (params.rs, 359 lines, 2 tests), XMSS params (params.rs, 169 lines, 1 test).
+
+| # | Test | File | Property |
+|---|------|------|----------|
+| 1 | `test_mceliece_all_param_ids_count` | mceliece/params.rs | 12 IDs in groups of 4, same n/t within groups |
+| 2 | `test_mceliece_f_variants_semi_flag` | mceliece/params.rs | F/Pcf→semi=true, plain/Pc→semi=false |
+| 3 | `test_mceliece_public_key_bytes_formula` | mceliece/params.rs | pk_bytes == mt * k_bytes for all 12 variants |
+| 4 | `test_mceliece_byte_field_consistency` | mceliece/params.rs | k_bytes == ceil(k/8), mt_bytes >= ceil(mt/8) |
+| 5 | `test_mceliece_constants_valid` | mceliece/params.rs | Q=8192 (power-of-2), Q_1=Q-1, L/SIGMA/MU/NU |
+| 6 | `test_frodo_shake_aes_same_dimensions` | frodokem/params.rs | SHAKE/AES pairs share n,logq,pk/sk/ct sizes |
+| 7 | `test_frodo_efrodo_salt_len_zero` | frodokem/params.rs | eFrodoKEM salt=0, FrodoKEM salt>0 |
+| 8 | `test_frodo_cdf_tables_monotonic_ending` | frodokem/params.rs | CDF strictly increasing, ends at 2^15-1 |
+| 9 | `test_frodo_security_levels` | frodokem/params.rs | n→ss_len/extracted_bits/logq mapping |
+| 10 | `test_frodo_cdf_table_lengths_match_security` | frodokem/params.rs | n=640→13, n=976→11, n=1344→7 entries |
+| 11 | `test_xmss_all_heights_valid` | xmss/params.rs | h ∈ {10, 16, 20} for all 9 params |
+| 12 | `test_xmss_oid_uniqueness` | xmss/params.rs | All 9 OIDs are distinct |
+| 13 | `test_xmss_hash_mode_consistency` | xmss/params.rs | Sha2→Sha256, Shake128→Shake128, Shake256→Shake256 |
+| 14 | `test_xmss_same_height_same_sig_size` | xmss/params.rs | Same h → same sig_bytes across hash modes |
+| 15 | `test_xmss_sig_bytes_monotonic_with_height` | xmss/params.rs | sig_bytes: h=10 < h=16 < h=20 |
+
+**Per-crate counts after Phase T126**:
+
+| Crate | Tests | Ignored |
+|-------|------:|-------:|
+| hitls-auth | 33 | 0 |
+| hitls-bignum | 49 | 0 |
+| hitls-cli | 117 | 5 |
+| hitls-crypto | 809 | 41 |
+| wycheproof | 15 | 0 |
+| hitls-integration | 149 | 3 |
+| hitls-pki | 374 | 1 |
+| hitls-tls | 1284 | 0 |
+| hitls-types | 26 | 0 |
+| hitls-utils | 66 | 0 |
+| doc-tests | 2 | 0 |
+| **Total** | **2924** | **50** |
+
+---
+
 ## 8. Verification & Quality Gates
 
 All phases verified with the same quality gates:
 
 ```bash
-# Full test suite — all 2,909 tests pass
+# Full test suite — all 2,924 tests pass
 cargo test --workspace --all-features
-# Result: 2,909 passed, 0 failed, 50 ignored
+# Result: 2,924 passed, 0 failed, 50 ignored
 
 # Clippy — zero warnings enforced
 RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets

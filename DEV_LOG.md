@@ -8594,3 +8594,31 @@ Added 15 tests across 3 files (12 non-ignored + 3 ignored):
 - `cargo test --workspace --all-features`: 2909 passed, 0 failed, 50 ignored
 - `RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets`: 0 warnings
 - `cargo fmt --all -- --check`: clean
+
+---
+
+## Phase T126: McEliece + FrodoKEM + XMSS Parameter Set Validation Deepening (+15 tests, 2,909→2,924)
+
+**Date**: 2026-02-24
+**Scope**: Deepen parameter set validation for three PQC parameter modules with low test density: McEliece params (params.rs, 284 lines, 1 test), FrodoKEM params (params.rs, 359 lines, 2 tests), XMSS params (params.rs, 169 lines, 1 test).
+
+### Summary
+
+Added 15 tests across 3 parameter set files validating cross-variant consistency, mathematical relationships, and domain-specific invariants:
+
+- **McEliece params** (5 tests): ALL_PARAM_IDS count and group structure, F/Pcf semi-systematic flag consistency, public_key_bytes = mt × k_bytes formula, k_bytes/mt_bytes byte-alignment consistency, module constants (Q=2^13, Q_1, L_BYTES, SIGMA/MU/NU)
+- **FrodoKEM params** (5 tests): SHAKE/AES variant dimensional equivalence, eFrodoKEM salt_len=0 vs FrodoKEM salt_len>0, CDF table monotonicity and 2^15-1 termination, security level → ss_len/extracted_bits/logq mapping, CDF table length matches security parameter
+- **XMSS params** (5 tests): tree height validity (h ∈ {10,16,20}), OID uniqueness across all 9 variants, hash_mode dispatch consistency, same height → same sig_bytes across hash modes, sig_bytes monotonically increases with height
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `crates/hitls-crypto/src/mceliece/params.rs` | Added 5 tests to existing `#[cfg(test)] mod tests` |
+| `crates/hitls-crypto/src/frodokem/params.rs` | Added 5 tests to existing `#[cfg(test)] mod tests` |
+| `crates/hitls-crypto/src/xmss/params.rs` | Added 5 tests to existing `#[cfg(test)] mod tests` |
+
+### Build Status
+- `cargo test --workspace --all-features`: 2924 passed, 0 failed, 50 ignored
+- `RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets`: 0 warnings
+- `cargo fmt --all -- --check`: clean
