@@ -543,31 +543,43 @@ Phase T150         +15      —            scrypt + CFB mode + X448 deepening   
 | KDF/codec tests (9) | HKDF, Base64, hex, ASN.1 integer/octet/bool/UTF8/sequence | ✅ |
 | Coverage CI job | `cargo-tarpaulin` → Cobertura XML | ✅ |
 
-### 3.12 Phase T119–T126 — Deep Edge-Case Coverage (+120 tests) ✅
+### 3.12 Phase T119–T135, T141–T150 — Deep Edge-Case Coverage (+495 tests) ✅
 
-Phases T112–T119 continued hardening beyond the original roadmap:
+Continued hardening beyond the original roadmap:
 
 | Phase | Tests | Focus |
 |-------|:-----:|-------|
-| T112 | +15 | TLCP SM3 transcript hash, PRF, key schedule, verify_data (closes D5 SM3 gap) |
-| T113 | +15 | TLS 1.3 key schedule SHA-384 pipeline, stage enforcement, SM4-GCM-SM3 |
-| T114 | +15 | Record layer AEAD encryption edge cases, failure modes, epoch transitions |
-| T115 | +15 | TLS 1.2 CBC padding oracle, DTLS record parsing, TLS 1.3 inner plaintext |
-| T116 | +15 | DTLS fragmentation/reassembly, retransmission timer, CertificateVerify (extends D4) |
-| T117 | +15 | DTLS codec all types, anti-replay window boundaries, entropy conditioning (extends D4) |
-| T118 | +15 | X.509 extension parsing, SLH-DSA WOTS+ base conversion, ASN.1 tag long-form (extends D10) |
-| T119 | +15 | PKI shared encoding helpers, X.509 signing hash dispatch, certificate builder DER encoding |
-| T120 | +15 | X.509 certificate parsing, SM9 G2 point arithmetic, SM9 pairing helpers |
-| T121 | +13 | SM9 hash functions H1/H2/KDF, SM9 algorithm sign/verify/encrypt/decrypt, BN256 curve parameters |
-| T122 | +15 | McEliece keygen helpers (bitrev/SHAKE256/PRG), encoding (error vector), decoding (Berlekamp-Massey) |
-| T123 | +10 | XMSS tree operations (compute_root/sign/verify), WOTS+ deepening, SLH-DSA FORS deepening |
-| T124 | +15 | McEliece GF(2^13) field algebra, Benes network permutation/sort, binary matrix Gaussian elimination |
+| T119 | +15 | TLCP SM3 transcript hash, PRF, key schedule, verify_data (closes D5 SM3 gap) |
+| T120 | +15 | TLS 1.3 key schedule SHA-384 pipeline, stage enforcement, SM4-GCM-SM3 |
+| T121 | +15 | Record layer AEAD encryption edge cases, failure modes, epoch transitions |
+| T122 | +15 | TLS 1.2 CBC padding oracle, DTLS record parsing, TLS 1.3 inner plaintext |
+| T123 | +15 | DTLS fragmentation/reassembly, retransmission timer, CertificateVerify (extends D4) |
+| T124 | +15 | DTLS codec all types, anti-replay window boundaries, entropy conditioning (extends D4) |
+| T125 | +15 | X.509 extension parsing, SLH-DSA WOTS+ base conversion, ASN.1 tag long-form (extends D10) |
+| T126 | +15 | PKI shared encoding helpers, X.509 signing hash dispatch, certificate builder DER encoding |
+| T127 | +15 | X.509 certificate parsing, SM9 G2 point arithmetic, SM9 pairing helpers |
+| T128 | +13 | SM9 hash functions H1/H2/KDF, SM9 algorithm sign/verify/encrypt/decrypt, BN256 curve parameters |
+| T129 | +15 | McEliece keygen helpers (bitrev/SHAKE256/PRG), encoding (error vector), decoding (Berlekamp-Massey) |
+| T130 | +10 | XMSS tree operations (compute_root/sign/verify), WOTS+ deepening, SLH-DSA FORS deepening |
+| T131 | +15 | McEliece GF(2^13) field algebra, Benes network permutation/sort, binary matrix Gaussian elimination |
+| T132 | +12 | FrodoKEM matrix ops, SLH-DSA hypertree, McEliece polynomial deepening |
+| T133 | +15 | McEliece + FrodoKEM + XMSS parameter set validation deepening |
+| T134 | +15 | XMSS hash abstraction + XMSS address scheme + ML-KEM NTT deepening |
+| T135 | +15 | BigNum constant-time + primality testing + core type deepening |
+| T141 | +15 | SLH-DSA params + hash abstraction + address scheme deepening |
+| T143 | +15 | FrodoKEM PKE + SM9 G1 point + SM9 Fp field deepening |
+| T144 | +15 | ML-DSA NTT + SM4-CTR-DRBG + BigNum random deepening |
+| T145 | +15 | DH group params + entropy pool + SHA-1 deepening |
+| T147 | +15 | ML-KEM poly + SM9 Fp12 + encrypted PKCS#8 deepening |
+| T148 | +15 | ML-DSA poly + X.509 extensions + X.509 text deepening |
+| T149 | +15 | XTS mode + Edwards curve + GMAC deepening |
+| T150 | +15 | scrypt + CFB mode + X448 deepening |
 
 ---
 
 ## 4. Coverage Targets — Final Status
 
-| Metric | Original (T106) | Target (T111) | **Actual (T136)** |
+| Metric | Original (T98) | Target (T118) | **Actual (T150)** |
 |--------|:---------------:|:-------------:|:-----------------:|
 | Total tests | 2,634 | ~2,750+ | **3,184** |
 | Critical deficiencies (D1-D2) | 0 | 0 | **0** |
