@@ -11,7 +11,7 @@ Update all documentation files after completing Phase $ARGUMENTS.
 
 ### 1. DEV_LOG.md
 Append a new phase entry at the end (ascending chronological order) with:
-- `## Phase $0: $1` or `## Refactoring-Phase $0: $1` (for R-prefixed phases)
+- `## Phase $0: $1`
 - `**Date**: YYYY-MM-DD`
 - `**Scope**: one-line scope description`
 - `### Summary` — what was done
@@ -26,7 +26,7 @@ Append a new entry with:
 - `**Work performed**: numbered list of actions
 - `**Result**: test counts, build status
 
-### 3. ARCH_LOG.md (for R-phases only)
+### 3. ARCH_LOG.md (for architecture refactoring phases only)
 Append a new entry with:
 - `## Phase $0: $1`
 - `### Date: YYYY-MM-DD`
@@ -47,8 +47,6 @@ Append a new entry with:
 
 ## Conventions
 
-- Phase headings in DEV_LOG use `## Refactoring-Phase Rxxx:` for R-phases
-- Phase headings in PROMPT_LOG/ARCH_LOG use `## Phase Rxxx:`
+- All phase headings use `## Phase N:` format (unified numbering, no T/R prefixes)
 - Dates use `### Date: YYYY-MM-DD` format in ARCH_LOG
 - All phases must be in ascending numerical order within each file
-- DEV_LOG has two sections: top (reverse chronological for even phases 74-92) and bottom (ascending for all others)

@@ -1,11 +1,11 @@
 # openHiTLS-rs — Architecture Refactoring Log
 
 > This log records the execution history of the refactoring plan defined in [ARCH_REPORT.md](ARCH_REPORT.md).
-> For the original architecture analysis and the full 10-phase plan (Phase R102–R111), see ARCH_REPORT.md §7.
+> For the original architecture analysis and the full 10-phase plan (Phase R100–R109), see ARCH_REPORT.md §7.
 
 ---
 
-## Phase R102: PKI Encoding Consolidation
+## Phase R100: PKI Encoding Consolidation
 
 ### Date: 2026-02-21
 
@@ -104,7 +104,7 @@ Returns `Option` — callers wrap in their own error types (`CryptoError`, `PkiE
 
 ---
 
-## Phase R103: Record Layer Enum Dispatch
+## Phase R101: Record Layer Enum Dispatch
 
 ### Date: 2026-02-22
 
@@ -192,7 +192,7 @@ pub struct RecordLayer {
 
 ---
 
-## Phase R104: Connection File Decomposition
+## Phase R102: Connection File Decomposition
 
 ### Date: 2026-02-22
 
@@ -248,7 +248,7 @@ Key implementation details:
 
 ### Not Changed (by design)
 
-- `connection_async.rs` (2,129 lines) — Phase R106 will address async code
+- `connection_async.rs` (2,129 lines) — Phase R104 will address async code
 - `connection12_async.rs` (2,480 lines) — same rationale
 - `connection_tlcp.rs` (780 lines) — small enough
 - `connection_dtls12.rs` (1,151 lines) — small enough
@@ -273,7 +273,7 @@ Key implementation details:
 
 ---
 
-## Phase R105: Hash Digest Enum Dispatch
+## Phase R103: Hash Digest Enum Dispatch
 
 ### Date: 2026-02-22
 
@@ -372,11 +372,11 @@ Total: **24 files**, +633 / −621 lines.
 
 ---
 
-## Phase R106: Sync/Async Unification via Body Macros
+## Phase R104: Sync/Async Unification via Body Macros
 
 ### Date: 2026-02-22
 
-**Prompt**: Implement Phase R106 — Sync/Async Unification via Body Macros
+**Prompt**: Implement Phase R104 — Sync/Async Unification via Body Macros
 
 **Scope**: Eliminate ~2,900 lines of sync/async code duplication using `macro_rules!` body macros with `maybe_await!` pattern.
 
@@ -397,7 +397,7 @@ Total: **24 files**, +633 / −621 lines.
 
 ---
 
-## Phase R107: X.509 Module Decomposition
+## Phase R105: X.509 Module Decomposition
 
 ### Date: 2026-02-22
 
@@ -454,7 +454,7 @@ All `pub(crate)` items used by sibling modules (`crl.rs`, `ocsp.rs`, `verify.rs`
 
 ---
 
-## Phase R108: Integration Test Modularization
+## Phase R106: Integration Test Modularization
 
 ### Date: 2026-02-23
 
@@ -506,7 +506,7 @@ Transformed the `#[cfg(test)] mod tests { ... }` block into:
 
 ---
 
-## Phase R109: Test Helper Consolidation
+## Phase R107: Test Helper Consolidation
 
 ### Date: 2026-02-23
 **ARCH_REPORT ref**: §7 — Test Helper Consolidation
@@ -537,7 +537,7 @@ Created `crates/hitls-utils/src/hex.rs` with canonical `pub fn hex(s: &str) -> V
 
 ---
 
-## Phase R110: Parameter Struct Refactoring
+## Phase R108: Parameter Struct Refactoring
 
 ### Date: 2026-02-23
 
@@ -574,7 +574,7 @@ Kept 2 suppressions in `slh_dsa/hypertree.rs` (`xmss_node`, `hypertree_verify`) 
 
 ---
 
-## Phase R111: DRBG State Machine Unification
+## Phase R109: DRBG State Machine Unification
 
 ### Date: 2026-02-23
 
@@ -621,15 +621,15 @@ The following phases are defined in [ARCH_REPORT.md](ARCH_REPORT.md) §7 and hav
 
 | Phase | Title | Priority | Status |
 |-------|-------|----------|--------|
-| Phase R102 | PKI Encoding Consolidation | Critical | **Done** |
-| Phase R103 | Record Layer Enum Dispatch | High | **Done** |
-| Phase R104 | Connection File Decomposition | High | **Done** |
-| Phase R105 | Hash Digest Enum Dispatch | Medium | **Done** |
-| Phase R106 | Sync/Async Unification via Macros | Medium | **Done** |
-| Phase R107 | X.509 Module Decomposition | Medium | **Done** |
-| Phase R108 | Integration Test Modularization | Medium | **Done** |
-| Phase R109 | Test Helper Consolidation | Low | **Done** |
-| Phase R110 | Parameter Struct Refactoring | Low | **Done** |
-| Phase R111 | DRBG State Machine Unification | Low | **Done** |
+| Phase R100 | PKI Encoding Consolidation | Critical | **Done** |
+| Phase R101 | Record Layer Enum Dispatch | High | **Done** |
+| Phase R102 | Connection File Decomposition | High | **Done** |
+| Phase R103 | Hash Digest Enum Dispatch | Medium | **Done** |
+| Phase R104 | Sync/Async Unification via Macros | Medium | **Done** |
+| Phase R105 | X.509 Module Decomposition | Medium | **Done** |
+| Phase R106 | Integration Test Modularization | Medium | **Done** |
+| Phase R107 | Test Helper Consolidation | Low | **Done** |
+| Phase R108 | Parameter Struct Refactoring | Low | **Done** |
+| Phase R109 | DRBG State Machine Unification | Low | **Done** |
 
 All 10 refactoring phases complete.

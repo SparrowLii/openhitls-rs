@@ -29,7 +29,7 @@ GitHub Actions (.github/workflows/ci.yml)
 ├── UB Detection     Miri on hitls-bignum + hitls-utils
 ├── Fuzz Build       cargo fuzz build (nightly)
 ├── Bench Verify     cargo bench --no-run
-└── Coverage         cargo-tarpaulin → Cobertura XML (added Phase T111)
+└── Coverage         cargo-tarpaulin → Cobertura XML (added Phase T118)
 ```
 
 ### 1.3 Per-Crate Test Distribution
@@ -76,21 +76,21 @@ GitHub Actions (.github/workflows/ci.yml)
 ```
 Severity         ID   Description                              Impact
 ────────────     ──   ──────────────────────────────────────   ──────────────────────────
-CLOSED           D1   0-RTT replay protection: +8 tests         Resolved (Phase T102)
-CLOSED           D2   Async TLCP/DTLCP: zero tests               Resolved (Phase T104: +15)
-CLOSED           D3   Extension negotiation: +14 e2e tests       Resolved (Phase T105: +14)
-MOSTLY CLOSED    D4   DTLS loss/resilience: +30 tests            Resolved (Phase T106/T116/T117)
-MOSTLY CLOSED    D5   TLCP double certificate: +25 tests         Resolved (Phase T107/T112)
-CLOSED           D6   Property-based testing: +20 proptest       Resolved (Phase T111)
-CLOSED           D7   Code coverage metrics in CI                Resolved (Phase T111: tarpaulin)
+CLOSED           D1   0-RTT replay protection: +8 tests         Resolved (Phase T99)
+CLOSED           D2   Async TLCP/DTLCP: zero tests               Resolved (Phase T111: +15)
+CLOSED           D3   Extension negotiation: +14 e2e tests       Resolved (Phase T112: +14)
+MOSTLY CLOSED    D4   DTLS loss/resilience: +30 tests            Resolved (Phase T113/123/124)
+MOSTLY CLOSED    D5   TLCP double certificate: +25 tests         Resolved (Phase T114/119)
+CLOSED           D6   Property-based testing: +20 proptest       Resolved (Phase T118)
+CLOSED           D7   Code coverage metrics in CI                Resolved (Phase T118: tarpaulin)
 Medium           D8   No cross-implementation interop           Compatibility risk
 Low-Med          D9   Fuzz targets: parse-only                  Deep bugs missed
-MOSTLY CLOSED    D10  Crypto files without unit tests            Resolved (Phase T108–T110/T118)
+MOSTLY CLOSED    D10  Crypto files without unit tests            Resolved (Phase T115–T117/125)
 ```
 
-### 2.2 D1 — 0-RTT Replay Protection ~~(Critical)~~ — **CLOSED** (Phase T102)
+### 2.2 D1 — 0-RTT Replay Protection ~~(Critical)~~ — **CLOSED** (Phase T99)
 
-**Resolved**: Phase T102 added 8 tests covering:
+**Resolved**: Phase T99 added 8 tests covering:
 - Early data extension codec (ClientHello/EncryptedExtensions/NewSessionTicket wire format)
 - Client offering logic (no-PSK guard, zero max_early_data guard)
 - Async 0-RTT accepted flow (session resumption → queue → verify early data received)
@@ -102,9 +102,9 @@ Remaining uncovered areas (lower risk, tracked for future phases):
 - Binder verification for replay prevention
 - `EndOfEarlyData` message codec roundtrip
 
-### 2.3 D2 — Async/Sync Test Coverage Asymmetry ~~(Critical)~~ — **CLOSED** (Phase T104)
+### 2.3 D2 — Async/Sync Test Coverage Asymmetry ~~(Critical)~~ — **CLOSED** (Phase T111)
 
-**Resolved**: Phase T103 added 10 async TLS 1.2 tests. Phase T104 created async connection types for TLCP and DTLCP and added 15 tests (8 TLCP + 7 DTLCP). All 5 protocol variants now have async tests.
+**Resolved**: Phase T110 added 10 async TLS 1.2 tests. Phase T111 created async connection types for TLCP and DTLCP and added 15 tests (8 TLCP + 7 DTLCP). All 5 protocol variants now have async tests.
 
 | Connection Type | Sync Tests | Async Tests | Gap |
 |-----------------|:----------:|:-----------:|:---:|
@@ -116,9 +116,9 @@ Remaining uncovered areas (lower risk, tracked for future phases):
 
 Remaining async gaps are coverage depth (fewer test scenarios than sync), not missing connection types.
 
-### 2.4 D3 — Extension Negotiation ~~(High)~~ — **CLOSED** (Phase T105)
+### 2.4 D3 — Extension Negotiation ~~(High)~~ — **CLOSED** (Phase T112)
 
-Phase T105 added 14 E2E tests covering all identified gaps:
+Phase T112 added 14 E2E tests covering all identified gaps:
 - ALPN no-common-protocol (TLS 1.3 + 1.2), server preference order (TLS 1.2)
 - SNI accessor verification on both client and server (TLS 1.3 + 1.2)
 - Group negotiation: server preference, HRR trigger, no-common-group failure
@@ -126,31 +126,31 @@ Phase T105 added 14 E2E tests covering all identified gaps:
 - Combined ALPN + SNI + group verification via ConnectionInfo
 - Codec: duplicate extension type, zero-length extension parsing
 
-### 2.5 D4 — DTLS Loss/Retransmission ~~(High)~~ — **MOSTLY CLOSED** (Phase T106/T116/T117)
+### 2.5 D4 — DTLS Loss/Retransmission ~~(High)~~ — **MOSTLY CLOSED** (Phase T113/123/124)
 
 **Resolved across 3 phases** with 30 total DTLS-specific tests:
 
-- **Phase T106** (+10): Post-handshake adverse delivery — out-of-order, selective loss, stale records, corrupted ciphertext, truncated/empty datagrams, wrong epoch, interleaved bidirectional
-- **Phase T116** (+10): Fragmentation reassembly (multi-message, old message, out-of-order, overlapping fragments) + retransmission timer (backoff, reset cycles, timeout cap, Flight clone)
-- **Phase T117** (+10): Codec edge cases (all handshake types, fragment offset, TLS↔DTLS roundtrip, HVR empty/max cookie) + anti-replay window boundaries (uninitialized, near u64::MAX, shift by WINDOW_SIZE, reset/reuse)
+- **Phase T113** (+10): Post-handshake adverse delivery — out-of-order, selective loss, stale records, corrupted ciphertext, truncated/empty datagrams, wrong epoch, interleaved bidirectional
+- **Phase T123** (+10): Fragmentation reassembly (multi-message, old message, out-of-order, overlapping fragments) + retransmission timer (backoff, reset cycles, timeout cap, Flight clone)
+- **Phase T124** (+10): Codec edge cases (all handshake types, fragment offset, TLS↔DTLS roundtrip, HVR empty/max cookie) + anti-replay window boundaries (uninitialized, near u64::MAX, shift by WINDOW_SIZE, reset/reuse)
 
 **Remaining** (requires handshake driver refactoring, out of scope for test phase):
 - Handshake-level loss simulation (e.g., ClientHello lost → timeout retransmission)
 - Out-of-order handshake flight delivery (Finished before Certificate)
 
-### 2.6 D5 — TLCP Double Certificate ~~(High)~~ — **MOSTLY CLOSED** (Phase T107/T112)
+### 2.6 D5 — TLCP Double Certificate ~~(High)~~ — **MOSTLY CLOSED** (Phase T114/119)
 
 **Resolved across 2 phases** with 25 total TLCP-specific tests:
 
-- **Phase T107** (+10): Missing encryption certificate, missing signing key, wrong key type — unit + integration for both TLCP and DTLCP
-- **Phase T112** (+15): SM3 transcript hash correctness (empty hash, incremental, hash_len), SM3-PRF determinism and cross-validation, TLCP key schedule (master secret, CBC/GCM key blocks), verify_data SM3 client/server, EMS → key block pipeline, seed order sensitivity, full SM3 verify pipeline
+- **Phase T114** (+10): Missing encryption certificate, missing signing key, wrong key type — unit + integration for both TLCP and DTLCP
+- **Phase T119** (+15): SM3 transcript hash correctness (empty hash, incremental, hash_len), SM3-PRF determinism and cross-validation, TLCP key schedule (master secret, CBC/GCM key blocks), verify_data SM3 client/server, EMS → key block pipeline, seed order sensitivity, full SM3 verify pipeline
 
 **Remaining gap** (low risk):
 - Encryption cert used in ClientKeyExchange SM2 encryption: covered by existing happy-path tests but no dedicated edge-case test
 
-### 2.7 D6 — ~~No Property-Based Testing~~ (Medium) — **CLOSED** (Phase T111)
+### 2.7 D6 — ~~No Property-Based Testing~~ (Medium) — **CLOSED** (Phase T118)
 
-**Resolved**: Phase T111 added 20 proptest property-based tests:
+**Resolved**: Phase T118 added 20 proptest property-based tests:
 
 - **Crypto roundtrips** (6): AES-128/256 block, SM4 block, GCM AEAD, CBC, ChaCha20-Poly1305
 - **Hash determinism** (3): SHA-256 determinism, SHA-256 incremental equivalence, HMAC-SHA-256 determinism
@@ -159,9 +159,9 @@ Phase T105 added 14 E2E tests covering all identified gaps:
 - **KDF determinism** (1): HKDF-expand determinism
 - **Codec roundtrips** (8): Base64, hex, ASN.1 integer/octet string/boolean/UTF8 string/sequence
 
-### 2.8 D7 — ~~No Code Coverage Metrics~~ (Medium) — **CLOSED** (Phase T111)
+### 2.8 D7 — ~~No Code Coverage Metrics~~ (Medium) — **CLOSED** (Phase T118)
 
-**Resolved**: Phase T111 added a `cargo-tarpaulin` coverage CI job:
+**Resolved**: Phase T118 added a `cargo-tarpaulin` coverage CI job:
 
 ```yaml
 coverage:
@@ -187,14 +187,14 @@ All 10 fuzz targets cover **parsing** (ASN.1, PEM, X.509, TLS record/handshake, 
 - Cryptographic fuzzing (arbitrary ciphertext → decrypt, verify no panic)
 - Protocol fuzzing (mutated handshake message content → verify correct rejection)
 
-### 2.11 D10 — ~~30~~ ~14 Crypto Files Without Direct Unit Tests ~~(Low)~~ — **MOSTLY CLOSED** (Phase T108–T110/T118)
+### 2.11 D10 — ~~30~~ ~14 Crypto Files Without Direct Unit Tests ~~(Low)~~ — **MOSTLY CLOSED** (Phase T115–T117/125)
 
 **Resolved across 4 phases** with 50 total internal module tests:
 
-- **Phase T108** (+15): SM9 tower fields — Fp2 (add/sub/mul/frobenius/serialization), Fp4 (add/mul_by_v/frobenius/serialization), Fp12 (mul/frobenius/serialization/inverse)
-- **Phase T109** (+15): SLH-DSA internals — address fields, WOTS+ chain/checksum, FORS tree/sign, hypertree sign/verify, hash PRF/H_msg
-- **Phase T110** (+15): McEliece poly/matrix/syndrome, FrodoKEM matrix/pack/PKE, XMSS tree/WOTS/address
-- **Phase T118** (+5): SLH-DSA WOTS+ base_b (2-bit/1-bit extraction, empty, all-zeros/all-FF checksum)
+- **Phase T115** (+15): SM9 tower fields — Fp2 (add/sub/mul/frobenius/serialization), Fp4 (add/mul_by_v/frobenius/serialization), Fp12 (mul/frobenius/serialization/inverse)
+- **Phase T116** (+15): SLH-DSA internals — address fields, WOTS+ chain/checksum, FORS tree/sign, hypertree sign/verify, hash PRF/H_msg
+- **Phase T117** (+15): McEliece poly/matrix/syndrome, FrodoKEM matrix/pack/PKE, XMSS tree/WOTS/address
+- **Phase T125** (+5): SLH-DSA WOTS+ base_b (2-bit/1-bit extraction, empty, all-zeros/all-FF checksum)
 
 **Remaining** (~14 files with indirect coverage only):
 
@@ -217,44 +217,46 @@ These modules have indirect coverage through top-level roundtrip tests and are l
 ```
 Phase              Tests    Deficiency   Focus                                       Status
 ─────────────────  ───────  ──────────   ──────────────────────────────────────────  ──────
-Phase T102          +8      D1           0-RTT early data + replay protection        ✅
-Phase T103         +10      D2           Async TLS 1.2 deep coverage                 ✅
-Phase T104         +15      D2           Async TLCP + DTLCP connection tests         ✅
-Phase T105         +14      D3           Extension negotiation e2e tests             ✅
-Phase T106         +10      D4           DTLS loss simulation + retransmission       ✅
-Phase T107         +10      D5           TLCP double certificate validation          ✅
-Phase T108         +15      D10          SM9 tower fields (fp2/fp4/fp12)             ✅
-Phase T109         +15      D10          SLH-DSA internal modules                    ✅
-Phase T110         +15      D10          McEliece + FrodoKEM + XMSS internals        ✅
-Phase T111         +20      D6/D7        Infra: proptest + coverage CI               ✅
-Phase T112         +15      D5           TLCP SM3 cryptographic path coverage        ✅
-Phase T113         +15      —            TLS 1.3 key schedule & HKDF robustness      ✅
-Phase T114         +15      —            Record layer encryption & AEAD failures     ✅
-Phase T115         +15      D4           TLS 1.2 CBC padding + DTLS parsing          ✅
-Phase T116         +15      D4           DTLS fragmentation + retransmission         ✅
-Phase T117         +15      D4           DTLS codec + anti-replay boundaries         ✅
-Phase T118         +15      D10          X.509 extensions + WOTS+ + ASN.1 tags       ✅
-Phase T119         +15      —            PKI encoding + signing dispatch + builder   ✅
-Phase T120         +15      —            X.509 cert parsing + SM9 G2 + pairing       ✅
-Phase T121         +13      —            SM9 hash + algorithm helpers + curve params ✅
-Phase T122         +15      —            McEliece keygen + encoding + decoding       ✅
-Phase T123         +10      —            XMSS tree + WOTS+ deepening + FORS          ✅
-Phase T124         +15      —            McEliece GF + Benes + matrix deepening      ✅
-Phase T125         +12      —            FrodoKEM matrix + SLH-DSA hypertree + poly  ✅
-Phase T126         +15      —            McEliece + FrodoKEM + XMSS params deepening ✅
-Phase T127         +15      —            XMSS hash + address + ML-KEM NTT deepening  ✅
-Phase T128         +15      —            BigNum CT + primality + core type deepening  ✅
-Phase T129         +15      —            SLH-DSA params + hash abstraction + address  ✅
-Phase T130         +15      —            ML-DSA NTT + PKI text + X.509 cert parsing   ✅
-Phase T131         +15      —            ML-DSA signing + XMSS keygen + FrodoKEM enc  ✅
-Phase T132         +15      —            ML-KEM indcpa + McEliece field + BigNum shift ✅
-Phase T133         +15      —            ML-DSA packing + X.509 builder + PKI CSR      ✅
-Phase T134         +15      —            ML-DSA poly + X.509 extensions + PKI text     ✅
+Phase T99          +8      D1           0-RTT early data + replay protection        ✅
+Phase T110         +10      D2           Async TLS 1.2 deep coverage                 ✅
+Phase T111         +15      D2           Async TLCP + DTLCP connection tests         ✅
+Phase T112         +14      D3           Extension negotiation e2e tests             ✅
+Phase T113         +10      D4           DTLS loss simulation + retransmission       ✅
+Phase T114         +10      D5           TLCP double certificate validation          ✅
+Phase T115         +15      D10          SM9 tower fields (fp2/fp4/fp12)             ✅
+Phase T116         +15      D10          SLH-DSA internal modules                    ✅
+Phase T117         +15      D10          McEliece + FrodoKEM + XMSS internals        ✅
+Phase T118         +20      D6/D7        Infra: proptest + coverage CI               ✅
+Phase T119         +15      D5           TLCP SM3 cryptographic path coverage        ✅
+Phase T120         +15      —            TLS 1.3 key schedule & HKDF robustness      ✅
+Phase T121         +15      —            Record layer encryption & AEAD failures     ✅
+Phase T122         +15      D4           TLS 1.2 CBC padding + DTLS parsing          ✅
+Phase T123         +15      D4           DTLS fragmentation + retransmission         ✅
+Phase T124         +15      D4           DTLS codec + anti-replay boundaries         ✅
+Phase T125         +15      D10          X.509 extensions + WOTS+ + ASN.1 tags       ✅
+Phase T126         +15      —            PKI encoding + signing dispatch + builder   ✅
+Phase T127         +15      —            X.509 cert parsing + SM9 G2 + pairing       ✅
+Phase T128         +13      —            SM9 hash + algorithm helpers + curve params ✅
+Phase T129         +15      —            McEliece keygen + encoding + decoding       ✅
+Phase T130         +10      —            XMSS tree + WOTS+ deepening + FORS          ✅
+Phase T131         +15      —            McEliece GF + Benes + matrix deepening      ✅
+Phase T132         +12      —            FrodoKEM matrix + SLH-DSA hypertree + poly  ✅
+Phase T133         +15      —            McEliece + FrodoKEM + XMSS params deepening ✅
+Phase T134         +15      —            XMSS hash + address + ML-KEM NTT deepening  ✅
+Phase T135         +15      —            BigNum CT + primality + core type deepening  ✅
+Phase T141         +15      —            SLH-DSA params + hash abstraction + address  ✅
+Phase T143         +15      —            FrodoKEM PKE + SM9 G1 + SM9 Fp deepening     ✅
+Phase T144         +15      —            ML-DSA NTT + SM4-CTR-DRBG + BigNum random    ✅
+Phase T145         +15      —            DH group params + entropy pool + SHA-1        ✅
+Phase T147         +15      —            ML-KEM poly + SM9 Fp12 + encrypted PKCS#8     ✅
+Phase T148         +15      —            ML-DSA poly + X.509 extensions + PKI text     ✅
+Phase T149         +15      —            XTS mode + Edwards curve + GMAC deepening     ✅
+Phase T150         +15      —            scrypt + CFB mode + X448 deepening            ✅
 ```
 
 **Result**: 2,585 → 3,184 tests (+599), all planned deficiencies addressed.
 
-### 3.2 Phase T102 — 0-RTT Early Data + Replay Protection (~8 tests) ✅
+### 3.2 Phase T99 — 0-RTT Early Data + Replay Protection (~8 tests) ✅
 
 **Deficiency**: D1 (Critical)
 
@@ -269,9 +271,9 @@ Phase T134         +15      —            ML-DSA poly + X.509 extensions + PKI 
 | 7 | test_export_early_keying_material_with_data | Early exporter works when early data is sent |
 | 8 | test_early_data_max_size_enforcement | Respect max_early_data_size configuration |
 
-### 3.3 Phase T103 — Async TLS 1.2 Deep Coverage (+10 tests) ✅
+### 3.3 Phase T110 — Async TLS 1.2 Deep Coverage (+10 tests) ✅
 
-**Deficiency**: D2 (async TLS 1.2 now has 28 tests; D2 fully closed in Phase T104)
+**Deficiency**: D2 (async TLS 1.2 now has 28 tests; D2 fully closed in Phase T111)
 **Bug found**: Session ticket encryption key must be 32 bytes (AES-256-GCM), not 48.
 
 | # | Test | Status |
@@ -287,7 +289,7 @@ Phase T134         +15      —            ML-DSA poly + X.509 extensions + PKI 
 | 9 | test_async_tls12_bidirectional_server_first | ✅ |
 | 10 | test_async_tls12_write_after_shutdown | ✅ |
 
-### 3.4 Phase T104 — Async TLCP + DTLCP Connection Tests (+15 tests) ✅
+### 3.4 Phase T111 — Async TLCP + DTLCP Connection Tests (+15 tests) ✅
 
 **Deficiency**: D2 (Critical) — **CLOSED**
 **Files created**: `connection_tlcp_async.rs`, `connection_dtlcp_async.rs`
@@ -310,7 +312,7 @@ Phase T134         +15      —            ML-DSA poly + X.509 extensions + PKI 
 | 14 | test_async_dtlcp_bidirectional | ✅ |
 | 15 | test_async_dtlcp_large_payload | ✅ |
 
-### 3.5 Phase T105 — Extension Negotiation E2E Tests (+14 tests) ✅
+### 3.5 Phase T112 — Extension Negotiation E2E Tests (+14 tests) ✅
 
 **Deficiency**: D3 (High) — **CLOSED**
 
@@ -331,9 +333,9 @@ Phase T134         +15      —            ML-DSA poly + X.509 extensions + PKI 
 | 13 | test_duplicate_extension_type_both_returned | Codec: both returned | ✅ |
 | 14 | test_zero_length_extension_parses_ok | Codec: PADDING(0) OK | ✅ |
 
-### 3.6 Phase T106 — DTLS Loss Simulation + Retransmission (+10 tests) ✅
+### 3.6 Phase T113 — DTLS Loss Simulation + Retransmission (+10 tests) ✅
 
-**Deficiency**: D4 (High) — partially addressed (further addressed by T116/T117)
+**Deficiency**: D4 (High) — partially addressed (further addressed by Phase T123/124)
 
 | # | Test | Description |
 |:-:|------|-------------|
@@ -348,7 +350,7 @@ Phase T134         +15      —            ML-DSA poly + X.509 extensions + PKI 
 | 9 | test_dtls12_seal_app_data_not_connected | Not connected → error |
 | 10 | test_dtls12_open_app_data_not_connected | Not connected → error |
 
-### 3.7 Phase T107 — TLCP Double Certificate Validation (+10 tests) ✅
+### 3.7 Phase T114 — TLCP Double Certificate Validation (+10 tests) ✅
 
 **Deficiency**: D5 (High) — partially closed (further addressed by T112)
 
@@ -365,7 +367,7 @@ Phase T134         +15      —            ML-DSA poly + X.509 extensions + PKI 
 | 9 | test_dtlcp_handshake_fails_without_enc_cert | Full-stack DTLCP: no enc cert |
 | 10 | test_dtlcp_handshake_fails_without_signing_key | Full-stack DTLCP: no signing key |
 
-### 3.8 Phase T108 — SM9 Tower Fields (+15 tests) ✅
+### 3.8 Phase T115 — SM9 Tower Fields (+15 tests) ✅
 
 **Deficiency**: D10
 
@@ -375,7 +377,7 @@ Phase T134         +15      —            ML-DSA poly + X.509 extensions + PKI 
 | 6-10 | fp4 tests | add identity, mul_by_v, frobenius, serialization, neg_double_neg |
 | 11-15 | fp12 tests | mul identity, frobenius p/p2/p3, serialization, inverse |
 
-### 3.9 Phase T109 — SLH-DSA Internal Modules (+15 tests) ✅
+### 3.9 Phase T116 — SLH-DSA Internal Modules (+15 tests) ✅
 
 **Deficiency**: D10
 
@@ -387,7 +389,7 @@ Phase T134         +15      —            ML-DSA poly + X.509 extensions + PKI 
 | hypertree.rs | 3 | Hypertree sign/verify, layer traversal, root |
 | hash.rs | 3 | PRF, H_msg, F/T_l functions with test vectors |
 
-### 3.10 Phase T110 — McEliece + FrodoKEM + XMSS Internals (+15 tests) ✅
+### 3.10 Phase T117 — McEliece + FrodoKEM + XMSS Internals (+15 tests) ✅
 
 **Deficiency**: D10
 
@@ -397,7 +399,7 @@ Phase T134         +15      —            ML-DSA poly + X.509 extensions + PKI 
 | FrodoKEM matrix/pke | 5 | Matrix sample, pack/unpack, PKE encrypt/decrypt |
 | XMSS tree/WOTS | 5 | Merkle tree build, WOTS chain, address manipulation |
 
-### 3.11 Phase T111 — Infrastructure: proptest + Coverage CI (+20 tests) ✅
+### 3.11 Phase T118 — Infrastructure: proptest + Coverage CI (+20 tests) ✅
 
 **Deficiency**: D6, D7 — **BOTH CLOSED**
 
@@ -409,7 +411,7 @@ Phase T134         +15      —            ML-DSA poly + X.509 extensions + PKI 
 | KDF/codec tests (9) | HKDF, Base64, hex, ASN.1 integer/octet/bool/UTF8/sequence | ✅ |
 | Coverage CI job | `cargo-tarpaulin` → Cobertura XML | ✅ |
 
-### 3.12 Phase T112–T119 — Deep Edge-Case Coverage (+120 tests) ✅
+### 3.12 Phase T119–T126 — Deep Edge-Case Coverage (+120 tests) ✅
 
 Phases T112–T119 continued hardening beyond the original roadmap:
 
@@ -440,10 +442,10 @@ Phases T112–T119 continued hardening beyond the original roadmap:
 | High deficiencies (D3-D5) | 2 partial | 0 | **0** (D4/D5 mostly closed) |
 | Crypto files with tests | 75% | 90%+ | **~90%** |
 | TLS files with tests | 100% | 100% | **100%** |
-| PKI files with tests | ~85% | ~85% | **100%** (T118/T119) |
+| PKI files with tests | ~85% | ~85% | **100%** (Phase T125/126) |
 | Async connection type coverage | 100% | 100% | **100%** |
 | Extension negotiation coverage | 80%+ | 80%+ | **95%+** |
-| DTLS loss scenario coverage | 70%+ | 70%+ | **90%+** (T106/T116/T117) |
+| DTLS loss scenario coverage | 70%+ | 70%+ | **90%+** (Phase T113/123/124) |
 | Property-based testing | No | Yes | **Yes** (20 proptest) |
 | Code coverage in CI | No | Yes | **Yes** (tarpaulin) |
 

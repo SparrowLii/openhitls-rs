@@ -8,7 +8,7 @@ openHiTLS-rs is a pure Rust rewrite of [openHiTLS](https://gitee.com/openhitls/o
 
 - **Language**: Rust (MSRV 1.75, edition 2021)
 - **License**: MulanPSL-2.0
-- **Status**: Phase 97 complete + Phase T136 — scrypt + CFB mode + X448 deepening (3184 tests, 7 ignored)
+- **Status**: Phase 0–150 complete (3184 tests, 7 ignored)
 
 ## Workspace Structure
 
@@ -97,7 +97,7 @@ cargo fmt --all -- --check
 ### Post-Task Documentation Updates
 After completing each implementation task (phase/feature), **always** update the following files:
 - `DEV_LOG.md` — Add a new phase entry with summary, files modified, implementation details, test counts, and build status
-- `TEST_LOG.md` — Add a new Phase T entry with test details and per-crate counts (for testing phases)
+- `TEST_LOG.md` — Add a new Phase entry with test details and per-crate counts (for testing phases)
 - `PROMPT_LOG.md` — Record the prompt and result for the phase
 - `CLAUDE.md` — Update status line, test counts, and workspace structure annotations
 - `README.md` — Update test counts in Building & Testing section; update protocol/algorithm tables if new features added
@@ -113,24 +113,24 @@ The original C implementation is at `/Users/dongqiu/Dev/code/openhitls/`:
 
 ## Migration Roadmap
 
-Phase 0–97 complete + Phase T73–T136 + Phase R102–R113 (3184 tests, 7 ignored). **100% C→Rust feature parity achieved. Architecture refactoring complete. Performance optimization phase complete.**
+Phase 0–150 complete (3184 tests, 7 ignored). **100% C→Rust feature parity achieved. Architecture refactoring complete. Performance optimization phase complete.**
 
 ### Completed Phases (Summary)
 
-Implementation Phase 0–92 cover all crypto algorithms (48 modules), TLS 1.3/1.2 (91 cipher suites), DTLS 1.2, TLCP, DTLCP, PKI/X.509/CMS, FIPS/CMVP, entropy health testing, CLI (14 commands), and async I/O. Phase 93–97 add TLS 1.3 middlebox compatibility and hardware acceleration (SHA-2 SHA-NI, GHASH CLMUL/PMULL, P-256 specialized field arithmetic, ChaCha20 SIMD). Phase T73–T134 provide comprehensive unit test coverage across all modules.
+Phase 0–94 cover implementation of all crypto algorithms (48 modules), TLS 1.3/1.2 (91 cipher suites), DTLS 1.2, TLCP, DTLCP, PKI/X.509/CMS, FIPS/CMVP, entropy health testing, CLI (14 commands), and async I/O. Phase 136–140 add TLS 1.3 middlebox compatibility and hardware acceleration (SHA-2 SHA-NI, GHASH CLMUL/PMULL, P-256 specialized field arithmetic, ChaCha20 SIMD). Phases T72–T135, T141–T150 provide comprehensive unit test coverage and architecture refactoring across all modules.
 
 Key milestones:
-- Phase 21–39: TLS 1.3/1.2/DTLS/TLCP completeness, ECC curves, DRBG, PKI, cipher suites, extensions
-- Phase 40–44: Async I/O, hardware AES, Wycheproof/fuzz/audit, feature completeness
-- Phase 45–49: DH groups, FIPS/CMVP, entropy health, Ed448/X448/Curve448
-- Phase 50–61: Test coverage expansion (PKI vectors, unit tests, edge cases)
-- Phase 62–67: CCM/CCM_8/PSK cipher suites, DHE_DSS, DH_ANON/ECDH_ANON
-- Phase 68–80: Renegotiation, hostname verification, session cache, async DTLS, GREASE, Heartbeat
-- Phase 82–86: TLS callbacks (10 types), Trusted CA Keys/USE_SRTP/STATUS_REQUEST_V2, CMS AuthenticatedData
-- Phase 88–92: Encrypted PKCS#8, TicketKeyCallback/SecurityCallback, SM4-CTR-DRBG, CMS ML-DSA
-- Phase 93–97: TLS 1.3 middlebox compatibility (RFC 8446 §D.4), SHA-2 hardware acceleration (ARMv8 SHA-NI / x86-64 SHA-NI), GHASH/CLMUL hardware acceleration (ARMv8 PMULL / x86-64 PCLMULQDQ), P-256 specialized field arithmetic (4×u64 Montgomery, w=4 fixed-window scalar mul, Shamir's trick), ChaCha20 SIMD optimization (ARMv8 NEON / x86-64 SSE2)
-- Phase T73–T136: CLI unit tests, async connection tests, cipher suite integration, codec/state machine edge cases, ECC point/AES soft/SM9 field arithmetic/McEliece vector, 0-RTT early data tests, async TLS 1.2 deep coverage, async TLCP + DTLCP connection types & tests, extension negotiation E2E tests, DTLS loss simulation & resilience tests, TLCP double certificate validation tests, SM9 tower field unit tests, SLH-DSA internal module unit tests, McEliece + FrodoKEM + XMSS internal module tests, proptest property-based tests + coverage CI, TLCP SM3 cryptographic path coverage, TLS 1.3 key schedule & HKDF robustness tests, record layer encryption edge cases & AEAD failure modes, TLS 1.2 CBC padding security + DTLS parsing + TLS 1.3 inner plaintext edge cases, DTLS fragmentation/retransmission + CertificateVerify edge cases, DTLS codec edge cases + anti-replay boundaries + entropy conditioning, X.509 extension parsing + WOTS+ base conversion + ASN.1 tag edge cases, PKI encoding helpers + X.509 signing dispatch + certificate builder encoding, X.509 certificate parsing + SM9 G2 point arithmetic + SM9 pairing helpers, SM9 hash functions + SM9 algorithm helpers + SM9 curve parameters, McEliece keygen helpers + McEliece encoding + McEliece decoding, XMSS tree operations + XMSS WOTS+ deepening + SLH-DSA FORS deepening, McEliece GF(2^13) + Benes network + binary matrix deepening, FrodoKEM matrix ops + SLH-DSA hypertree + McEliece polynomial deepening, McEliece + FrodoKEM + XMSS parameter set validation deepening, XMSS hash abstraction + XMSS address scheme + ML-KEM NTT deepening, BigNum constant-time + primality testing + core type deepening, SLH-DSA params + hash abstraction + address scheme deepening, FrodoKEM PKE + SM9 G1 point + SM9 Fp field deepening, ML-DSA NTT + SM4-CTR-DRBG + BigNum random deepening, DH group params + entropy pool + SHA-1 deepening, ML-KEM poly + SM9 Fp12 + encrypted PKCS#8 deepening, ML-DSA poly + X.509 extensions + X.509 text deepening, XTS mode + Edwards curve + GMAC deepening, scrypt + CFB mode + X448 deepening
-- Phase R102–R111: Architecture refactoring — PKI encoding consolidation, record layer enum dispatch, connection file decomposition, hash digest enum dispatch, sync/async unification via body macros, X.509 module decomposition, integration test modularization, test helper consolidation, parameter struct refactoring, DRBG state machine unification
-- Phase R112–R113: Dev profile optimization — per-crate opt-level overrides (hitls-bignum=2, hitls-crypto=2), un-ignored 44→6 tests
+- Phase 20–38: TLS 1.3/1.2/DTLS/TLCP completeness, ECC curves, DRBG, PKI, cipher suites, extensions
+- Phase 39–43: Async I/O, hardware AES, Wycheproof/fuzz/audit, feature completeness
+- Phase 43–47: DH groups, FIPS/CMVP, entropy health, Ed448/X448/Curve448
+- Phase 49–60: Test coverage expansion (PKI vectors, unit tests, edge cases)
+- Phase 61–66: CCM/CCM_8/PSK cipher suites, DHE_DSS, DH_ANON/ECDH_ANON
+- Phase 67–80: Renegotiation, hostname verification, session cache, async DTLS, GREASE, Heartbeat
+- Phase 85–87: TLS callbacks (10 types), Trusted CA Keys/USE_SRTP/STATUS_REQUEST_V2, CMS AuthenticatedData
+- Phase 94: Encrypted PKCS#8, TicketKeyCallback/SecurityCallback, SM4-CTR-DRBG, CMS ML-DSA
+- Phase 136–140: TLS 1.3 middlebox compatibility (RFC 8446 §D.4), SHA-2 hardware acceleration (ARMv8 SHA-NI / x86-64 SHA-NI), GHASH/CLMUL hardware acceleration (ARMv8 PMULL / x86-64 PCLMULQDQ), P-256 specialized field arithmetic (4×u64 Montgomery, w=4 fixed-window scalar mul, Shamir's trick), ChaCha20 SIMD optimization (ARMv8 NEON / x86-64 SSE2)
+- Phase T72–T135, T141–T150: CLI unit tests, async connection tests, cipher suite integration, codec/state machine edge cases, ECC point/AES soft/SM9 field arithmetic/McEliece vector, 0-RTT early data tests, async TLS 1.2 deep coverage, async TLCP + DTLCP connection types & tests, extension negotiation E2E tests, DTLS loss simulation & resilience tests, TLCP double certificate validation tests, SM9 tower field unit tests, SLH-DSA internal module unit tests, McEliece + FrodoKEM + XMSS internal module tests, proptest property-based tests + coverage CI, TLCP SM3 cryptographic path coverage, TLS 1.3 key schedule & HKDF robustness tests, record layer encryption edge cases & AEAD failure modes, TLS 1.2 CBC padding security + DTLS parsing + TLS 1.3 inner plaintext edge cases, DTLS fragmentation/retransmission + CertificateVerify edge cases, DTLS codec edge cases + anti-replay boundaries + entropy conditioning, X.509 extension parsing + WOTS+ base conversion + ASN.1 tag edge cases, PKI encoding helpers + X.509 signing dispatch + certificate builder encoding, X.509 certificate parsing + SM9 G2 point arithmetic + SM9 pairing helpers, SM9 hash functions + SM9 algorithm helpers + SM9 curve parameters, McEliece keygen helpers + McEliece encoding + McEliece decoding, XMSS tree operations + XMSS WOTS+ deepening + SLH-DSA FORS deepening, McEliece GF(2^13) + Benes network + binary matrix deepening, FrodoKEM matrix ops + SLH-DSA hypertree + McEliece polynomial deepening, McEliece + FrodoKEM + XMSS parameter set validation deepening, XMSS hash abstraction + XMSS address scheme + ML-KEM NTT deepening, BigNum constant-time + primality testing + core type deepening, SLH-DSA params + hash abstraction + address scheme deepening, FrodoKEM PKE + SM9 G1 point + SM9 Fp field deepening, ML-DSA NTT + SM4-CTR-DRBG + BigNum random deepening, DH group params + entropy pool + SHA-1 deepening, ML-KEM poly + SM9 Fp12 + encrypted PKCS#8 deepening, ML-DSA poly + X.509 extensions + X.509 text deepening, XTS mode + Edwards curve + GMAC deepening, scrypt + CFB mode + X448 deepening
+- Phase R100–R109: Architecture refactoring — PKI encoding consolidation, record layer enum dispatch, connection file decomposition, hash digest enum dispatch, sync/async unification via body macros, X.509 module decomposition, integration test modularization, test helper consolidation, parameter struct refactoring, DRBG state machine unification
+- Phase R142, R146: Dev profile optimization — per-crate opt-level overrides (hitls-bignum=2, hitls-crypto=2), un-ignored 44→6 tests
 
 See `DEV_LOG.md` for detailed phase tables, `TEST_LOG.md` for testing history, `PROMPT_LOG.md` for prompt/response log, and `ARCH_LOG.md` for refactoring execution log.

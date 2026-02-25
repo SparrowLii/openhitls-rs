@@ -462,7 +462,7 @@ Four DRBG variants (CTR-DRBG, SM4-CTR-DRBG, HMAC-DRBG, Hash-DRBG) share a common
 
 ## 7. Refactoring Plan
 
-### Phase R102: PKI Encoding Consolidation (Priority: Critical)
+### Phase R100: PKI Encoding Consolidation (Priority: Critical)
 
 **Goal**: Eliminate 24 duplicated ASN.1 encoding helpers and 5 duplicated utility functions
 
@@ -488,7 +488,7 @@ Four DRBG variants (CTR-DRBG, SM4-CTR-DRBG, HMAC-DRBG, Hash-DRBG) share a common
 
 **Risk**: Low — internal refactoring only, no public API changes
 
-### Phase R103: Record Layer Enum Dispatch (Priority: High)
+### Phase R101: Record Layer Enum Dispatch (Priority: High)
 
 **Goal**: Replace `Option<T>` field proliferation with type-safe enum dispatch
 
@@ -521,7 +521,7 @@ Four DRBG variants (CTR-DRBG, SM4-CTR-DRBG, HMAC-DRBG, Hash-DRBG) share a common
 
 **Risk**: Medium — requires updating all record layer callers
 
-### Phase R104: Connection File Decomposition (Priority: High)
+### Phase R102: Connection File Decomposition (Priority: High)
 
 **Goal**: Split the two largest files (7,324 + 7,004 lines) into manageable modules
 
@@ -539,7 +539,7 @@ Four DRBG variants (CTR-DRBG, SM4-CTR-DRBG, HMAC-DRBG, Hash-DRBG) share a common
 
 **Risk**: Low — pure structural reorganization, no logic changes
 
-### Phase R105: Hash Digest Enum Dispatch (Priority: Medium)
+### Phase R103: Hash Digest Enum Dispatch (Priority: Medium)
 
 **Goal**: Replace `Box<dyn Digest>` + factory closure with enum dispatch for known hash algorithms
 
@@ -574,7 +574,7 @@ Four DRBG variants (CTR-DRBG, SM4-CTR-DRBG, HMAC-DRBG, Hash-DRBG) share a common
 
 **Risk**: Medium — touches core crypto infrastructure. Requires careful testing.
 
-### Phase R106: Sync/Async Unification via Macros (Priority: Medium)
+### Phase R104: Sync/Async Unification via Macros (Priority: Medium)
 
 **Goal**: Reduce ~6,189 lines of sync/async duplication
 
@@ -598,7 +598,7 @@ Four DRBG variants (CTR-DRBG, SM4-CTR-DRBG, HMAC-DRBG, Hash-DRBG) share a common
 
 **Risk**: High — significant structural change. Macro complexity. Must maintain feature parity. Consider as a multi-iteration effort.
 
-### Phase R107: X.509 Module Decomposition (Priority: Medium)
+### Phase R105: X.509 Module Decomposition (Priority: Medium)
 
 **Goal**: Split `x509/mod.rs` (3,441 lines) into focused submodules
 
@@ -613,7 +613,7 @@ Four DRBG variants (CTR-DRBG, SM4-CTR-DRBG, HMAC-DRBG, Hash-DRBG) share a common
 
 **Risk**: Low — pure structural reorganization
 
-### Phase R108: Integration Test Modularization (Priority: Medium)
+### Phase R106: Integration Test Modularization (Priority: Medium)
 
 **Goal**: Split monolithic 7,675-line test file into focused test modules
 
@@ -632,7 +632,7 @@ Four DRBG variants (CTR-DRBG, SM4-CTR-DRBG, HMAC-DRBG, Hash-DRBG) share a common
 
 **Risk**: Low — test-only change
 
-### Phase R109: Test Helper Consolidation (Priority: Low)
+### Phase R107: Test Helper Consolidation (Priority: Low)
 
 **Goal**: Eliminate 53 duplicated `hex()`/`to_hex()` test helpers
 
@@ -645,7 +645,7 @@ Four DRBG variants (CTR-DRBG, SM4-CTR-DRBG, HMAC-DRBG, Hash-DRBG) share a common
 
 **Risk**: Low — test-only change
 
-### Phase R110: Parameter Struct Refactoring (Priority: Low)
+### Phase R108: Parameter Struct Refactoring (Priority: Low)
 
 **Goal**: Address 8 `too_many_arguments` suppressions
 
@@ -672,7 +672,7 @@ fn process_handshake(ctx: &mut HandshakeContext, record: &Record) -> Result<()>
 
 **Risk**: Low — localized changes
 
-### Phase R111: DRBG State Machine Unification (Priority: Low)
+### Phase R109: DRBG State Machine Unification (Priority: Low)
 
 **Goal**: Extract shared DRBG lifecycle (instantiate/generate/reseed) into a common abstraction
 
@@ -700,20 +700,20 @@ fn process_handshake(ctx: &mut HandshakeContext, record: &Record) -> Result<()>
 
 | Phase | Priority | Risk | Est. Lines Saved | Dependencies |
 |-------|----------|------|-------------------|-------------|
-| Phase R102: PKI Encoding Consolidation | Critical | Low | ~200 | None |
-| Phase R103: Record Layer Enum Dispatch | High | Medium | ~300 | None |
-| Phase R104: Connection File Decomposition | High | Low | 0 (structural) | None |
-| Phase R105: Hash Digest Enum Dispatch | Medium | Medium | ~100 | None |
-| Phase R106: Sync/Async Unification | Medium | High | ~3,000-4,000 | Phase R104 |
-| Phase R107: X.509 Module Decomposition | Medium | Low | 0 (structural) | Phase R102 |
-| Phase R108: Integration Test Modularization | Medium | Low | 0 (structural) | None |
-| Phase R109: Test Helper Consolidation | Low | Low | ~200 | None |
-| Phase R110: Parameter Struct Refactoring | Low | Low | ~50 | None |
-| Phase R111: DRBG State Machine Unification | Low | Medium | ~300 | None |
+| Phase R100: PKI Encoding Consolidation | Critical | Low | ~200 | None |
+| Phase R101: Record Layer Enum Dispatch | High | Medium | ~300 | None |
+| Phase R102: Connection File Decomposition | High | Low | 0 (structural) | None |
+| Phase R103: Hash Digest Enum Dispatch | Medium | Medium | ~100 | None |
+| Phase R104: Sync/Async Unification | Medium | High | ~3,000-4,000 | Phase R102 |
+| Phase R105: X.509 Module Decomposition | Medium | Low | 0 (structural) | Phase R100 |
+| Phase R106: Integration Test Modularization | Medium | Low | 0 (structural) | None |
+| Phase R107: Test Helper Consolidation | Low | Low | ~200 | None |
+| Phase R108: Parameter Struct Refactoring | Low | Low | ~50 | None |
+| Phase R109: DRBG State Machine Unification | Low | Medium | ~300 | None |
 
-**Recommended Execution Order**: Phase R102 → Phase R104 → Phase R103 → Phase R107 → Phase R108 → Phase R105 → Phase R109 → Phase R110 → Phase R111 → Phase R106
+**Recommended Execution Order**: Phase R100 → Phase R102 → Phase R101 → Phase R105 → Phase R106 → Phase R103 → Phase R107 → Phase R108 → Phase R109 → Phase R104
 
-Phase R106 (Sync/Async Unification) is placed last due to its high complexity and risk — it should be attempted only after the foundational refactorings (Phase R102-Phase R105) stabilize the codebase.
+Phase R104 (Sync/Async Unification) is placed last due to its high complexity and risk — it should be attempted only after the foundational refactorings (Phase R100-Phase R103) stabilize the codebase.
 
 ---
 
@@ -822,13 +822,13 @@ benches/
 
 ## 10. Post-Refactoring Architecture Analysis
 
-> Generated: 2026-02-23 | Branch: `refactoring` | After Phase R102–R111 (10 phases complete)
+> Generated: 2026-02-23 | Branch: `refactoring` | After Phase R100–R109 (10 phases complete)
 
 ### 10.1 Executive Summary
 
 Ten phases of architectural refactoring (R102–R111) have successfully addressed all 10 issues identified in §6 of this report. The refactoring eliminated ~2,700 lines of duplication, decomposed 4 oversized monolithic files into 30+ focused modules, introduced zero-cost enum dispatch in cryptographic hot paths, and unified sync/async connection code via macro-generated method bodies.
 
-The codebase has grown from 121,589 to 128,618 lines (+5.8%), primarily from increased test coverage (Phase T73–T102 ran in parallel). Source file count increased from 228 to 253 (+11%), reflecting the intentional decomposition of monolithic files into focused submodules. Code quality indicators have improved across all measured dimensions.
+The codebase has grown from 121,589 to 128,618 lines (+5.8%), primarily from increased test coverage (Phase T72–T99 ran in parallel). Source file count increased from 228 to 253 (+11%), reflecting the intentional decomposition of monolithic files into focused submodules. Code quality indicators have improved across all measured dimensions.
 
 ### 10.2 Before vs. After Metrics
 
@@ -861,7 +861,7 @@ The codebase has grown from 121,589 to 128,618 lines (+5.8%), primarily from inc
 | tests/interop | 1 | 7,675 | 11 | 7,590 | −85 |
 
 Key observations:
-- **hitls-tls** shrunk by 1,156 lines despite adding tests — sync/async macro unification (Phase R106) removed ~1,360 lines net
+- **hitls-tls** shrunk by 1,156 lines despite adding tests — sync/async macro unification (Phase R104) removed ~1,360 lines net
 - **hitls-pki** shrunk by 57 lines — encoding consolidation (R102) removed 134 lines, offset by X.509 decomposition boilerplate (R107)
 - **hitls-crypto** grew by 651 lines — new tests (T100–T101 added 45 tests to ECC/AES/SM9/McEliece) plus DRBG trait addition (R111)
 - **hitls-utils** grew by 17 lines — shared `hex.rs` module added (R109)

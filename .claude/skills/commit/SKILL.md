@@ -29,8 +29,8 @@ Based on changes, select the appropriate prefix:
 | `chore:` | Build, CI, dependency updates |
 
 For phase-based work, use the pattern from recent commits:
-- `refactor: Phase Rxxx — <description>` for refactoring phases
-- `docs: update DEV_LOG, PROMPT_LOG, ARCH_LOG, CLAUDE.md for Phase Rxxx` for doc updates
+- `refactor: Phase N — <description>` for refactoring phases
+- `docs: update DEV_LOG, PROMPT_LOG, ARCH_LOG, CLAUDE.md for Phase N` for doc updates
 
 ### Step 3: Stage and Commit
 - Stage specific files (never use `git add -A` or `git add .`)
