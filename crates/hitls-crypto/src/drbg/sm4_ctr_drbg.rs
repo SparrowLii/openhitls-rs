@@ -251,4 +251,73 @@ mod tests {
         // Different ciphers produce different output
         assert_ne!(sm4_out, aes_out);
     }
+
+    #[test]
+    fn test_sm4_ctr_drbg_invalid_seed_length() {
+        assert!(Sm4CtrDrbg::new(&[0u8; 0]).is_err());
+        assert!(Sm4CtrDrbg::new(&[0u8; 16]).is_err());
+        assert!(Sm4CtrDrbg::new(&[0u8; 31]).is_err());
+        assert!(Sm4CtrDrbg::new(&[0u8; 33]).is_err());
+        assert!(Sm4CtrDrbg::new(&[0u8; 48]).is_err());
+        // Exactly SEED_LEN (32) should succeed
+        assert!(Sm4CtrDrbg::new(&[0u8; SEED_LEN]).is_ok());
+    }
+
+    #[test]
+    fn test_sm4_ctr_drbg_generate_with_additional_input() {
+        let seed = [0x42u8; SEED_LEN];
+
+        let mut drbg1 = Sm4CtrDrbg::new(&seed).unwrap();
+        let mut out1 = [0u8; 32];
+        drbg1.generate(&mut out1, None).unwrap();
+
+        let mut drbg2 = Sm4CtrDrbg::new(&seed).unwrap();
+        let mut out2 = [0u8; 32];
+        drbg2.generate(&mut out2, Some(b"extra")).unwrap();
+
+        // Additional input causes different output
+        assert_ne!(out1, out2);
+    }
+
+    #[test]
+    fn test_sm4_ctr_drbg_reseed_changes_output() {
+        let seed = [0x42u8; SEED_LEN];
+
+        // Generate without reseed
+        let mut drbg1 = Sm4CtrDrbg::new(&seed).unwrap();
+        let _ = drbg1.generate_bytes(32).unwrap();
+        let out1 = drbg1.generate_bytes(32).unwrap();
+
+        // Generate with reseed before second call
+        let mut drbg2 = Sm4CtrDrbg::new(&seed).unwrap();
+        let _ = drbg2.generate_bytes(32).unwrap();
+        let new_entropy = [0x99u8; SEED_LEN];
+        drbg2.reseed(&new_entropy, None).unwrap();
+        let out2 = drbg2.generate_bytes(32).unwrap();
+
+        assert_ne!(out1, out2);
+    }
+
+    #[test]
+    fn test_sm4_ctr_drbg_generate_various_sizes() {
+        let seed = [0x42u8; SEED_LEN];
+        let mut drbg = Sm4CtrDrbg::new(&seed).unwrap();
+
+        for size in [1, 15, 16, 17, 31, 32, 48, 100] {
+            let out = drbg.generate_bytes(size).unwrap();
+            assert_eq!(out.len(), size, "generate_bytes({size}) wrong length");
+        }
+    }
+
+    #[test]
+    fn test_sm4_ctr_drbg_reseed_invalid_entropy_length() {
+        let seed = [0x42u8; SEED_LEN];
+        let mut drbg = Sm4CtrDrbg::new(&seed).unwrap();
+
+        assert!(drbg.reseed(&[0u8; 0], None).is_err());
+        assert!(drbg.reseed(&[0u8; 16], None).is_err());
+        assert!(drbg.reseed(&[0u8; 48], None).is_err());
+        // Exactly SEED_LEN should succeed
+        assert!(drbg.reseed(&[0u8; SEED_LEN], None).is_ok());
+    }
 }

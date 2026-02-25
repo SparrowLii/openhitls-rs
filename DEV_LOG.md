@@ -8840,6 +8840,32 @@ Added 15 tests across 3 parameter set files validating cross-variant consistency
 
 ---
 
+## Phase T131: ML-DSA NTT + SM4-CTR-DRBG + BigNum Random Deepening (+15 tests, 3,079→3,094)
+
+**Date**: 2026-02-25
+**Scope**: Deepen test coverage for three modules with low test density: ML-DSA NTT (ntt.rs, 244 lines, 4 tests), SM4-CTR-DRBG (sm4_ctr_drbg.rs, 254 lines, 4 tests), BigNum random generation (rand.rs, 132 lines, 4 tests).
+
+### Summary
+
+Added 15 tests across 3 modules validating NTT algebraic properties, DRBG correctness/error handling, and random number generation bounds:
+
+- **ML-DSA NTT** (5 tests): NTT of zero polynomial stays zero, fqmul commutativity (5 pairs including edge cases), poly_add/poly_sub inverse roundtrip, poly_shiftl multiplies by 2^D, caddq conditional add q behavior (positive/negative values)
+- **SM4-CTR-DRBG** (5 tests): invalid seed length → error (0/16/31/33/48 bytes), generate with additional_input changes output, reseed changes output stream, generate various sizes (1/15/16/17/31/32/48/100 bytes), reseed invalid entropy length → error
+- **BigNum random** (5 tests): random(0 bits) → zero, random_range error cases (zero/one upper), random_range_inclusive_zero bounds (allows zero, upper=1 always returns 0), two random(256) calls produce different values, random large bits (512/1024/2048) correct bit_len
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `crates/hitls-crypto/src/mldsa/ntt.rs` | Added 5 tests to existing `#[cfg(test)] mod tests` |
+| `crates/hitls-crypto/src/drbg/sm4_ctr_drbg.rs` | Added 5 tests to existing `#[cfg(test)] mod tests` |
+| `crates/hitls-bignum/src/rand.rs` | Added 5 tests to existing `#[cfg(test)] mod tests` |
+
+### Build Status
+- `cargo test --workspace --all-features`: 3094 passed, 0 failed, 22 ignored
+- `RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets`: 0 warnings
+- `cargo fmt --all -- --check`: clean
+
 ## Phase T130: FrodoKEM PKE + SM9 G1 Point + SM9 Fp Field Deepening (+15 tests, 3,065→3,079)
 
 **Date**: 2026-02-25

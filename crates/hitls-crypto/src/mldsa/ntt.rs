@@ -241,4 +241,77 @@ mod tests {
         assert_eq!(freeze(-1), Q - 1);
         assert_eq!(freeze(Q + 5), 5);
     }
+
+    #[test]
+    fn test_ntt_zero_polynomial() {
+        let mut f = [0i32; N];
+        ntt(&mut f);
+        assert!(f.iter().all(|&c| c == 0), "NTT of zero poly should be zero");
+        invntt(&mut f);
+        assert!(
+            f.iter().all(|&c| c == 0),
+            "INTT of zero poly should be zero"
+        );
+    }
+
+    #[test]
+    fn test_fqmul_commutativity() {
+        let pairs: [(i32, i32); 5] = [
+            (0, 12345),
+            (1, Q - 1),
+            (25847, -518909),
+            (1000000, 2000000),
+            (-3000000, 4000000),
+        ];
+        for (a, b) in pairs {
+            assert_eq!(
+                fqmul(a, b),
+                fqmul(b, a),
+                "fqmul not commutative for ({a}, {b})"
+            );
+        }
+    }
+
+    #[test]
+    fn test_poly_add_sub_inverse() {
+        let mut a = [0i32; N];
+        let mut b = [0i32; N];
+        for i in 0..N {
+            a[i] = (i as i32 * 7 + 3) % Q;
+            b[i] = (i as i32 * 11 + 17) % Q;
+        }
+        let mut sum = [0i32; N];
+        poly_add(&mut sum, &a, &b);
+        let mut recovered = [0i32; N];
+        poly_sub(&mut recovered, &sum, &b);
+        for i in 0..N {
+            assert_eq!(recovered[i], a[i], "poly_add/sub not inverse at {i}");
+        }
+    }
+
+    #[test]
+    fn test_poly_shiftl() {
+        let mut r = [0i32; N];
+        r[0] = 1;
+        r[1] = 5;
+        r[255] = 100;
+        poly_shiftl(&mut r);
+        assert_eq!(r[0], 1 << D);
+        assert_eq!(r[1], 5 << D);
+        assert_eq!(r[255], 100 << D);
+        // Unset coefficients remain zero
+        assert_eq!(r[2], 0);
+    }
+
+    #[test]
+    fn test_caddq_values() {
+        // Positive values unchanged
+        assert_eq!(caddq(0), 0);
+        assert_eq!(caddq(1), 1);
+        assert_eq!(caddq(Q - 1), Q - 1);
+        // Negative values get q added
+        assert_eq!(caddq(-1), Q - 1);
+        assert_eq!(caddq(-Q), 0);
+        assert_eq!(caddq(-(Q - 1)), 1);
+    }
 }

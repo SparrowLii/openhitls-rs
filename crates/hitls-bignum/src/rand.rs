@@ -129,4 +129,53 @@ mod tests {
             assert_eq!(r.bit_len(), bits, "random({bits}) produced wrong bit_len");
         }
     }
+
+    #[test]
+    fn test_random_zero_bits() {
+        let r = BigNum::random(0, false).unwrap();
+        assert!(r.is_zero());
+    }
+
+    #[test]
+    fn test_random_range_error_cases() {
+        let zero = BigNum::zero();
+        let one = BigNum::from_u64(1);
+        assert!(BigNum::random_range(&zero).is_err());
+        assert!(BigNum::random_range(&one).is_err());
+        assert!(BigNum::random_range_inclusive_zero(&zero).is_err());
+    }
+
+    #[test]
+    fn test_random_range_inclusive_zero_bounds() {
+        let upper = BigNum::from_u64(100);
+        for _ in 0..50 {
+            let r = BigNum::random_range_inclusive_zero(&upper).unwrap();
+            assert!(r < upper);
+            // r can be zero (unlike random_range which requires r >= 1)
+        }
+        // random_range_inclusive_zero(1) always returns 0
+        let one = BigNum::from_u64(1);
+        let r = BigNum::random_range_inclusive_zero(&one).unwrap();
+        assert!(r.is_zero());
+    }
+
+    #[test]
+    fn test_random_different_calls() {
+        let r1 = BigNum::random(256, false).unwrap();
+        let r2 = BigNum::random(256, false).unwrap();
+        // 256-bit random values should be different with overwhelming probability
+        assert_ne!(r1, r2);
+    }
+
+    #[test]
+    fn test_random_large_bits() {
+        for bits in [512, 1024, 2048] {
+            let r = BigNum::random(bits, false).unwrap();
+            assert_eq!(r.bit_len(), bits, "random({bits}) wrong bit_len");
+        }
+        // Large odd random
+        let r = BigNum::random(1024, true).unwrap();
+        assert!(r.is_odd());
+        assert_eq!(r.bit_len(), 1024);
+    }
 }

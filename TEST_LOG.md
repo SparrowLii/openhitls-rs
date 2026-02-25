@@ -9,12 +9,12 @@
 
 | Metric | Value |
 |--------|-------|
-| **Total tests** | **3,079** (22 ignored) |
-| **Test growth** | 1,104 → 3,079 (+179% since baseline) |
+| **Total tests** | **3,094** (22 ignored) |
+| **Test growth** | 1,104 → 3,094 (+180% since baseline) |
 | **Crates covered** | 8/8 (100% crate-level coverage) |
 | **Fuzz targets** | 10 (with 66 seed corpus files) |
 | **Wycheproof vectors** | 5,000+ (15 test groups) |
-| **Zero failures** | All 3,079 tests pass, clippy clean, fmt clean |
+| **Zero failures** | All 3,094 tests pass, clippy clean, fmt clean |
 
 ### Test Growth Timeline
 
@@ -2681,6 +2681,50 @@ Added 20 proptest property-based tests across hitls-crypto and hitls-utils, plus
 
 ---
 
+### Phase T131: ML-DSA NTT + SM4-CTR-DRBG + BigNum Random Deepening (+15 tests, 3,079→3,094)
+
+**Date**: 2026-02-25
+**Scope**: Deepen test coverage for three modules: ML-DSA NTT (ntt.rs, 244 lines, 4→9 tests), SM4-CTR-DRBG (sm4_ctr_drbg.rs, 254 lines, 4→9 tests), BigNum random (rand.rs, 132 lines, 4→9 tests).
+
+| # | Test | File | Property |
+|---|------|------|----------|
+| 1 | `test_ntt_zero_polynomial` | ntt.rs | NTT/INTT of zero poly stays zero |
+| 2 | `test_fqmul_commutativity` | ntt.rs | fqmul(a,b) == fqmul(b,a) for 5 pairs |
+| 3 | `test_poly_add_sub_inverse` | ntt.rs | a + b - b == a for all 256 coefficients |
+| 4 | `test_poly_shiftl` | ntt.rs | Coefficients multiplied by 2^D |
+| 5 | `test_caddq_values` | ntt.rs | caddq on positive/negative/zero/boundary |
+| 6 | `test_sm4_ctr_drbg_invalid_seed_length` | sm4_ctr_drbg.rs | 0/16/31/33/48 bytes → error, 32 → ok |
+| 7 | `test_sm4_ctr_drbg_generate_with_additional_input` | sm4_ctr_drbg.rs | Additional input changes output |
+| 8 | `test_sm4_ctr_drbg_reseed_changes_output` | sm4_ctr_drbg.rs | Reseed produces different stream |
+| 9 | `test_sm4_ctr_drbg_generate_various_sizes` | sm4_ctr_drbg.rs | 1/15/16/17/31/32/48/100 byte outputs |
+| 10 | `test_sm4_ctr_drbg_reseed_invalid_entropy_length` | sm4_ctr_drbg.rs | Wrong entropy length → error |
+| 11 | `test_random_zero_bits` | rand.rs | random(0, false) → zero |
+| 12 | `test_random_range_error_cases` | rand.rs | zero/one upper → error |
+| 13 | `test_random_range_inclusive_zero_bounds` | rand.rs | Allows zero, upper=1 → always 0 |
+| 14 | `test_random_different_calls` | rand.rs | Two random(256) calls differ |
+| 15 | `test_random_large_bits` | rand.rs | 512/1024/2048 bit correct bit_len |
+
+**Per-crate counts after Phase T131**:
+
+| Crate | Tests | Ignored |
+|-------|------:|-------:|
+| hitls-auth | 33 | 0 |
+| hitls-bignum | 69 | 0 |
+| hitls-cli | 117 | 5 |
+| hitls-crypto | 949 | 17 |
+| wycheproof | 15 | 0 |
+| hitls-integration | 152 | 0 |
+| hitls-pki | 375 | 0 |
+| hitls-tls | 1290 | 0 |
+| hitls-types | 26 | 0 |
+| hitls-utils | 66 | 0 |
+| doc-tests | 2 | 0 |
+| **Total** | **3094** | **22** |
+
+---
+
+**Per-crate counts after Phase T130**: (see Phase T131 above for latest)
+
 ### Phase T130: FrodoKEM PKE + SM9 G1 Point + SM9 Fp Field Deepening (+15 tests, 3,065→3,079)
 
 **Date**: 2026-02-25
@@ -2704,22 +2748,7 @@ Added 20 proptest property-based tests across hitls-crypto and hitls-utils, plus
 | 14 | `mul_u64_consistency` | fp.rs | mul_u64(c) == mul(Fp::from_u64(c)) |
 | 15 | `distributive_law` | fp.rs | a*(b+c) == a*b + a*c |
 
-**Per-crate counts after Phase T130**:
-
-| Crate | Tests | Ignored |
-|-------|------:|-------:|
-| hitls-auth | 33 | 0 |
-| hitls-bignum | 64 | 0 |
-| hitls-cli | 117 | 5 |
-| hitls-crypto | 939 | 17 |
-| wycheproof | 15 | 0 |
-| hitls-integration | 152 | 0 |
-| hitls-pki | 375 | 0 |
-| hitls-tls | 1290 | 0 |
-| hitls-types | 26 | 0 |
-| hitls-utils | 66 | 0 |
-| doc-tests | 2 | 0 |
-| **Total** | **3079** | **22** |
+**Per-crate counts after Phase T130**: (see Phase T131 above for latest)
 
 ---
 
@@ -2728,9 +2757,9 @@ Added 20 proptest property-based tests across hitls-crypto and hitls-utils, plus
 All phases verified with the same quality gates:
 
 ```bash
-# Full test suite — all 3,079 tests pass
+# Full test suite — all 3,094 tests pass
 cargo test --workspace --all-features
-# Result: 3,079 passed, 0 failed, 22 ignored
+# Result: 3,094 passed, 0 failed, 22 ignored
 
 # Clippy — zero warnings enforced
 RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets

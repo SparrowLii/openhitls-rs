@@ -2742,6 +2742,24 @@ Targeted coverage gaps in connection_info, handshake enums, lib.rs constants, co
 
 ---
 
+## Phase T131: ML-DSA NTT + SM4-CTR-DRBG + BigNum Random Deepening
+
+**Prompt**: Continue implementing Phase T131. Deepen test coverage for three modules with low test density: ML-DSA NTT (ntt.rs, 244 lines, 4 tests), SM4-CTR-DRBG (sm4_ctr_drbg.rs, 254 lines, 4 tests), BigNum random generation (rand.rs, 132 lines, 4 tests).
+
+**Scope**: ML-DSA NTT zero polynomial, fqmul commutativity, poly_add/sub inverse, poly_shiftl, caddq values. SM4-CTR-DRBG invalid seed length, generate with additional_input, reseed changes output, various output sizes, reseed invalid entropy. BigNum random zero bits, range error cases, inclusive_zero bounds, different calls divergence, large bit sizes.
+
+**Work performed**:
+1. Added 5 NTT tests to `crates/hitls-crypto/src/mldsa/ntt.rs`: zero polynomial, fqmul commutativity, poly_add/sub inverse, poly_shiftl, caddq values
+2. Added 5 DRBG tests to `crates/hitls-crypto/src/drbg/sm4_ctr_drbg.rs`: invalid seed length, additional_input divergence, reseed changes output, various sizes, reseed invalid entropy
+3. Added 5 random tests to `crates/hitls-bignum/src/rand.rs`: zero bits, range error cases, inclusive_zero bounds, different calls, large bits
+4. Updated CLAUDE.md, DEV_LOG.md, TEST_LOG.md, PROMPT_LOG.md, README.md, QUALITY_REPORT.md
+
+**Result**:
+- 3 source files modified, 0 files created. hitls-crypto: 939→949, hitls-bignum: 64→69, total: 3079→3094 (22 ignored unchanged).
+- All 3094 workspace tests pass, 0 clippy warnings, formatting clean.
+
+---
+
 ## Phase T130: FrodoKEM PKE + SM9 G1 Point + SM9 Fp Field Deepening
 
 **Prompt**: Continue implementing Phase T130. Deepen test coverage for three crypto internal modules: FrodoKEM inner PKE (pke.rs, 160 lines, 1 test), SM9 G1 point operations (ecp.rs, 244 lines, 5 tests), SM9 Fp field arithmetic (fp.rs, 178 lines, 6 tests).
