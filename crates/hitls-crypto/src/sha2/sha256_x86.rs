@@ -18,7 +18,7 @@ use core::arch::x86_64::*;
 /// schedule(v0, v1, v2, v3) = sha256msg2(sha256msg1(v0, v1) + alignr(v3, v2, 4), v3)
 ///
 /// This produces W[t..t+3] from W[t-16..t-13], W[t-12..t-9], W[t-8..t-5], W[t-4..t-1].
-#[inline(always)]
+#[inline]
 #[target_feature(enable = "sha,sse2,ssse3,sse4.1")]
 unsafe fn schedule(v0: __m128i, v1: __m128i, v2: __m128i, v3: __m128i) -> __m128i {
     let t1 = _mm_sha256msg1_epu32(v0, v1);
@@ -28,7 +28,7 @@ unsafe fn schedule(v0: __m128i, v1: __m128i, v2: __m128i, v3: __m128i) -> __m128
 }
 
 /// Execute 4 SHA-256 rounds (2 calls to sha256rnds2, each doing 2 rounds).
-#[inline(always)]
+#[inline]
 #[target_feature(enable = "sha,sse2,ssse3,sse4.1")]
 unsafe fn rounds4(
     abef: &mut __m128i,
