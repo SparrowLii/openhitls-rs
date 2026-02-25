@@ -459,4 +459,97 @@ mod tests {
         assert!(p1024_bytes.len() > p768_bytes.len());
         assert_eq!(&p768_bytes[..8], &p1024_bytes[..8]);
     }
+
+    #[test]
+    fn test_all_primes_are_odd() {
+        for &id in &ALL_GROUPS {
+            let (p, _) = get_ffdhe_params(id).unwrap();
+            let p_bytes = p.to_bytes_be();
+            assert_eq!(
+                p_bytes.last().unwrap() & 1,
+                1,
+                "prime for {id:?} is not odd"
+            );
+        }
+    }
+
+    #[test]
+    fn test_all_primes_msb_set() {
+        for &id in &ALL_GROUPS {
+            let (p, _) = get_ffdhe_params(id).unwrap();
+            let p_bytes = p.to_bytes_be();
+            assert!(p_bytes[0] & 0x80 != 0, "MSB not set for {id:?}");
+        }
+    }
+
+    #[test]
+    fn test_prime_bit_sizes_match_group_names() {
+        let expected: [(DhParamId, usize); 13] = [
+            (DhParamId::Rfc2409_768, 768),
+            (DhParamId::Rfc2409_1024, 1024),
+            (DhParamId::Rfc3526_1536, 1536),
+            (DhParamId::Rfc3526_2048, 2048),
+            (DhParamId::Rfc3526_3072, 3072),
+            (DhParamId::Rfc3526_4096, 4096),
+            (DhParamId::Rfc3526_6144, 6144),
+            (DhParamId::Rfc3526_8192, 8192),
+            (DhParamId::Rfc7919_2048, 2048),
+            (DhParamId::Rfc7919_3072, 3072),
+            (DhParamId::Rfc7919_4096, 4096),
+            (DhParamId::Rfc7919_6144, 6144),
+            (DhParamId::Rfc7919_8192, 8192),
+        ];
+        for (id, bits) in expected {
+            let (p, _) = get_ffdhe_params(id).unwrap();
+            assert_eq!(p.bit_len(), bits, "bit length mismatch for {id:?}");
+        }
+    }
+
+    #[test]
+    fn test_rfc2409_rfc3526_share_oakley_prefix() {
+        // RFC 2409 and RFC 3526 groups all start with the same Oakley prefix
+        let oakley_ids = [
+            DhParamId::Rfc2409_768,
+            DhParamId::Rfc2409_1024,
+            DhParamId::Rfc3526_1536,
+            DhParamId::Rfc3526_2048,
+            DhParamId::Rfc3526_3072,
+            DhParamId::Rfc3526_4096,
+            DhParamId::Rfc3526_6144,
+            DhParamId::Rfc3526_8192,
+        ];
+        let first_p = get_ffdhe_params(oakley_ids[0]).unwrap().0.to_bytes_be();
+        // All Oakley/MODP primes share the first 8 bytes (FFFFFFFFFFFFFFFF)
+        for &id in &oakley_ids[1..] {
+            let p = get_ffdhe_params(id).unwrap().0.to_bytes_be();
+            assert_eq!(
+                &first_p[..8],
+                &p[..8],
+                "RFC 2409/3526 groups don't share prefix for {id:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_all_rfc7919_share_ffdhe_prefix() {
+        // All RFC 7919 FFDHE groups share a longer common prefix
+        let ffdhe_ids = [
+            DhParamId::Rfc7919_2048,
+            DhParamId::Rfc7919_3072,
+            DhParamId::Rfc7919_4096,
+            DhParamId::Rfc7919_6144,
+            DhParamId::Rfc7919_8192,
+        ];
+        let first_p = get_ffdhe_params(ffdhe_ids[0]).unwrap().0.to_bytes_be();
+        // All FFDHE primes share at least 240 bytes of prefix
+        // (the 2048-bit group is 256 bytes, and larger groups extend it)
+        for &id in &ffdhe_ids[1..] {
+            let p = get_ffdhe_params(id).unwrap().0.to_bytes_be();
+            assert_eq!(
+                &first_p[..240],
+                &p[..240],
+                "RFC 7919 groups don't share FFDHE prefix for {id:?}"
+            );
+        }
+    }
 }

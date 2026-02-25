@@ -226,4 +226,86 @@ mod tests {
         // This test mainly ensures Drop doesn't panic.
         let _ = (ptr, len);
     }
+
+    #[test]
+    fn test_pool_default_capacity() {
+        let pool = EntropyPool::new(DEFAULT_POOL_CAPACITY);
+        assert_eq!(pool.capacity(), DEFAULT_POOL_CAPACITY);
+        assert!(pool.is_empty());
+        assert_eq!(pool.len(), 0);
+    }
+
+    #[test]
+    fn test_pool_multiple_push_pop_cycles() {
+        let mut pool = EntropyPool::new(64);
+        for round in 0..10u8 {
+            let data = vec![round; 10];
+            let written = pool.push(&data);
+            assert_eq!(written, 10);
+            let mut out = vec![0u8; 10];
+            let read = pool.pop(&mut out);
+            assert_eq!(read, 10);
+            assert_eq!(out, vec![round; 10]);
+            assert!(pool.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_pool_fill_drain_refill() {
+        let mut pool = EntropyPool::new(64);
+        // Fill to capacity
+        let data = vec![0xAA; 64];
+        assert_eq!(pool.push(&data), 64);
+        assert_eq!(pool.len(), 64);
+        // Drain completely
+        let mut out = vec![0u8; 64];
+        assert_eq!(pool.pop(&mut out), 64);
+        assert!(pool.is_empty());
+        // Refill
+        let data2 = vec![0xBB; 64];
+        assert_eq!(pool.push(&data2), 64);
+        let mut out2 = vec![0u8; 64];
+        assert_eq!(pool.pop(&mut out2), 64);
+        assert_eq!(out2, data2);
+    }
+
+    #[test]
+    fn test_pool_interleaved_push_pop() {
+        let mut pool = EntropyPool::new(64);
+        let mut total_out = Vec::new();
+        // Push 20, pop 5, push 20, pop 5, ... to exercise wrap-around
+        for round in 0..5u8 {
+            let data = vec![round + 1; 20];
+            pool.push(&data);
+            let mut out = vec![0u8; 5];
+            pool.pop(&mut out);
+            total_out.extend_from_slice(&out);
+        }
+        // Pool should have 75 pushed - 25 popped = 50 remaining... but capacity is 64
+        // Actually: round 0: push 20 (len=20), pop 5 (len=15)
+        // round 1: push 20 (len=35), pop 5 (len=30)
+        // round 2: push 20 (len=50), pop 5 (len=45)
+        // round 3: push 20 (len=64 capped, only 19 written), pop 5 (len=59)
+        // round 4: push 20 (len=64 capped, only 5 written), pop 5 (len=59)
+        // Drain remaining
+        let mut rest = vec![0u8; 64];
+        let read = pool.pop(&mut rest);
+        assert!(read > 0);
+        assert!(pool.len() < 64);
+    }
+
+    #[test]
+    fn test_pool_zero_length_operations() {
+        let mut pool = EntropyPool::new(64);
+        // Push zero bytes
+        assert_eq!(pool.push(&[]), 0);
+        assert!(pool.is_empty());
+        // Pop zero bytes
+        let mut out = [];
+        assert_eq!(pool.pop(&mut out), 0);
+        // Push some data then pop zero
+        pool.push(&[1, 2, 3]);
+        assert_eq!(pool.pop(&mut []), 0);
+        assert_eq!(pool.len(), 3);
+    }
 }

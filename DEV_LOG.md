@@ -8840,6 +8840,32 @@ Added 15 tests across 3 parameter set files validating cross-variant consistency
 
 ---
 
+## Phase T132: DH Group Params + Entropy Pool + SHA-1 Deepening (+15 tests, 3,094→3,109)
+
+**Date**: 2026-02-25
+**Scope**: Deepen test coverage for three modules with low test density: DH group parameters (groups.rs, 462 lines, 6 tests), entropy pool circular buffer (pool.rs, 229 lines, 7 tests), SHA-1 hash function (sha1/mod.rs, 261 lines, 6 tests).
+
+### Summary
+
+Added 15 tests across 3 modules validating DH parameter constants, entropy buffer correctness, and SHA-1 padding boundaries:
+
+- **DH groups** (5 tests): all primes are odd (LSB=1), all primes have MSB set, bit sizes match group names (768–8192), RFC 2409/3526 groups share Oakley prefix, all RFC 7919 groups share FFDHE prefix (240+ bytes)
+- **Entropy pool** (5 tests): default capacity construction, multiple push/pop cycles (10 rounds), fill-drain-refill cycle, interleaved push/pop with wrap-around, zero-length push/pop operations
+- **SHA-1** (5 tests): single byte "a" (NIST vector), exactly one block (64 bytes) boundary, 55-byte padding boundary (max single-block), 56-byte padding boundary (forces two-block), clone mid-update consistency
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `crates/hitls-crypto/src/dh/groups.rs` | Added 5 tests to existing `#[cfg(test)] mod tests` |
+| `crates/hitls-crypto/src/entropy/pool.rs` | Added 5 tests to existing `#[cfg(test)] mod tests` |
+| `crates/hitls-crypto/src/sha1/mod.rs` | Added 5 tests to existing `#[cfg(test)] mod tests` |
+
+### Build Status
+- `cargo test --workspace --all-features`: 3109 passed, 0 failed, 22 ignored
+- `RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets`: 0 warnings
+- `cargo fmt --all -- --check`: clean
+
 ## Phase T131: ML-DSA NTT + SM4-CTR-DRBG + BigNum Random Deepening (+15 tests, 3,079→3,094)
 
 **Date**: 2026-02-25

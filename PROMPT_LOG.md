@@ -2742,6 +2742,24 @@ Targeted coverage gaps in connection_info, handshake enums, lib.rs constants, co
 
 ---
 
+## Phase T132: DH Group Params + Entropy Pool + SHA-1 Deepening
+
+**Prompt**: Continue implementing Phase T132. Deepen test coverage for three modules with low test density: DH group parameters (groups.rs, 462 lines, 6 tests), entropy pool circular buffer (pool.rs, 229 lines, 7 tests), SHA-1 hash function (sha1/mod.rs, 261 lines, 6 tests).
+
+**Scope**: DH prime oddness/MSB/bit-size/prefix sharing validation. Entropy pool default capacity, multi-cycle push/pop, fill-drain-refill, interleaved operations, zero-length edge cases. SHA-1 single-byte NIST vector, block boundary (64 bytes), padding boundary (55/56 bytes), clone mid-update consistency.
+
+**Work performed**:
+1. Added 5 DH group tests to `crates/hitls-crypto/src/dh/groups.rs`: prime oddness, MSB set, bit sizes, Oakley prefix, FFDHE prefix
+2. Added 5 entropy pool tests to `crates/hitls-crypto/src/entropy/pool.rs`: default capacity, multi-cycle, fill-drain-refill, interleaved, zero-length
+3. Added 5 SHA-1 tests to `crates/hitls-crypto/src/sha1/mod.rs`: single byte, block boundary, padding 55/56, clone mid-update
+4. Updated CLAUDE.md, DEV_LOG.md, TEST_LOG.md, PROMPT_LOG.md, README.md, QUALITY_REPORT.md
+
+**Result**:
+- 3 source files modified, 0 files created. hitls-crypto: 949→964, total: 3094→3109 (22 ignored unchanged).
+- All 3109 workspace tests pass, 0 clippy warnings, formatting clean.
+
+---
+
 ## Phase T131: ML-DSA NTT + SM4-CTR-DRBG + BigNum Random Deepening
 
 **Prompt**: Continue implementing Phase T131. Deepen test coverage for three modules with low test density: ML-DSA NTT (ntt.rs, 244 lines, 4 tests), SM4-CTR-DRBG (sm4_ctr_drbg.rs, 254 lines, 4 tests), BigNum random generation (rand.rs, 132 lines, 4 tests).

@@ -9,12 +9,12 @@
 
 | Metric | Value |
 |--------|-------|
-| **Total tests** | **3,094** (22 ignored) |
-| **Test growth** | 1,104 → 3,094 (+180% since baseline) |
+| **Total tests** | **3,109** (22 ignored) |
+| **Test growth** | 1,104 → 3,109 (+182% since baseline) |
 | **Crates covered** | 8/8 (100% crate-level coverage) |
 | **Fuzz targets** | 10 (with 66 seed corpus files) |
 | **Wycheproof vectors** | 5,000+ (15 test groups) |
-| **Zero failures** | All 3,094 tests pass, clippy clean, fmt clean |
+| **Zero failures** | All 3,109 tests pass, clippy clean, fmt clean |
 
 ### Test Growth Timeline
 
@@ -2704,7 +2704,7 @@ Added 20 proptest property-based tests across hitls-crypto and hitls-utils, plus
 | 14 | `test_random_different_calls` | rand.rs | Two random(256) calls differ |
 | 15 | `test_random_large_bits` | rand.rs | 512/1024/2048 bit correct bit_len |
 
-**Per-crate counts after Phase T131**:
+**Per-crate counts after Phase T131**: (see Phase T132 above for latest)
 
 | Crate | Tests | Ignored |
 |-------|------:|-------:|
@@ -2723,7 +2723,7 @@ Added 20 proptest property-based tests across hitls-crypto and hitls-utils, plus
 
 ---
 
-**Per-crate counts after Phase T130**: (see Phase T131 above for latest)
+**Per-crate counts after Phase T130**: (see Phase T132 above for latest)
 
 ### Phase T130: FrodoKEM PKE + SM9 G1 Point + SM9 Fp Field Deepening (+15 tests, 3,065→3,079)
 
@@ -2748,7 +2748,7 @@ Added 20 proptest property-based tests across hitls-crypto and hitls-utils, plus
 | 14 | `mul_u64_consistency` | fp.rs | mul_u64(c) == mul(Fp::from_u64(c)) |
 | 15 | `distributive_law` | fp.rs | a*(b+c) == a*b + a*c |
 
-**Per-crate counts after Phase T130**: (see Phase T131 above for latest)
+**Per-crate counts after Phase T130**: (see Phase T132 above for latest)
 
 ---
 

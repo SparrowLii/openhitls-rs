@@ -258,4 +258,65 @@ mod tests {
         let digest = ctx.finish().unwrap();
         assert_eq!(to_hex(&digest), "34aa973cd4c4daa4f61eeb2bdbad27316534016f");
     }
+
+    // NIST test vector: SHA-1("a") = single byte input
+    #[test]
+    fn test_sha1_single_byte() {
+        let digest = Sha1::digest(b"a").unwrap();
+        assert_eq!(to_hex(&digest), "86f7e437faa5a7fce15d1ddcb9eaeaea377667b8");
+    }
+
+    // Exactly 64 bytes (one full block) — tests exact block boundary
+    #[test]
+    fn test_sha1_exactly_one_block() {
+        let input = [0x41u8; SHA1_BLOCK_SIZE]; // 64 'A' bytes
+        let digest = Sha1::digest(&input).unwrap();
+        // Verify output is 20 bytes and consistent
+        assert_eq!(digest.len(), SHA1_OUTPUT_SIZE);
+        let digest2 = Sha1::digest(&input).unwrap();
+        assert_eq!(digest, digest2);
+    }
+
+    // 55 bytes — maximum message that fits in single padded block (55 + 1 + 8 = 64)
+    #[test]
+    fn test_sha1_padding_boundary_55() {
+        let input = [0x42u8; 55];
+        let d1 = Sha1::digest(&input).unwrap();
+        // Incremental should match
+        let mut ctx = Sha1::new();
+        ctx.update(&input[..30]).unwrap();
+        ctx.update(&input[30..]).unwrap();
+        let d2 = ctx.finish().unwrap();
+        assert_eq!(d1, d2);
+    }
+
+    // 56 bytes — forces two-block padding (56 + 1 > 56, needs extra block for length)
+    #[test]
+    fn test_sha1_padding_boundary_56() {
+        let input55 = [0x43u8; 55];
+        let input56 = [0x43u8; 56];
+        let d55 = Sha1::digest(&input55).unwrap();
+        let d56 = Sha1::digest(&input56).unwrap();
+        // Different inputs, different hashes
+        assert_ne!(d55, d56);
+        // Both produce valid 20-byte digests
+        assert_eq!(d55.len(), SHA1_OUTPUT_SIZE);
+        assert_eq!(d56.len(), SHA1_OUTPUT_SIZE);
+    }
+
+    // Clone a context mid-update — both copies should finish to the same result
+    #[test]
+    fn test_sha1_clone_mid_update() {
+        let mut ctx1 = Sha1::new();
+        ctx1.update(b"hello ").unwrap();
+        let mut ctx2 = ctx1.clone();
+        ctx1.update(b"world").unwrap();
+        ctx2.update(b"world").unwrap();
+        let d1 = ctx1.finish().unwrap();
+        let d2 = ctx2.finish().unwrap();
+        assert_eq!(d1, d2);
+        // And matches one-shot
+        let expected = Sha1::digest(b"hello world").unwrap();
+        assert_eq!(d1, expected);
+    }
 }
