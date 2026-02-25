@@ -247,7 +247,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // ~110s even with opt-level=1: 128s has hp=9 (512 leaves per tree)
     fn test_slhdsa_shake_128s_roundtrip() {
         let kp = SlhDsaKeyPair::generate(SlhDsaParamId::Shake128s).unwrap();
         let msg = b"test message for SLH-DSA SHAKE-128s";
@@ -256,7 +255,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // ~22s even with opt-level=1
     fn test_slhdsa_sha2_128s_roundtrip() {
         let kp = SlhDsaKeyPair::generate(SlhDsaParamId::Sha2128s).unwrap();
         let msg = b"test message for SLH-DSA SHA2-128s";

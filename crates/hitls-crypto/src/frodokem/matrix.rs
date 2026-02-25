@@ -394,7 +394,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn test_mul_add_as_plus_e_zero_s_returns_e() {
         let p = get_params(FrodoKemParamId::FrodoKem640Shake);
         let n = p.n;

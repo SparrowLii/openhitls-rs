@@ -8967,3 +8967,46 @@ Added per-crate Cargo profile overrides to optimize compute-intensive crates (`h
 - `cargo test --workspace --all-features`: 3065 passed, 0 failed, 21 ignored
 - `RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets`: 0 warnings
 - `cargo fmt --all -- --check`: clean
+
+---
+
+## Phase R113 — Dev Profile opt-level=2 Upgrade + Un-ignore 15 Tests
+
+### Summary
+Deep analysis revealed that bumping `hitls-crypto` from `opt-level = 1` to `opt-level = 2` provides 10-117x speedups on remaining slow tests. This allows un-ignoring 15 additional tests (5 already fast at opt1 + 10 newly fast at opt2), reducing total ignored from 21 to just 6 (5 network + 1 XMSS h=16).
+
+### Key Benchmarks (opt-level=1 → opt-level=2)
+
+| Test | opt-level=1 | opt-level=2 | Speedup |
+|------|-------------|-------------|---------|
+| X448 iterated 1000 | 25s | 0.70s | 36x |
+| SLH-DSA SHA2 128s | 22s | 0.24s | 92x |
+| SLH-DSA SHAKE 128s | 110s | 0.94s | 117x |
+| McEliece 6688128 | 165s | 1.49s | 111x |
+| McEliece 8192128 | very slow | 2.79s | — |
+| XMSS tree h=10 ×5 | 134s | 3.10s | 43x |
+| Compile time | ~5s | ~8.8s | +3.8s |
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `Cargo.toml` | Changed `hitls-crypto` from `opt-level = 1` to `opt-level = 2` |
+| `crates/hitls-crypto/src/frodokem/matrix.rs` | Removed `#[ignore]` from 1 test |
+| `crates/hitls-crypto/src/slh_dsa/hypertree.rs` | Removed `#[ignore]` from 2 tests |
+| `crates/hitls-crypto/src/sm9/alg.rs` | Removed `#[ignore]` from 2 tests |
+| `crates/hitls-crypto/src/x448/mod.rs` | Removed `#[ignore]` from 1 test |
+| `crates/hitls-crypto/src/slh_dsa/mod.rs` | Removed `#[ignore]` from 2 tests |
+| `crates/hitls-crypto/src/mceliece/mod.rs` | Removed `#[ignore]` from 2 tests |
+| `crates/hitls-crypto/src/xmss/tree.rs` | Removed `#[ignore]` from 5 tests |
+| `crates/hitls-crypto/src/xmss/mod.rs` | Updated `#[ignore]` comment for h=16 |
+
+### Remaining 7 Ignored Tests
+1. XMSS SHA2-16-256 roundtrip (~61s even with opt2, h=16 = 65536 leaves)
+2. ElGamal keygen (flaky: BnRandGenFail in safe prime generation)
+3-7. 5 × s_client network tests (require internet access)
+
+### Build Status
+- `cargo test --workspace --all-features`: 3124 passed, 0 failed, 7 ignored
+- `RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets`: 0 warnings
+- `cargo fmt --all -- --check`: clean

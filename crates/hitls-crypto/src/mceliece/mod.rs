@@ -321,7 +321,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // ~165s even with opt-level=1 (large keys)
     fn test_mceliece_6688128_roundtrip() {
         let kp = McElieceKeyPair::generate(McElieceParamId::McEliece6688128).unwrap();
         let (ct, ss1) = kp.encapsulate().unwrap();
@@ -331,7 +330,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // Extremely slow even with opt-level=1 (largest keys)
     fn test_mceliece_8192128_roundtrip() {
         let kp = McElieceKeyPair::generate(McElieceParamId::McEliece8192128).unwrap();
         let (ct, ss1) = kp.encapsulate().unwrap();

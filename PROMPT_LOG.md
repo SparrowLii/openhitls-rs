@@ -2832,3 +2832,18 @@ Targeted coverage gaps in connection_info, handshake enums, lib.rs constants, co
 **Result**:
 - 18 source files modified. 29 tests un-ignored, remaining ignored tests kept.
 - All workspace tests pass, 0 clippy warnings, formatting clean.
+
+### Phase R113 — Dev Profile opt-level=2 Upgrade
+
+**Prompt**: Deep analysis of remaining ignored tests optimization potential. Discovered that bumping `hitls-crypto` from `opt-level=1` to `opt-level=2` yields 10-117x speedups on hash-heavy/compute-intensive tests (auto-vectorization, loop unrolling, inlining).
+
+**Scope**: 21 remaining ignored tests (16 crypto + 5 network). Benchmarked at opt-level=1, opt-level=2, and release to understand optimization ceiling. Compile time impact: +3.8s (acceptable).
+
+**Work performed**:
+1. Changed `hitls-crypto` from `opt-level = 1` to `opt-level = 2` in workspace `Cargo.toml`
+2. Removed `#[ignore]` from 15 tests across 7 files (frodokem/matrix.rs, slh_dsa/hypertree.rs, sm9/alg.rs, x448/mod.rs, slh_dsa/mod.rs, mceliece/mod.rs, xmss/tree.rs)
+3. Updated XMSS h=16 `#[ignore]` comment with opt-level=2 timing
+
+**Result**:
+- 3080 tests pass, 6 ignored (1 XMSS h=16 + 5 s_client network). 0 clippy warnings, formatting clean.
+- Ignored tests reduced from 21→6 (combined R112+R113: 50→6, 88% reduction).

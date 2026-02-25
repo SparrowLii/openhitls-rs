@@ -429,7 +429,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn test_hypertree_sign_verify_roundtrip() {
         let p = get_params(SlhDsaParamId::Shake128f);
         let pk_seed = vec![0xAAu8; p.n];
@@ -480,7 +479,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn test_hypertree_verify_wrong_message_fails() {
         let p = get_params(SlhDsaParamId::Shake128f);
         let pk_seed = vec![0xAAu8; p.n];

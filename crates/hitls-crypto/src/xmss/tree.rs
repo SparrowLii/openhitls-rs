@@ -182,7 +182,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn test_compute_root_deterministic() {
         let h = make_hasher();
         let p = test_params();
@@ -195,7 +194,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn test_compute_root_with_auth_path_length() {
         let h = make_hasher();
         let p = test_params();
@@ -206,7 +204,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn test_compute_root_with_auth_matches_compute_root() {
         let h = make_hasher();
         let p = test_params();
@@ -218,7 +215,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn test_xmss_sign_signature_length() {
         let h = make_hasher();
         let p = test_params();
@@ -230,7 +226,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn test_xmss_sign_verify_roundtrip() {
         let h = make_hasher();
         let p = test_params();

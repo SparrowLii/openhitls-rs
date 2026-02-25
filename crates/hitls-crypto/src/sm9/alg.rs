@@ -396,7 +396,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn test_sign_verify_roundtrip() {
         let (ks, ppub) = master_keygen(Sm9KeyType::Sign).unwrap();
         let user_id = b"Alice";
@@ -409,7 +408,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn test_encrypt_decrypt_roundtrip() {
         let (ke, ppub) = master_keygen(Sm9KeyType::Encrypt).unwrap();
         let user_id = b"Bob";
