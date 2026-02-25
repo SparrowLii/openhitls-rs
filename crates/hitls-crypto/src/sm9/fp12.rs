@@ -305,4 +305,67 @@ mod tests {
         let f2 = a.frobenius2().unwrap();
         assert_eq!(a.frobenius3().unwrap(), f2.frobenius().unwrap());
     }
+
+    #[test]
+    fn test_fp12_mul_zero() {
+        let a = make_fp12();
+        let zero = Fp12::zero();
+        assert!(a.mul(&zero).unwrap().is_zero());
+        assert!(zero.mul(&a).unwrap().is_zero());
+    }
+
+    #[test]
+    fn test_fp12_inv_of_one() {
+        let one = Fp12::one();
+        let inv_one = one.inv().unwrap();
+        assert_eq!(inv_one, one);
+    }
+
+    #[test]
+    fn test_fp12_mul_associativity() {
+        let f = |v: u64| Fp::from_u64(v);
+        let a = make_fp12();
+        let b = Fp12::new(
+            Fp4::new(Fp2::new(f(41), f(43)), Fp2::new(f(47), f(53))),
+            Fp4::new(Fp2::new(f(59), f(61)), Fp2::new(f(67), f(71))),
+            Fp4::new(Fp2::new(f(73), f(79)), Fp2::new(f(83), f(89))),
+        );
+        let c = Fp12::new(
+            Fp4::new(Fp2::new(f(97), f(101)), Fp2::new(f(103), f(107))),
+            Fp4::new(Fp2::new(f(109), f(113)), Fp2::new(f(127), f(131))),
+            Fp4::new(Fp2::new(f(137), f(139)), Fp2::new(f(149), f(151))),
+        );
+        // (a * b) * c == a * (b * c)
+        let lhs = a.mul(&b).unwrap().mul(&c).unwrap();
+        let rhs = a.mul(&b.mul(&c).unwrap()).unwrap();
+        assert_eq!(lhs, rhs);
+    }
+
+    #[test]
+    fn test_fp12_distributive_law() {
+        let f = |v: u64| Fp::from_u64(v);
+        let a = make_fp12();
+        let b = Fp12::new(
+            Fp4::new(Fp2::new(f(41), f(43)), Fp2::new(f(47), f(53))),
+            Fp4::new(Fp2::new(f(59), f(61)), Fp2::new(f(67), f(71))),
+            Fp4::new(Fp2::new(f(73), f(79)), Fp2::new(f(83), f(89))),
+        );
+        let c = Fp12::new(
+            Fp4::new(Fp2::new(f(97), f(101)), Fp2::new(f(103), f(107))),
+            Fp4::new(Fp2::new(f(109), f(113)), Fp2::new(f(127), f(131))),
+            Fp4::new(Fp2::new(f(137), f(139)), Fp2::new(f(149), f(151))),
+        );
+        // a * (b + c) == a*b + a*c
+        let lhs = a.mul(&b.add(&c).unwrap()).unwrap();
+        let rhs = a.mul(&b).unwrap().add(&a.mul(&c).unwrap()).unwrap();
+        assert_eq!(lhs, rhs);
+    }
+
+    #[test]
+    fn test_fp12_inv_of_inv() {
+        let a = make_fp12();
+        let inv_a = a.inv().unwrap();
+        let inv_inv_a = inv_a.inv().unwrap();
+        assert_eq!(inv_inv_a, a);
+    }
 }

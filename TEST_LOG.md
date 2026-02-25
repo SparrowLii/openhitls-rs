@@ -9,12 +9,12 @@
 
 | Metric | Value |
 |--------|-------|
-| **Total tests** | **3,109** (22 ignored) |
-| **Test growth** | 1,104 → 3,109 (+182% since baseline) |
+| **Total tests** | **3,124** (22 ignored) |
+| **Test growth** | 1,104 → 3,124 (+183% since baseline) |
 | **Crates covered** | 8/8 (100% crate-level coverage) |
 | **Fuzz targets** | 10 (with 66 seed corpus files) |
 | **Wycheproof vectors** | 5,000+ (15 test groups) |
-| **Zero failures** | All 3,109 tests pass, clippy clean, fmt clean |
+| **Zero failures** | All 3,124 tests pass, clippy clean, fmt clean |
 
 ### Test Growth Timeline
 
@@ -72,6 +72,11 @@ Phase T125  2,909     +12   FrodoKEM matrix ops + SLH-DSA hypertree + McEliece p
 Phase T126  2,924     +15   McEliece + FrodoKEM + XMSS parameter set validation (*)
 Phase T127  2,939     +15   XMSS hash + address + ML-KEM NTT deepening (*)
 Phase T128  2,954     +15   BigNum CT + primality + core type deepening (*)
+Phase T129  2,969     +15   SLH-DSA params + hash abstraction + address deepening (*)
+Phase T130  3,079     +15   FrodoKEM PKE + SM9 G1 point + SM9 Fp field (*)
+Phase T131  3,094     +15   ML-DSA NTT + SM4-CTR-DRBG + BigNum random (*)
+Phase T132  3,109     +15   DH group params + entropy pool + SHA-1 (*)
+Phase T133  3,124     +15   ML-KEM poly + SM9 Fp12 + encrypted PKCS#8 (*)
 ```
 
 (*) Testing-only phases (no new features, pure test coverage)
@@ -2650,7 +2655,7 @@ Added 20 proptest property-based tests across hitls-crypto and hitls-utils, plus
 | 4 | Phase 96 — P-256 Fast Path | 47 | ecc/p256_field.rs, ecc/p256_point.rs | Montgomery roundtrip, algebraic laws, Jacobian point ops, cross-validation with BigNum |
 | 5 | Phase 97 — ChaCha20 SIMD | 3 (aarch64) | chacha20/chacha20_neon.rs | RFC 8439 vector, counter-zero, all-0xFF key NEON-vs-scalar |
 
-**Per-crate counts after Phase 97**: (see Phase T129 below for latest)
+**Per-crate counts after Phase 97**: (see Phase T133 above for latest)
 
 ---
 
@@ -2677,7 +2682,76 @@ Added 20 proptest property-based tests across hitls-crypto and hitls-utils, plus
 | 14 | `test_field_overlap_height_chain` | address.rs | tree_height/chain_addr same field2 offset |
 | 15 | `test_hash_addr_tree_index_same_offset` | address.rs | hash_addr/tree_index same field3 offset |
 
-**Per-crate counts after Phase T129**: (see Phase T130 below for latest)
+**Per-crate counts after Phase T129**: (see Phase T133 above for latest)
+
+---
+
+### Phase T133: ML-KEM Poly + SM9 Fp12 + Encrypted PKCS#8 Deepening (+15 tests, 3,109→3,124)
+
+**Date**: 2026-02-25
+**Scope**: Deepen test coverage for three modules: ML-KEM polynomial operations (poly.rs, 339 lines, 5→10 tests), SM9 Fp12 tower field (fp12.rs, 309 lines, 5→10 tests), encrypted PKCS#8 (encrypted.rs, 305 lines, 5→10 tests).
+
+| # | Test | File | Property |
+|---|------|------|----------|
+| 1 | `test_cbd2_zero_input` | poly.rs | All zero input → all zero coefficients |
+| 2 | `test_cbd3_zero_input` | poly.rs | All zero input → all zero coefficients |
+| 3 | `test_sample_cbd_invalid_eta` | poly.rs | eta != 2,3 → error |
+| 4 | `test_poly_compress_decompress_full` | poly.rs | Compress/decompress roundtrip error bounds |
+| 5 | `test_msg_all_zeros_all_ones` | poly.rs | msg_to_poly/poly_to_msg with 0x00/0xFF |
+| 6 | `test_fp12_mul_zero` | fp12.rs | a * zero = zero |
+| 7 | `test_fp12_inv_of_one` | fp12.rs | inv(one) = one |
+| 8 | `test_fp12_mul_associativity` | fp12.rs | (a*b)*c == a*(b*c) |
+| 9 | `test_fp12_distributive_law` | fp12.rs | a*(b+c) == a*b + a*c |
+| 10 | `test_fp12_inv_of_inv` | fp12.rs | inv(inv(a)) == a |
+| 11 | `test_encrypted_pkcs8_invalid_key_len` | encrypted.rs | key_len=24/8 → error |
+| 12 | `test_encrypted_pkcs8_empty_password` | encrypted.rs | Empty password roundtrip |
+| 13 | `test_encrypted_pkcs8_custom_iterations` | encrypted.rs | 1/100/10000 iterations work |
+| 14 | `test_encrypted_pkcs8_different_encryptions_differ` | encrypted.rs | Random salt/IV → different DER |
+| 15 | `test_encrypted_pkcs8_decrypt_twice_same_result` | encrypted.rs | Deterministic decrypt |
+
+**Per-crate counts after Phase T133**:
+
+| Crate | Tests | Ignored |
+|-------|------:|-------:|
+| hitls-auth | 33 | 0 |
+| hitls-bignum | 69 | 0 |
+| hitls-cli | 117 | 5 |
+| hitls-crypto | 974 | 17 |
+| wycheproof | 15 | 0 |
+| hitls-integration | 152 | 0 |
+| hitls-pki | 380 | 0 |
+| hitls-tls | 1290 | 0 |
+| hitls-types | 26 | 0 |
+| hitls-utils | 66 | 0 |
+| doc-tests | 2 | 0 |
+| **Total** | **3124** | **22** |
+
+---
+
+### Phase T132: DH Group Params + Entropy Pool + SHA-1 Deepening (+15 tests, 3,094→3,109)
+
+**Date**: 2026-02-25
+**Scope**: Deepen test coverage for three modules: DH group parameters (groups.rs, 462 lines, 6→11 tests), entropy pool (pool.rs, 229 lines, 7→12 tests), SHA-1 (sha1/mod.rs, 261 lines, 6→11 tests).
+
+| # | Test | File | Property |
+|---|------|------|----------|
+| 1 | `test_all_primes_are_odd` | groups.rs | All 13 primes have LSB=1 |
+| 2 | `test_all_primes_msb_set` | groups.rs | First byte MSB set |
+| 3 | `test_prime_bit_sizes_match_group_names` | groups.rs | Bit sizes match 768–8192 |
+| 4 | `test_rfc2409_rfc3526_share_oakley_prefix` | groups.rs | 8 groups share first 8 bytes |
+| 5 | `test_all_rfc7919_share_ffdhe_prefix` | groups.rs | 5 FFDHE groups share 240+ prefix |
+| 6 | `test_pool_default_capacity` | pool.rs | DEFAULT_POOL_CAPACITY construction |
+| 7 | `test_pool_multiple_push_pop_cycles` | pool.rs | 10 rounds push/pop |
+| 8 | `test_pool_fill_drain_refill` | pool.rs | Fill→drain→refill cycle |
+| 9 | `test_pool_interleaved_push_pop` | pool.rs | Alternating push/pop |
+| 10 | `test_pool_zero_length_operations` | pool.rs | Empty push/pop no-ops |
+| 11 | `test_sha1_single_byte` | sha1/mod.rs | SHA-1("a") NIST vector |
+| 12 | `test_sha1_exactly_one_block` | sha1/mod.rs | 64 bytes boundary |
+| 13 | `test_sha1_padding_boundary_55` | sha1/mod.rs | 55 bytes max single-block |
+| 14 | `test_sha1_padding_boundary_56` | sha1/mod.rs | 56 bytes forces two-block |
+| 15 | `test_sha1_clone_mid_update` | sha1/mod.rs | Clone mid-update consistency |
+
+**Per-crate counts after Phase T132**: (see Phase T133 above for latest)
 
 ---
 
@@ -2704,7 +2778,7 @@ Added 20 proptest property-based tests across hitls-crypto and hitls-utils, plus
 | 14 | `test_random_different_calls` | rand.rs | Two random(256) calls differ |
 | 15 | `test_random_large_bits` | rand.rs | 512/1024/2048 bit correct bit_len |
 
-**Per-crate counts after Phase T131**: (see Phase T132 above for latest)
+**Per-crate counts after Phase T131**: (see Phase T133 above for latest)
 
 | Crate | Tests | Ignored |
 |-------|------:|-------:|
@@ -2723,7 +2797,7 @@ Added 20 proptest property-based tests across hitls-crypto and hitls-utils, plus
 
 ---
 
-**Per-crate counts after Phase T130**: (see Phase T132 above for latest)
+**Per-crate counts after Phase T130**: (see Phase T133 above for latest)
 
 ### Phase T130: FrodoKEM PKE + SM9 G1 Point + SM9 Fp Field Deepening (+15 tests, 3,065→3,079)
 
@@ -2748,7 +2822,7 @@ Added 20 proptest property-based tests across hitls-crypto and hitls-utils, plus
 | 14 | `mul_u64_consistency` | fp.rs | mul_u64(c) == mul(Fp::from_u64(c)) |
 | 15 | `distributive_law` | fp.rs | a*(b+c) == a*b + a*c |
 
-**Per-crate counts after Phase T130**: (see Phase T132 above for latest)
+**Per-crate counts after Phase T130**: (see Phase T133 above for latest)
 
 ---
 

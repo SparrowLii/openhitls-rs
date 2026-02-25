@@ -8840,6 +8840,32 @@ Added 15 tests across 3 parameter set files validating cross-variant consistency
 
 ---
 
+## Phase T133: ML-KEM Poly + SM9 Fp12 + Encrypted PKCS#8 Deepening (+15 tests, 3,109→3,124)
+
+**Date**: 2026-02-25
+**Scope**: Deepen test coverage for three modules with low test density: ML-KEM polynomial operations (poly.rs, 339 lines, 5 tests), SM9 Fp12 tower field arithmetic (fp12.rs, 309 lines, 5 tests), encrypted PKCS#8 (encrypted.rs, 305 lines, 5 tests).
+
+### Summary
+
+Added 15 tests across 3 modules validating lattice polynomial operations, tower field algebraic laws, and encrypted private key handling:
+
+- **ML-KEM poly** (5 tests): CBD2 zero input → all-zero coefficients, CBD3 zero input → all-zero coefficients, sample_cbd invalid eta → error, compress/decompress full roundtrip error bounds, msg_to_poly/poly_to_msg with 0x00/0xFF
+- **SM9 Fp12** (5 tests): a * zero = zero, inv(one) = one, (a*b)*c == a*(b*c) associativity, a*(b+c) == a*b + a*c distributive law, inv(inv(a)) == a
+- **Encrypted PKCS#8** (5 tests): invalid key_len (24/8) → error, empty password roundtrip, custom iterations (1/100/10000) roundtrip, different encryptions differ (random salt/IV), decrypt twice → same result
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `crates/hitls-crypto/src/mlkem/poly.rs` | Added 5 tests to existing `#[cfg(test)] mod tests` |
+| `crates/hitls-crypto/src/sm9/fp12.rs` | Added 5 tests to existing `#[cfg(test)] mod tests` |
+| `crates/hitls-pki/src/pkcs8/encrypted.rs` | Added 5 tests to existing `#[cfg(test)] mod tests` |
+
+### Build Status
+- `cargo test --workspace --all-features`: 3124 passed, 0 failed, 22 ignored
+- `RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets`: 0 warnings
+- `cargo fmt --all -- --check`: clean
+
 ## Phase T132: DH Group Params + Entropy Pool + SHA-1 Deepening (+15 tests, 3,094→3,109)
 
 **Date**: 2026-02-25

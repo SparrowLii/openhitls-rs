@@ -335,4 +335,78 @@ mod tests {
         let recovered = poly_to_msg(&poly);
         assert_eq!(msg, recovered);
     }
+
+    #[test]
+    fn test_cbd2_zero_input() {
+        let buf = [0u8; 128];
+        let poly = cbd2(&buf);
+        // All zero input → all zero coefficients (a=0, b=0 for each)
+        for &c in &poly {
+            assert_eq!(c, 0, "CBD2 of zero input should produce zero coefficients");
+        }
+    }
+
+    #[test]
+    fn test_cbd3_zero_input() {
+        let buf = [0u8; 192];
+        let poly = cbd3(&buf);
+        for &c in &poly {
+            assert_eq!(c, 0, "CBD3 of zero input should produce zero coefficients");
+        }
+    }
+
+    #[test]
+    fn test_sample_cbd_invalid_eta() {
+        let buf = [0u8; 192];
+        assert!(sample_cbd(&buf, 2).is_ok());
+        assert!(sample_cbd(&buf, 3).is_ok());
+        assert!(sample_cbd(&buf, 1).is_err());
+        assert!(sample_cbd(&buf, 4).is_err());
+        assert!(sample_cbd(&buf, 0).is_err());
+    }
+
+    #[test]
+    fn test_poly_compress_decompress_full() {
+        // Create a polynomial with known values and roundtrip through compress/decompress
+        let mut poly = [0i16; N];
+        for (i, c) in poly.iter_mut().enumerate() {
+            *c = (i as i16 * 37 + 11) % Q;
+        }
+        for d in [4u32, 5, 10, 11] {
+            let compressed = poly_compress(&poly, d);
+            let decompressed = poly_decompress(&compressed, d);
+            // Each coefficient error should be bounded by q / 2^(d+1)
+            for i in 0..N {
+                let orig = ((poly[i] as i32 % Q as i32) + Q as i32) % Q as i32;
+                let recov = decompressed[i] as i32;
+                let err = (orig - recov + Q as i32) % Q as i32;
+                let err = err.min(Q as i32 - err);
+                let max_err = Q as i32 / (1 << d) + 1;
+                assert!(
+                    err <= max_err,
+                    "d={d}, i={i}: err={err} > max_err={max_err}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_msg_all_zeros_all_ones() {
+        // All zeros → all zero coefficients → recovers all zeros
+        let zeros = [0u8; 32];
+        let poly_z = msg_to_poly(&zeros);
+        for &c in &poly_z {
+            assert_eq!(c, 0);
+        }
+        assert_eq!(poly_to_msg(&poly_z), zeros);
+
+        // All ones → all coefficients = round(q/2)
+        let ones = [0xFFu8; 32];
+        let poly_o = msg_to_poly(&ones);
+        let half_q = (Q + 1) / 2;
+        for &c in &poly_o {
+            assert_eq!(c, half_q);
+        }
+        assert_eq!(poly_to_msg(&poly_o), ones);
+    }
 }

@@ -2742,6 +2742,24 @@ Targeted coverage gaps in connection_info, handshake enums, lib.rs constants, co
 
 ---
 
+## Phase T133: ML-KEM Poly + SM9 Fp12 + Encrypted PKCS#8 Deepening
+
+**Prompt**: Continue implementing Phase T133. Deepen test coverage for three modules with low test density: ML-KEM polynomial operations (poly.rs, 339 lines, 5 tests), SM9 Fp12 tower field arithmetic (fp12.rs, 309 lines, 5 tests), encrypted PKCS#8 (encrypted.rs, 305 lines, 5 tests).
+
+**Scope**: ML-KEM CBD2/CBD3 zero input, sample_cbd invalid eta, compress/decompress roundtrip, msg_to_poly/poly_to_msg zeros/ones. SM9 Fp12 mul zero, inv of one, associativity, distributive law, inv of inv. Encrypted PKCS#8 invalid key length, empty password, custom iterations, different encryptions differ, decrypt twice same result.
+
+**Work performed**:
+1. Added 5 ML-KEM poly tests to `crates/hitls-crypto/src/mlkem/poly.rs`: CBD2/CBD3 zero input, invalid eta, compress/decompress roundtrip, msg zeros/ones
+2. Added 5 SM9 Fp12 tests to `crates/hitls-crypto/src/sm9/fp12.rs`: mul zero, inv one, associativity, distributive law, inv of inv
+3. Added 5 encrypted PKCS#8 tests to `crates/hitls-pki/src/pkcs8/encrypted.rs`: invalid key_len, empty password, custom iterations, different encryptions, decrypt twice
+4. Updated CLAUDE.md, DEV_LOG.md, TEST_LOG.md, PROMPT_LOG.md, README.md, QUALITY_REPORT.md
+
+**Result**:
+- 3 source files modified, 0 files created. hitls-crypto: 964→974, hitls-pki: 375→380, total: 3109→3124 (22 ignored unchanged).
+- All 3124 workspace tests pass, 0 clippy warnings, formatting clean.
+
+---
+
 ## Phase T132: DH Group Params + Entropy Pool + SHA-1 Deepening
 
 **Prompt**: Continue implementing Phase T132. Deepen test coverage for three modules with low test density: DH group parameters (groups.rs, 462 lines, 6 tests), entropy pool circular buffer (pool.rs, 229 lines, 7 tests), SHA-1 hash function (sha1/mod.rs, 261 lines, 6 tests).

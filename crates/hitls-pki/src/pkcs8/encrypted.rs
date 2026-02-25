@@ -301,4 +301,66 @@ mod tests {
         let decrypted = decrypt_pkcs8_pem(&pem, "pem-pass").unwrap();
         assert_eq!(pki_der, decrypted);
     }
+
+    #[test]
+    fn test_encrypted_pkcs8_invalid_key_len() {
+        let seed = [0x42u8; 32];
+        let pki_der = encode_ed25519_pkcs8_der(&seed);
+        // key_len = 24 (AES-192) is not supported for encryption
+        assert!(encrypt_pkcs8_der_with(&pki_der, "pass", 24, 2048).is_err());
+        // key_len = 8 is invalid
+        assert!(encrypt_pkcs8_der_with(&pki_der, "pass", 8, 2048).is_err());
+    }
+
+    #[test]
+    fn test_encrypted_pkcs8_empty_password() {
+        let seed = [0x42u8; 32];
+        let pki_der = encode_ed25519_pkcs8_der(&seed);
+        // Empty password should roundtrip successfully
+        let encrypted = encrypt_pkcs8_der(&pki_der, "").unwrap();
+        let decrypted = decrypt_pkcs8_der(&encrypted, "").unwrap();
+        assert_eq!(pki_der, decrypted);
+    }
+
+    #[test]
+    fn test_encrypted_pkcs8_custom_iterations() {
+        let seed = [0x42u8; 32];
+        let pki_der = encode_ed25519_pkcs8_der(&seed);
+        // Low iterations (1) and high iterations (10000) should both work
+        for iters in [1u32, 100, 10000] {
+            let encrypted = encrypt_pkcs8_der_with(&pki_der, "pass", 32, iters).unwrap();
+            let decrypted = decrypt_pkcs8_der(&encrypted, "pass").unwrap();
+            assert_eq!(
+                pki_der, decrypted,
+                "roundtrip failed for iterations={iters}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_encrypted_pkcs8_different_encryptions_differ() {
+        let seed = [0x42u8; 32];
+        let pki_der = encode_ed25519_pkcs8_der(&seed);
+        // Two encryptions of the same key with the same password produce different DER
+        // (due to random salt and IV)
+        let enc1 = encrypt_pkcs8_der(&pki_der, "same").unwrap();
+        let enc2 = encrypt_pkcs8_der(&pki_der, "same").unwrap();
+        assert_ne!(enc1, enc2);
+        // But both decrypt to the same plaintext
+        let dec1 = decrypt_pkcs8_der(&enc1, "same").unwrap();
+        let dec2 = decrypt_pkcs8_der(&enc2, "same").unwrap();
+        assert_eq!(dec1, dec2);
+        assert_eq!(dec1, pki_der);
+    }
+
+    #[test]
+    fn test_encrypted_pkcs8_decrypt_twice_same_result() {
+        let seed = [0x42u8; 32];
+        let pki_der = encode_ed25519_pkcs8_der(&seed);
+        let encrypted = encrypt_pkcs8_der(&pki_der, "pass").unwrap();
+        // Decrypting the same ciphertext twice yields identical plaintext
+        let dec1 = decrypt_pkcs8_der(&encrypted, "pass").unwrap();
+        let dec2 = decrypt_pkcs8_der(&encrypted, "pass").unwrap();
+        assert_eq!(dec1, dec2);
+    }
 }
