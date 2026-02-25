@@ -9,12 +9,12 @@
 
 | Metric | Value |
 |--------|-------|
-| **Total tests** | **3,036** (50 ignored) |
-| **Test growth** | 1,104 → 3,036 (+175% since baseline) |
+| **Total tests** | **3,079** (22 ignored) |
+| **Test growth** | 1,104 → 3,079 (+179% since baseline) |
 | **Crates covered** | 8/8 (100% crate-level coverage) |
 | **Fuzz targets** | 10 (with 66 seed corpus files) |
 | **Wycheproof vectors** | 5,000+ (15 test groups) |
-| **Zero failures** | All 3,036 tests pass, clippy clean, fmt clean |
+| **Zero failures** | All 3,079 tests pass, clippy clean, fmt clean |
 
 ### Test Growth Timeline
 
@@ -2677,22 +2677,49 @@ Added 20 proptest property-based tests across hitls-crypto and hitls-utils, plus
 | 14 | `test_field_overlap_height_chain` | address.rs | tree_height/chain_addr same field2 offset |
 | 15 | `test_hash_addr_tree_index_same_offset` | address.rs | hash_addr/tree_index same field3 offset |
 
-**Per-crate counts after Phase T129**:
+**Per-crate counts after Phase T129**: (see Phase T130 below for latest)
+
+---
+
+### Phase T130: FrodoKEM PKE + SM9 G1 Point + SM9 Fp Field Deepening (+15 tests, 3,065→3,079)
+
+**Date**: 2026-02-25
+**Scope**: Deepen test coverage for three crypto internal modules: FrodoKEM PKE (pke.rs, 160 lines, 1→6 tests), SM9 G1 point (ecp.rs, 244 lines, 5→10 tests), SM9 Fp field (fp.rs, 178 lines, 6→11 tests). Also re-ignored flaky ElGamal generate test.
+
+| # | Test | File | Property |
+|---|------|------|----------|
+| 1 | `test_pke_keygen_deterministic` | pke.rs | Same seeds → same (b_packed, s_t) |
+| 2 | `test_pke_keygen_different_seeds_different_keys` | pke.rs | Different seed_se → different keys |
+| 3 | `test_pke_ciphertext_sizes` | pke.rs | C1/C2 packed dimensions match params |
+| 4 | `test_pke_wrong_secret_key_fails_decrypt` | pke.rs | Wrong s_t → decryption mismatch |
+| 5 | `test_pke_different_messages_different_ciphertext` | pke.rs | Same noise, diff msg → same C1, diff C2 |
+| 6 | `double_equals_add_self` | ecp.rs | P.double() == P.add(P) |
+| 7 | `scalar_mul_small_values` | ecp.rs | [1]G=G, [2]G=2G, [3]G=2G+G |
+| 8 | `add_commutativity` | ecp.rs | P+Q == Q+P |
+| 9 | `from_bytes_wrong_length` | ecp.rs | 63/65/0 bytes → error |
+| 10 | `infinity_properties` | ecp.rs | is_infinity, to_affine err, double(inf)==inf |
+| 11 | `mul_commutativity` | fp.rs | a*b == b*a for small and large values |
+| 12 | `sqr_equals_mul_self` | fp.rs | a.sqr() == a*a for 0/1/7/large/MAX |
+| 13 | `double_equals_add_self` | fp.rs | a.double() == a+a, zero.double()==zero |
+| 14 | `mul_u64_consistency` | fp.rs | mul_u64(c) == mul(Fp::from_u64(c)) |
+| 15 | `distributive_law` | fp.rs | a*(b+c) == a*b + a*c |
+
+**Per-crate counts after Phase T130**:
 
 | Crate | Tests | Ignored |
 |-------|------:|-------:|
 | hitls-auth | 33 | 0 |
 | hitls-bignum | 64 | 0 |
 | hitls-cli | 117 | 5 |
-| hitls-crypto | 900 | 41 |
+| hitls-crypto | 939 | 17 |
 | wycheproof | 15 | 0 |
-| hitls-integration | 149 | 3 |
-| hitls-pki | 374 | 1 |
+| hitls-integration | 152 | 0 |
+| hitls-pki | 375 | 0 |
 | hitls-tls | 1290 | 0 |
 | hitls-types | 26 | 0 |
 | hitls-utils | 66 | 0 |
 | doc-tests | 2 | 0 |
-| **Total** | **3036** | **50** |
+| **Total** | **3079** | **22** |
 
 ---
 
@@ -2701,9 +2728,9 @@ Added 20 proptest property-based tests across hitls-crypto and hitls-utils, plus
 All phases verified with the same quality gates:
 
 ```bash
-# Full test suite — all 3,036 tests pass
+# Full test suite — all 3,079 tests pass
 cargo test --workspace --all-features
-# Result: 3,036 passed, 0 failed, 50 ignored
+# Result: 3,079 passed, 0 failed, 22 ignored
 
 # Clippy — zero warnings enforced
 RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets
@@ -2712,4 +2739,4 @@ RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets
 cargo fmt --all -- --check
 ```
 
-**Ignored tests** (50 total): Slow operations marked `#[ignore]` — RSA/DH/DSA key generation, ML-KEM/ML-DSA full-parameter tests, SM9 pairing operations (sign/verify and encrypt/decrypt roundtrips), long-running XMSS/McEliece tests, FrodoKEM A-generation tests, and SLH-DSA hypertree sign/verify (d=22 layers). All pass when explicitly run with `cargo test -- --ignored`.
+**Ignored tests** (22 total): Slow operations marked `#[ignore]` — 5 s_client network tests, X448 iterated (~25s), SLH-DSA SHA2/SHAKE 128s, McEliece 6688128/8192128, XMSS h=16, ElGamal generate (flaky BnRandGenFail). All pass when explicitly run with `cargo test -- --ignored` (except ElGamal which is intermittently flaky).

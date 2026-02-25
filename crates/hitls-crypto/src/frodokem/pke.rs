@@ -157,4 +157,82 @@ mod tests {
         let mu_dec = pke_decrypt(&s_t, &c1, &c2, p);
         assert_eq!(mu, mu_dec);
     }
+
+    #[test]
+    fn test_pke_keygen_deterministic() {
+        let p = get_params(FrodoKemParamId::FrodoKem640Shake);
+        let seed_a = vec![0x11u8; p.seed_a_len];
+        let seed_se = vec![0x22u8; p.seed_se_len];
+        let (b1, s1) = pke_keygen(&seed_a, &seed_se, p).unwrap();
+        let (b2, s2) = pke_keygen(&seed_a, &seed_se, p).unwrap();
+        assert_eq!(b1, b2);
+        assert_eq!(s1, s2);
+    }
+
+    #[test]
+    fn test_pke_keygen_different_seeds_different_keys() {
+        let p = get_params(FrodoKemParamId::FrodoKem640Shake);
+        let seed_a = vec![0x11u8; p.seed_a_len];
+        let seed_se1 = vec![0x22u8; p.seed_se_len];
+        let seed_se2 = vec![0x33u8; p.seed_se_len];
+        let (b1, s1) = pke_keygen(&seed_a, &seed_se1, p).unwrap();
+        let (b2, s2) = pke_keygen(&seed_a, &seed_se2, p).unwrap();
+        assert_ne!(b1, b2);
+        assert_ne!(s1, s2);
+    }
+
+    #[test]
+    fn test_pke_ciphertext_sizes() {
+        let p = get_params(FrodoKemParamId::FrodoKem640Shake);
+        let seed_a = vec![0xAAu8; p.seed_a_len];
+        let seed_se_kg = vec![0xBBu8; p.seed_se_len];
+        let (b_packed, _s_t) = pke_keygen(&seed_a, &seed_se_kg, p).unwrap();
+
+        let seed_se_enc = vec![0xCCu8; p.seed_se_len];
+        let mu = vec![0x00u8; p.mu_len];
+        let (c1, c2) = pke_encrypt(&seed_a, &b_packed, &seed_se_enc, &mu, p).unwrap();
+
+        // c1 packs n_bar×n elements, c2 packs n_bar×n_bar elements
+        let logq = p.logq as usize;
+        let c1_expected = (p.n_bar * p.n * logq).div_ceil(8);
+        let c2_expected = (p.n_bar * p.n_bar * logq).div_ceil(8);
+        assert_eq!(c1.len(), c1_expected);
+        assert_eq!(c2.len(), c2_expected);
+    }
+
+    #[test]
+    fn test_pke_wrong_secret_key_fails_decrypt() {
+        let p = get_params(FrodoKemParamId::FrodoKem640Shake);
+        let seed_a = vec![0xAAu8; p.seed_a_len];
+        let seed_se_kg = vec![0xBBu8; p.seed_se_len];
+        let (b_packed, _s_t) = pke_keygen(&seed_a, &seed_se_kg, p).unwrap();
+
+        // Generate a different secret key
+        let seed_se_kg2 = vec![0xDDu8; p.seed_se_len];
+        let (_b2, s_t_wrong) = pke_keygen(&seed_a, &seed_se_kg2, p).unwrap();
+
+        let seed_se_enc = vec![0xCCu8; p.seed_se_len];
+        let mu = vec![0x42u8; p.mu_len];
+        let (c1, c2) = pke_encrypt(&seed_a, &b_packed, &seed_se_enc, &mu, p).unwrap();
+
+        let mu_dec = pke_decrypt(&s_t_wrong, &c1, &c2, p);
+        assert_ne!(mu, mu_dec);
+    }
+
+    #[test]
+    fn test_pke_different_messages_different_ciphertext() {
+        let p = get_params(FrodoKemParamId::FrodoKem640Shake);
+        let seed_a = vec![0xAAu8; p.seed_a_len];
+        let seed_se_kg = vec![0xBBu8; p.seed_se_len];
+        let (b_packed, _s_t) = pke_keygen(&seed_a, &seed_se_kg, p).unwrap();
+
+        let seed_se_enc = vec![0xCCu8; p.seed_se_len];
+        let mu1 = vec![0x00u8; p.mu_len];
+        let mu2 = vec![0xFFu8; p.mu_len];
+        let (_c1_a, c2_a) = pke_encrypt(&seed_a, &b_packed, &seed_se_enc, &mu1, p).unwrap();
+        let (_c1_b, c2_b) = pke_encrypt(&seed_a, &b_packed, &seed_se_enc, &mu2, p).unwrap();
+        // Same noise but different messages → C1 identical, C2 different
+        assert_eq!(_c1_a, _c1_b);
+        assert_ne!(c2_a, c2_b);
+    }
 }

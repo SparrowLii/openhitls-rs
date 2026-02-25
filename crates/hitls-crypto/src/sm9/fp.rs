@@ -175,4 +175,53 @@ mod tests {
         assert_eq!(z.neg().unwrap(), Fp::zero());
         assert!(z.is_zero());
     }
+
+    #[test]
+    fn mul_commutativity() {
+        let a = Fp::from_u64(12345);
+        let b = Fp::from_u64(67890);
+        assert_eq!(a.mul(&b).unwrap(), b.mul(&a).unwrap());
+        // Also test with larger values via bytes
+        let c = Fp::from_bytes_be(&[0xAB; 32]).unwrap();
+        let d = Fp::from_bytes_be(&[0xCD; 32]).unwrap();
+        assert_eq!(c.mul(&d).unwrap(), d.mul(&c).unwrap());
+    }
+
+    #[test]
+    fn sqr_equals_mul_self() {
+        let vals = [7u64, 123456789, 0, 1, u64::MAX];
+        for &v in &vals {
+            let a = Fp::from_u64(v);
+            assert_eq!(a.sqr().unwrap(), a.mul(&a).unwrap());
+        }
+    }
+
+    #[test]
+    fn double_equals_add_self() {
+        let a = Fp::from_u64(999999);
+        assert_eq!(a.double().unwrap(), a.add(&a).unwrap());
+        let zero = Fp::zero();
+        assert_eq!(zero.double().unwrap(), Fp::zero());
+    }
+
+    #[test]
+    fn mul_u64_consistency() {
+        let a = Fp::from_u64(42);
+        for c in [0u64, 1, 2, 7, 1000, u64::MAX] {
+            let via_mul_u64 = a.mul_u64(c).unwrap();
+            let via_mul = a.mul(&Fp::from_u64(c)).unwrap();
+            assert_eq!(via_mul_u64, via_mul);
+        }
+    }
+
+    #[test]
+    fn distributive_law() {
+        let a = Fp::from_u64(31337);
+        let b = Fp::from_u64(42);
+        let c = Fp::from_u64(99);
+        // a * (b + c) == a*b + a*c
+        let lhs = a.mul(&b.add(&c).unwrap()).unwrap();
+        let rhs = a.mul(&b).unwrap().add(&a.mul(&c).unwrap()).unwrap();
+        assert_eq!(lhs, rhs);
+    }
 }

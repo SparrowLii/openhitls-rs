@@ -241,4 +241,59 @@ mod tests {
         let g2 = EcPointG1::from_bytes(&bytes).unwrap();
         assert_eq!(g, g2);
     }
+
+    #[test]
+    fn double_equals_add_self() {
+        let g = EcPointG1::generator();
+        let doubled = g.double().unwrap();
+        let added = g.add(&g).unwrap();
+        assert_eq!(doubled, added);
+    }
+
+    #[test]
+    fn scalar_mul_small_values() {
+        let g = EcPointG1::generator();
+        // [1]G = G
+        let g1 = g.scalar_mul(&BigNum::from_u64(1)).unwrap();
+        assert_eq!(g1, g);
+        // [2]G = G + G
+        let g2 = g.scalar_mul(&BigNum::from_u64(2)).unwrap();
+        assert_eq!(g2, g.double().unwrap());
+        // [3]G = [2]G + G
+        let g3 = g.scalar_mul(&BigNum::from_u64(3)).unwrap();
+        let g2_plus_g = g2.add(&g).unwrap();
+        assert_eq!(g3, g2_plus_g);
+    }
+
+    #[test]
+    fn add_commutativity() {
+        let g = EcPointG1::generator();
+        let g2 = g.double().unwrap();
+        let g3 = g2.add(&g).unwrap();
+        // G + 2G == 2G + G
+        let a = g.add(&g2).unwrap();
+        let b = g2.add(&g).unwrap();
+        assert_eq!(a, b);
+        assert_eq!(a, g3);
+    }
+
+    #[test]
+    fn from_bytes_wrong_length() {
+        assert!(EcPointG1::from_bytes(&[0u8; 63]).is_err());
+        assert!(EcPointG1::from_bytes(&[0u8; 65]).is_err());
+        assert!(EcPointG1::from_bytes(&[]).is_err());
+    }
+
+    #[test]
+    fn infinity_properties() {
+        let inf = EcPointG1::infinity();
+        assert!(inf.is_infinity());
+        // to_affine on infinity → error
+        assert!(inf.to_affine().is_err());
+        // double(inf) = inf
+        let doubled = inf.double().unwrap();
+        assert!(doubled.is_infinity());
+        // two infinities are equal
+        assert_eq!(inf, EcPointG1::infinity());
+    }
 }

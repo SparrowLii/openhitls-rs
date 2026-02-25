@@ -8840,6 +8840,33 @@ Added 15 tests across 3 parameter set files validating cross-variant consistency
 
 ---
 
+## Phase T130: FrodoKEM PKE + SM9 G1 Point + SM9 Fp Field Deepening (+15 tests, 3,065→3,079)
+
+**Date**: 2026-02-25
+**Scope**: Deepen test coverage for three crypto internal modules with low test density: FrodoKEM inner PKE (pke.rs, 160 lines, 1 test), SM9 G1 point operations (ecp.rs, 244 lines, 5 tests), SM9 Fp field arithmetic (fp.rs, 178 lines, 6 tests). Also re-ignored flaky ElGamal generate test (BnRandGenFail).
+
+### Summary
+
+Added 15 tests across 3 cryptographic modules validating PKE correctness, elliptic curve point algebra, and finite field algebraic laws:
+
+- **FrodoKEM PKE** (5 tests): keygen determinism (same seeds → same keys), different seeds → different keys, ciphertext dimension validation (c1=n_bar×n, c2=n_bar×n_bar packed sizes), wrong secret key → decryption failure, different messages → same C1 but different C2 (noise-independent message encoding)
+- **SM9 G1 point** (5 tests): double() == add(self) consistency, scalar_mul [1]G/[2]G/[3]G small values, add commutativity (P+Q==Q+P), from_bytes wrong length → error (63/65/0 bytes), infinity properties (is_infinity, to_affine error, double(inf)==inf)
+- **SM9 Fp field** (5 tests): mul commutativity (a*b==b*a with small and large values), sqr()==mul(self) for 5 values including 0/1/MAX, double()==add(self), mul_u64 consistency with full mul for 6 constants, distributive law a*(b+c)==a*b+a*c
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `crates/hitls-crypto/src/frodokem/pke.rs` | Added 5 tests to existing `#[cfg(test)] mod tests` |
+| `crates/hitls-crypto/src/sm9/ecp.rs` | Added 5 tests to existing `#[cfg(test)] mod tests` |
+| `crates/hitls-crypto/src/sm9/fp.rs` | Added 5 tests to existing `#[cfg(test)] mod tests` |
+| `crates/hitls-crypto/src/elgamal/mod.rs` | Re-added `#[ignore]` to flaky `test_elgamal_generate` (BnRandGenFail) |
+
+### Build Status
+- `cargo test --workspace --all-features`: 3079 passed, 0 failed, 22 ignored
+- `RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets`: 0 warnings
+- `cargo fmt --all -- --check`: clean
+
 ## Phase R112 — Dev Profile Optimization: Accelerate Ignored Tests
 
 **Date**: 2026-02-25
