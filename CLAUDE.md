@@ -96,8 +96,7 @@ cargo fmt --all -- --check
 
 ### Post-Task Documentation Updates
 After completing each implementation task (phase/feature), **always** update the following files:
-- `DEV_LOG.md` — Add a new phase entry with summary, files modified, implementation details, test counts, and build status
-- `TEST_LOG.md` — Add a new Phase entry with test details and per-crate counts (for testing phases)
+- `DEV_LOG.md` — Add a new phase entry with summary, files modified, implementation details, test counts, and build status (all phase types: N, TN, RN, PN)
 - `PROMPT_LOG.md` — Record the prompt and result for the phase
 - `CLAUDE.md` — Update status line, test counts, and workspace structure annotations
 - `README.md` — Update test counts in Building & Testing section; update protocol/algorithm tables if new features added
@@ -136,4 +135,4 @@ Key milestones:
 - Phase P1: P-256 deep optimization — dedicated mont_sqr (10 vs 16 multiplies), P-256 specialized Montgomery reduction (P[0]=-1, P[2]=0), precomputed comb base table (64×16 affine points, OnceLock + batch inversion), mixed Jacobian-affine addition. ECDSA sign 21× speedup, verify 14× speedup.
 - Phase P2: ML-KEM NEON NTT optimization — 8-wide Montgomery multiply (`vqdmulhq_s16` + `vhsubq_s16` trick), NEON forward/inverse NTT (stages len≥8 fully vectorized), NEON Barrett reduction (widening multiply + shift-narrow), NEON poly utilities (add/sub/to_mont/reduce), batch SHAKE-128 squeeze (504-byte blocks vs 3-byte). ML-KEM-768 encaps 2.0× speedup, decaps 2.6× speedup.
 
-See `DEV_LOG.md` for detailed phase tables, `TEST_LOG.md` for testing history, `PROMPT_LOG.md` for prompt/response log, and `ARCH_LOG.md` for refactoring execution log.
+See `DEV_LOG.md` for detailed phase tables (including test, refactoring, and performance phases) and `PROMPT_LOG.md` for prompt/response log.
