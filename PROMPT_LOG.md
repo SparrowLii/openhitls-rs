@@ -2960,3 +2960,25 @@ Targeted coverage gaps in connection_info, handshake enums, lib.rs constants, co
 - RSA-2048 sign 1.11× (719→800 ops/s), RSA-2048 decrypt 1.15× (704→808 ops/s)
 - Gap narrowed from 7× to 5.6× for DH-2048. Remaining gap is assembly inner loop.
 - 3202 tests pass (+6 Montgomery tests), 7 ignored. 0 clippy warnings, formatting clean.
+
+---
+
+## Phase P155 — SM4 T-table Lookup Optimization
+
+**Prompt**: Implement SM4 T-table lookup optimization: compile-time T-tables (XBOX_0–3/KBOX_0–3) fusing S-box + L/L' linear transform into u32 lookups, 4-way unrolled round loop, precomputed decrypt round keys, cross-validation tests.
+
+**Implementation**:
+1. Added `const fn gen_xbox0()`, `gen_xbox_rotated()`, `gen_kbox0()` for compile-time T-table generation (8 tables, 8 KB .rodata)
+2. Replaced `t_transform()` with `t_table()`: 4 table lookups + 3 XOR instead of 4 SBOX lookups + L-transform
+3. Replaced `t_prime()` with `t_table_key()`: same approach for key expansion
+4. Unrolled round loop 4-way: eliminates per-round `x.rotate_left(1)` and `k.rotate_left(1)`
+5. Added `round_keys_dec` to `Sm4Key` for precomputed decrypt keys (eliminates per-block `.reverse()`)
+6. Retained scalar functions under `#[cfg(test)]` for cross-validation
+7. Added 5 new tests: `test_xbox0_spot_check`, `test_t_table_matches_scalar`, `test_t_table_key_matches_scalar`, `test_decrypt_precomputed_keys`, `test_sm4_unrolled_consistency`
+
+**Result**:
+- SM4 block encrypt 1.91× (202→106 ns), decrypt 1.86× (205→110 ns)
+- SM4-CBC encrypt 2.37× (50.8→120.2 MB/s), decrypt 2.73× (56.5→154.5 MB/s)
+- SM4-GCM encrypt 3.09× (47.6→146.9 MB/s), decrypt 3.06× (47.4→145.3 MB/s)
+- SM4 goes from "C 2.2–2.4× faster" to "Rust at parity (CBC) or 1.7× faster (GCM)"
+- 3207 tests pass (+5 SM4 cross-validation tests), 7 ignored. 0 clippy warnings, formatting clean.

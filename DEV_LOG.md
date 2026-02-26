@@ -164,6 +164,7 @@
 | 5 | P152 | P-256 Deep Optimization | — |
 | 6 | P153 | ML-KEM NEON NTT Optimization | — |
 | 7 | P154 | BigNum CIOS Montgomery + Pre-allocated Exponentiation | — |
+| 8 | P155 | SM4 T-table Lookup Optimization | 2026-02-27 |
 
 ---
 
@@ -9932,5 +9933,64 @@ The remaining gap to C (~5.6× for DH-2048) is dominated by the inner loop: C us
 
 ### Build Status
 - `cargo test --workspace --all-features`: 3202 passed, 0 failed, 7 ignored
+- `RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets`: 0 warnings
+- `cargo fmt --all -- --check`: clean
+
+---
+
+## Phase P155 — SM4 T-table Lookup Optimization
+
+**Summary**: Precomputed T-tables (XBOX_0–3 and KBOX_0–3) fusing S-box substitution + L/L' linear transform into single u32 lookups, 4-way unrolled round loop, and precomputed decrypt round keys.
+
+### Performance Results
+
+| Operation | Before | After | Speedup | C Reference |
+|-----------|--------|-------|---------|-------------|
+| SM4 block encrypt | 202 ns | 106 ns | **1.91×** | — |
+| SM4 block decrypt | 205 ns | 110 ns | **1.86×** | — |
+| SM4-CBC encrypt @8KB | 161.1 µs (50.8 MB/s) | 68.2 µs (120.2 MB/s) | **2.37×** | 119.9 MB/s |
+| SM4-CBC decrypt @8KB | 145.0 µs (56.5 MB/s) | 53.0 µs (154.5 MB/s) | **2.73×** | 127.1 MB/s |
+| SM4-GCM encrypt @8KB | 172.3 µs (47.6 MB/s) | 55.8 µs (146.9 MB/s) | **3.09×** | 87.6 MB/s |
+| SM4-GCM decrypt @8KB | 172.9 µs (47.4 MB/s) | 56.4 µs (145.3 MB/s) | **3.06×** | 87.6 MB/s |
+
+SM4 goes from "C 2.2–2.4× faster" to "Rust at parity (CBC) or 1.7× faster (GCM)".
+
+### Implementation Details
+
+1. **Compile-time T-tables (XBOX_0–3)**: `const fn gen_xbox0()` computes L(SBOX[i]) for all 256 entries. XBOX_1–3 are byte-rotated copies. T(A) = XBOX_3[a0] ^ XBOX_2[a1] ^ XBOX_1[a2] ^ XBOX_0[a3] — 4 table lookups + 3 XOR replaces 4 SBOX lookups + L-transform (4 rotations + 4 XOR).
+
+2. **Compile-time T'-tables (KBOX_0–3)**: Same approach for key expansion, using L' = x ^ (x<<<13) ^ (x<<<23). 8 tables total, 8 KB in .rodata.
+
+3. **4-way unrolled round loop**: Eliminates per-round `x.rotate_left(1)` by addressing x0/x1/x2/x3 directly. Key expansion also unrolled 4-way.
+
+4. **Precomputed decrypt round keys**: `Sm4Key` stores both `round_keys_enc` and `round_keys_dec` (reversed copy). Eliminates per-block `.reverse()` in `decrypt_block()`.
+
+5. **Scalar functions retained under `#[cfg(test)]`**: `tau()`, `l_transform()`, `l_prime()`, `t_transform()`, `t_prime()` kept for cross-validation tests.
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `crates/hitls-crypto/src/sm4/mod.rs` | Complete rewrite: 8 compile-time T-tables, `t_table()`/`t_table_key()` lookup functions, 4-way unrolled `crypt_block()`, precomputed decrypt keys, 5 new cross-validation tests |
+| `PERF_REPORT.md` | Updated SM4 numbers in executive summary, §3.2, §4 heatmap, §5 roadmap, P155 detail, Appendix D raw data |
+| `CLAUDE.md` | Updated status line, test counts |
+| `DEV_LOG.md` | Added P155 entry |
+
+### Test Counts
+
+| Crate | Tests | Ignored |
+|-------|-------|---------|
+| hitls-crypto | 1041 (+5) | 2 |
+| hitls-tls | 1290 | 0 |
+| hitls-pki | 390 | 0 |
+| hitls-bignum | 75 | 0 |
+| hitls-utils | 66 | 0 |
+| hitls-auth | 33 | 0 |
+| hitls-cli | 117 | 5 |
+| interop | 152 | 0 |
+| **Total** | **3207** (+5) | **7** |
+
+### Build Status
+- `cargo test --workspace --all-features`: 3207 passed, 0 failed, 7 ignored
 - `RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets`: 0 warnings
 - `cargo fmt --all -- --check`: clean
