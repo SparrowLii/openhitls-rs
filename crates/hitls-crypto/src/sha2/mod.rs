@@ -910,6 +910,58 @@ mod tests {
         assert_eq!(incr, oneshot);
     }
 
+    // ===================================================================
+    // Phase T154 — HW↔SW cross-validation: SHA-256 compression
+    // ===================================================================
+
+    /// Verify SHA-256 software compression matches auto-dispatched compression.
+    /// On HW-capable platforms this catches SW↔HW divergence.
+    #[test]
+    fn test_sha256_compress_soft_vs_dispatch() {
+        let test_blocks: &[[u8; 64]] = &[
+            [0u8; 64],
+            core::array::from_fn(|i| i as u8),
+            core::array::from_fn(|i| (i * 7 + 0x42) as u8),
+            [0xFFu8; 64],
+        ];
+
+        for block in test_blocks {
+            let mut state_dispatch = H256;
+            let mut state_soft = H256;
+
+            sha256_compress(&mut state_dispatch, block);
+            sha256_compress_soft(&mut state_soft, block);
+
+            assert_eq!(
+                state_dispatch,
+                state_soft,
+                "SHA-256 compress mismatch for block {:02x?}",
+                &block[..4]
+            );
+        }
+    }
+
+    /// Verify SHA-256 multi-block chaining is consistent between paths.
+    #[test]
+    fn test_sha256_compress_multi_block_consistency() {
+        let blocks: Vec<[u8; 64]> = (0..16u8)
+            .map(|i| core::array::from_fn(|j| i.wrapping_mul(j as u8).wrapping_add(0x13)))
+            .collect();
+
+        let mut state_dispatch = H256;
+        let mut state_soft = H256;
+
+        for block in &blocks {
+            sha256_compress(&mut state_dispatch, block);
+            sha256_compress_soft(&mut state_soft, block);
+        }
+
+        assert_eq!(
+            state_dispatch, state_soft,
+            "SHA-256 multi-block chaining diverged"
+        );
+    }
+
     mod proptests {
         use super::super::Sha256;
         use proptest::prelude::*;

@@ -305,6 +305,52 @@ mod tests {
         assert!(cipher.encrypt_block(&mut [0u8; 32]).is_err());
     }
 
+    // ===================================================================
+    // Phase T154 — HW↔SW cross-validation: AES stress tests
+    // ===================================================================
+
+    /// Stress test AES-128 SW vs HW with 256 random blocks.
+    #[test]
+    fn test_aes128_soft_vs_hw_stress() {
+        let key = [0x2Bu8; 16];
+        let hw = AesKey::new(&key).unwrap();
+        let sw = AesKey::new_soft(&key).unwrap();
+
+        for seed in 0u8..=255 {
+            let mut block_hw: [u8; 16] = core::array::from_fn(|i| seed.wrapping_add(i as u8));
+            let mut block_sw = block_hw;
+
+            hw.encrypt_block(&mut block_hw).unwrap();
+            sw.encrypt_block(&mut block_sw).unwrap();
+            assert_eq!(block_hw, block_sw, "encrypt mismatch at seed={seed}");
+
+            hw.decrypt_block(&mut block_hw).unwrap();
+            sw.decrypt_block(&mut block_sw).unwrap();
+            assert_eq!(block_hw, block_sw, "decrypt mismatch at seed={seed}");
+        }
+    }
+
+    /// Stress test AES-256 SW vs HW with 256 random blocks.
+    #[test]
+    fn test_aes256_soft_vs_hw_stress() {
+        let key: [u8; 32] = core::array::from_fn(|i| (i * 7 + 0x5A) as u8);
+        let hw = AesKey::new(&key).unwrap();
+        let sw = AesKey::new_soft(&key).unwrap();
+
+        for seed in 0u8..=255 {
+            let mut block_hw: [u8; 16] = core::array::from_fn(|i| seed ^ (i as u8));
+            let mut block_sw = block_hw;
+
+            hw.encrypt_block(&mut block_hw).unwrap();
+            sw.encrypt_block(&mut block_sw).unwrap();
+            assert_eq!(block_hw, block_sw, "encrypt mismatch at seed={seed}");
+
+            hw.decrypt_block(&mut block_hw).unwrap();
+            sw.decrypt_block(&mut block_sw).unwrap();
+            assert_eq!(block_hw, block_sw, "decrypt mismatch at seed={seed}");
+        }
+    }
+
     mod proptests {
         use super::super::AesKey;
         use proptest::prelude::*;
