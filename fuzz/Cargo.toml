@@ -10,9 +10,10 @@ cargo-fuzz = true
 [dependencies]
 libfuzzer-sys = "0.4"
 hitls-utils = { path = "../crates/hitls-utils" }
-hitls-crypto = { path = "../crates/hitls-crypto", features = ["aes", "modes", "chacha20"] }
+hitls-crypto = { path = "../crates/hitls-crypto", features = ["aes", "modes", "chacha20", "rsa", "ecdsa", "sm2", "hkdf"] }
 hitls-pki = { path = "../crates/hitls-pki" }
 hitls-tls = { path = "../crates/hitls-tls", features = ["tls12", "dtls12", "tlcp"] }
+hitls-types = { path = "../crates/hitls-types" }
 
 [[bin]]
 name = "fuzz_asn1"
@@ -103,3 +104,34 @@ doc = false
 name = "fuzz_cbc_record"
 path = "fuzz_targets/fuzz_cbc_record.rs"
 doc = false
+
+[[bin]]
+name = "fuzz_rsa_verify"
+path = "fuzz_targets/fuzz_rsa_verify.rs"
+doc = false
+
+[[bin]]
+name = "fuzz_ecdsa_verify"
+path = "fuzz_targets/fuzz_ecdsa_verify.rs"
+doc = false
+
+[[bin]]
+name = "fuzz_hkdf"
+path = "fuzz_targets/fuzz_hkdf.rs"
+doc = false
+
+[[bin]]
+name = "fuzz_sm2_verify"
+path = "fuzz_targets/fuzz_sm2_verify.rs"
+doc = false
+
+[[bin]]
+name = "fuzz_ccm_decrypt"
+path = "fuzz_targets/fuzz_ccm_decrypt.rs"
+doc = false
+
+[[bin]]
+name = "fuzz_tls12_prf"
+path = "fuzz_targets/fuzz_tls12_prf.rs"
+doc = false
+
