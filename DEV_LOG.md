@@ -144,6 +144,15 @@
 | 51 | T163 | Feature Flag Smoke Tests | — |
 | 52 | T164 | Zeroize Runtime Verification | — |
 | 53 | T165 | DTLS State Machine Fuzz + OpenSSL Interop | — |
+| 54 | T166 | Async Integration | — |
+| 55 | T167 | TLS 1.2 State Machine Unit Isolation | — |
+| 56 | T168 | SM9 G2 Point Arithmetic | — |
+| 57 | T169 | TLS Extension E2E | — |
+| 58 | T170 | ECDHE-RSA CBC + Async Stress | — |
+| 59 | T171 | RSA Constant-Time Fix + Buffer Zeroize + Timing Tests | 2026-02-27 |
+| 60 | T172 | Crypto Semantic Fuzz Targets | 2026-02-27 |
+| 61 | T173 | TLS State Machine Fuzz + Corpus Enrichment | 2026-02-27 |
+| 62 | T174 | Infrastructure Hardening (CI/Deps/Docs) | 2026-02-27 |
 
 ### Refactoring (Phase RN)
 
@@ -10307,3 +10316,100 @@ Deep quality analysis identified 8 new deficiencies (D19–D26). 10 phases imple
 - `RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets`: 0 warnings
 - `cargo fmt --all -- --check`: clean
 - Fuzz targets: 18, 124 corpus files
+
+---
+
+## Phase T171–T174 — Test Optimization & Deep Defense (2026-02-27)
+
+### Phase T171 — RSA Constant-Time Fix + Buffer Zeroize + Timing Tests (+4 tests)
+
+**Priority**: P0 — Fixes active security vulnerabilities.
+
+#### Part A: OAEP Decrypt Constant-Time Fix
+**File**: `crates/hitls-crypto/src/rsa/oaep.rs`
+- Replaced early-break separator search with constant-time full scan
+- Loop always runs to completion regardless of padding content
+- Uses `subtle::ConstantTimeEq` for byte comparisons, accumulates flags with bitwise ops
+- Deferred decision: all checks combined into single final validation
+
+#### Part B: PKCS#1v15 Decrypt Constant-Time Fix
+**File**: `crates/hitls-crypto/src/rsa/pkcs1v15.rs`
+- Replaced early-break header check + separator search with constant-time scan
+- Header bytes checked via `ct_eq`, separator found via full iteration
+- PS length validated after scan completion
+
+#### Part C: Buffer Zeroize
+**Files**: `crates/hitls-crypto/src/modes/cbc.rs`, `crates/hitls-crypto/src/modes/gcm.rs`
+- CBC: `output.zeroize()` before returning `Err(InvalidPadding)` in both `cbc_decrypt` and `cbc_decrypt_with`
+- GCM: `plaintext.zeroize()` before returning `Err(AeadTagVerifyFail)` in both `gcm_decrypt` and `sm4_gcm_decrypt`
+
+#### Part D: Verification Tests (+4)
+- `crates/hitls-crypto/tests/timing.rs`: +2 tests (`#[ignore]`)
+  - `test_rsa_oaep_decrypt_constant_time`: Welch's t-test, valid vs corrupted ciphertext
+  - `test_rsa_pkcs1v15_decrypt_constant_time`: Welch's t-test, valid vs corrupted ciphertext
+- `crates/hitls-crypto/src/rsa/oaep.rs`: +1 test
+  - `test_oaep_decrypt_invalid_db_byte_rejected`: PS byte replaced with 0x02 → RsaInvalidPadding
+- `crates/hitls-crypto/src/rsa/pkcs1v15.rs`: +1 test
+  - `test_pkcs1v15_decrypt_varied_separator_positions`: Separator at positions 10, 50, 100, 200
+
+### Phase T172 — Crypto Semantic Fuzz Targets (+6 targets, +24 corpus)
+
+**Priority**: P1 — Expand semantic fuzz coverage.
+
+#### New Fuzz Targets
+| Target | API | Seeds |
+|--------|-----|-------|
+| `fuzz_rsa_verify` | `RsaPublicKey::new(n,e)?.verify(padding, digest, sig)` | 5 |
+| `fuzz_ecdsa_verify` | `EcdsaKeyPair::from_public_key(curve, point)?.verify(digest, sig)` | 4 |
+| `fuzz_hkdf` | `Hkdf::derive(salt, ikm, info, len)` + `Hkdf::new(salt, ikm)?.expand(info, len)` | 3 |
+| `fuzz_sm2_verify` | `Sm2KeyPair::from_public_key(point)?.verify(msg, sig)` | 3 |
+| `fuzz_ccm_decrypt` | `ccm_decrypt(key, nonce, aad, ct, tag_len)` | 4 |
+| `fuzz_tls12_prf` | `prf(alg, secret, label, seed, len)` | 5 |
+
+**Files**: 6 new fuzz targets, `fuzz/Cargo.toml` updated (+6 bins, +rsa,ecdsa,sm2,hkdf features)
+
+### Phase T173 — TLS State Machine Fuzz + Corpus Enrichment (+2 targets, +16 corpus)
+
+**Priority**: P1 — Address TLS state-machine-level fuzzing gap.
+
+#### New Fuzz Targets
+- `fuzz_tls13_state_machine`: Feeds message sequences through TLS 1.3 codec pipeline (12 dispatch paths)
+- `fuzz_tls12_state_machine`: Feeds message sequences through TLS 1.2 codec pipeline (16 dispatch paths)
+
+#### Corpus Enrichment
+- `fuzz_pkcs12`: 3→6 seeds (+3)
+- `fuzz_tlcp_codec`: 3→6 seeds (+3)
+- `fuzz_tls13_state_machine`: 6 new seeds
+- `fuzz_tls12_state_machine`: 4 new seeds
+
+**Files**: 2 new fuzz targets, `fuzz/Cargo.toml` updated (+2 bins, +tls13 feature)
+
+### Phase T174 — Infrastructure Hardening (CI/Deps/Docs)
+
+**Priority**: P2 — Fix configuration gaps.
+
+#### Changes
+| File | Change |
+|------|--------|
+| `crates/hitls-auth/Cargo.toml` | `subtle = "2.5"` → `subtle = { workspace = true }` (version consistency) |
+| `.github/workflows/ci.yml` | Removed `continue-on-error: true` from miri job |
+| `.github/workflows/ci.yml` | Added feature combo tests: `aes,sha2` / `rsa,ecdsa` / `sm2,sm4` + `tls13` / `tls12` / `tlcp` |
+| `.github/workflows/ci.yml` | Added `cargo-deny` job (supply-chain policy) |
+| `deny.toml` (NEW) | Supply-chain policy: vuln=deny, license allow-list, wildcard ban, source restrictions |
+| `SECURITY.md` | Updated test/fuzz counts (997→3,405+, 10→26 fuzz targets) |
+
+### Aggregate Counts (Post T171–T174)
+
+| Metric | Before | After | Delta |
+|--------|--------|-------|-------|
+| Tests | 3,465 | 3,467 | +2 |
+| Ignored | 19 | 21 | +2 |
+| Fuzz targets | 18 | 26 | +8 |
+| Corpus files | 118 | 158 | +40 |
+| CI jobs | 8 | 9 | +1 (cargo-deny) |
+
+### Build Status (Post T171–T174)
+- `cargo test --workspace --all-features`: 3,467 passed, 0 failed, 21 ignored
+- `RUSTFLAGS="-D warnings" cargo clippy`: 0 warnings
+- `cargo fmt --all -- --check`: clean
+- Fuzz targets: 26 (18→26), 158 corpus files (118→158)

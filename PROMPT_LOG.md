@@ -3105,3 +3105,18 @@ Targeted coverage gaps in connection_info, handshake enums, lib.rs constants, co
 - SM9 G2 tests: 5→13
 - All 3,401 tests pass, 0 clippy warnings, formatting clean
 - Defense model rating: B+ → A−
+
+---
+
+## Phase T171–T174 — Test Optimization & Deep Defense (2026-02-27)
+
+**Prompt**: Implement T171–T174: RSA constant-time fixes, crypto semantic fuzz targets, TLS state machine fuzz, infrastructure hardening.
+
+**Result**:
+- **T171**: Fixed 2 CRITICAL timing side-channels in RSA OAEP/PKCS1v15 decrypt (constant-time full scan replaces early-break), added CBC/GCM buffer zeroize on error, +4 tests (2 timing `#[ignore]`, 2 unit)
+- **T172**: +6 semantic fuzz targets (RSA verify, ECDSA verify, HKDF, SM2 verify, CCM decrypt, TLS 1.2 PRF), +24 corpus seeds
+- **T173**: +2 TLS state machine fuzz targets (TLS 1.3 12-path, TLS 1.2 16-path), +16 corpus (10 new + 6 enrichment for thin targets)
+- **T174**: Unified subtle dep version, removed miri continue-on-error, expanded feature combo CI tests, added cargo-deny supply-chain job + deny.toml policy, updated SECURITY.md counts
+- 3,454→3,458 tests (+4), 19→21 ignored (+2), 18→26 fuzz targets (+8), 118→158 corpus (+40)
+- All tests pass, 0 clippy warnings, formatting clean
+- Defense model rating: B+ → A−

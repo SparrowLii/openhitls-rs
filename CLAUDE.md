@@ -8,7 +8,7 @@ openHiTLS-rs is a pure Rust rewrite of [openHiTLS](https://gitee.com/openhitls/o
 
 - **Language**: Rust (MSRV 1.75, edition 2021)
 - **License**: MulanPSL-2.0
-- **Status**: Phase 0–170 + Phase P166–P167 complete (3465 tests, 19 ignored)
+- **Status**: Phase 0–170, P166–P167, T171–T174 complete (3467 tests, 21 ignored)
 
 ## Workspace Structure
 
@@ -18,14 +18,14 @@ openhitls-rs/
 │   ├── hitls-types/     # Shared types: algorithm IDs, error enums
 │   ├── hitls-utils/     # Hex, ASN.1, Base64, PEM, OID utilities
 │   ├── hitls-bignum/    # Big number arithmetic (CIOS Montgomery, Miller-Rabin) (80 tests)
-│   ├── hitls-crypto/    # Cryptographic algorithms (feature-gated): AES, SM4, ChaCha20, SHA-2/3, SM3, HMAC, RSA, ECC, Ed25519/448, X25519/448, DH, DSA, SM2, SM9, PQC (ML-KEM/ML-DSA/SLH-DSA/XMSS/FrodoKEM/McEliece), DRBG, FIPS/CMVP, entropy health, hardware AES/SHA-2/GHASH/ChaCha20, P-256 fast path, SM2 fast path, ML-KEM NEON NTT, ML-DSA NEON NTT, SM4 T-table, SHA-512 HW accel, Ed25519 precomputed table (1132 tests + 15 Wycheproof, 12 ignored)
+│   ├── hitls-crypto/    # Cryptographic algorithms (feature-gated): AES, SM4, ChaCha20, SHA-2/3, SM3, HMAC, RSA, ECC, Ed25519/448, X25519/448, DH, DSA, SM2, SM9, PQC (ML-KEM/ML-DSA/SLH-DSA/XMSS/FrodoKEM/McEliece), DRBG, FIPS/CMVP, entropy health, hardware AES/SHA-2/GHASH/ChaCha20, P-256 fast path, SM2 fast path, ML-KEM NEON NTT, ML-DSA NEON NTT, SM4 T-table, SHA-512 HW accel, Ed25519 precomputed table (1136 tests + 15 Wycheproof, 14 ignored)
 │   ├── hitls-tls/       # TLS 1.3/1.2 (91 cipher suites), DTLS 1.2, TLCP, DTLCP; 10 connection types (5 sync + 5 async via tokio); 15 TLS extensions; 10 callbacks; session cache, hostname verification, renegotiation, GREASE, custom extensions, NSS key logging, middlebox compat (1360 tests)
 │   ├── hitls-pki/       # X.509, PKCS#8 (incl. Encrypted PBES2), PKCS#12, CMS (SignedData/EnvelopedData/EncryptedData/DigestedData/AuthenticatedData), hostname verification (390 tests)
 │   ├── hitls-auth/      # HOTP/TOTP, SPAKE2+, Privacy Pass (33 tests)
 │   └── hitls-cli/       # CLI tool: dgst, genpkey, x509, verify, enc, pkey, crl, req, s-client, s-server, list, rand, pkeyutl, speed, pkcs12, mac (117 tests, 5 ignored)
 ├── tests/interop/       # Integration tests (188 cross-crate tests) — 14 test files + helper lib
 ├── tests/vectors/       # Standard test vectors (NIST, Wycheproof, GM/T)
-├── fuzz/                # Fuzz targets (cargo-fuzz, 18 targets)
+├── fuzz/                # Fuzz targets (cargo-fuzz, 26 targets)
 └── benches/             # Criterion benchmarks
 ```
 
@@ -35,11 +35,11 @@ openhitls-rs/
 # Build
 cargo build --workspace --all-features
 
-# Run all tests (3465 tests, 19 ignored)
+# Run all tests (3467 tests, 21 ignored)
 cargo test --workspace --all-features
 
 # Run tests for a specific crate
-cargo test -p hitls-crypto --all-features   # 1132 tests (12 ignored) + 15 Wycheproof
+cargo test -p hitls-crypto --all-features   # 1136 tests (14 ignored) + 15 Wycheproof
 cargo test -p hitls-tls --all-features      # 1360 tests
 
 cargo test -p hitls-pki --all-features      # 395 tests
@@ -118,7 +118,7 @@ The original C implementation is at `/Users/dongqiu/Dev/code/openhitls/`:
 
 ## Migration Roadmap
 
-Phase 0–170 + Phase P166–P167 complete (3465 tests, 19 ignored). **100% C→Rust feature parity achieved. Architecture refactoring complete. Performance optimization and quality improvement complete.**
+Phase 0–170, P166–P167, T171–T174 complete (3467 tests, 21 ignored). **100% C→Rust feature parity achieved. Architecture refactoring complete. Performance optimization and quality improvement complete.**
 
 ### Completed Phases (Summary)
 
@@ -147,5 +147,6 @@ Key milestones:
 - Phase P166: SHA-512 ARMv8.2 hardware acceleration — SHA-512 Crypto Extension intrinsics (`vsha512hq_u64`/`vsha512h2q_u64`/`vsha512su0q_u64`/`vsha512su1q_u64`), 5-register rotation pattern, K+W halves swap, runtime detection (`sha3` feature). SHA-512 2.4× speedup (662→1578 MB/s), SHA-384 3.9× speedup (411→1597 MB/s). Rust now 1.8× faster than C.
 - Phase P167: Ed25519 precomputed base table — comb method (64 groups × 16 Niels points), NielsPoint form (Y+X, Y-X, 2d·T) for 7M mixed addition, OnceLock-cached table, constant-time lookup. Ed25519 sign 3.1× speedup (29.7→9.5 µs), verify 1.5× speedup (61.9→40.9 µs). Rust now 1.6× faster than C for sign, at parity for verify.
 - Phase T157–T165: Quality improvement roadmap — TLS connection unit tests (+15), TLS 1.2 handshake edge cases (+15), HW↔SW cross-validation (+8), proptest expansion to 5/9 crates (+15), side-channel timing tests (+6), concurrency stress tests (+10), feature flag smoke tests (+4), zeroize runtime verification (+4), DTLS fuzz + OpenSSL interop (+1 fuzz target, +2 tests). Total: +80 tests, 13→14 fuzz targets, defense model B→B+.
+- Phase T171–T174: Test optimization & deep defense — RSA OAEP/PKCS1v15 constant-time fix (timing side-channel elimination), CBC/GCM buffer zeroize on error, RSA timing tests (+2 ignored), unit tests (+2), crypto semantic fuzz targets (+6: RSA/ECDSA/HKDF/SM2/CCM/TLS PRF), TLS 1.3/1.2 state machine fuzz (+2), corpus enrichment (+40 seeds), cargo-deny supply-chain policy, CI hardening (miri blocking, feature combos, cargo-deny job), subtle version unification. Total: +4 tests, 18→26 fuzz targets, 118→158 corpus, defense model B+→A-.
 
 See `DEV_LOG.md` for detailed phase tables (including test, refactoring, and performance phases) and `PROMPT_LOG.md` for prompt/response log.

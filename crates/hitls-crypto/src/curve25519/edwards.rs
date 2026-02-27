@@ -320,8 +320,7 @@ fn base_table() -> &'static [[NielsPoint; 16]; 64] {
             bi = point_double(&bi);
         }
 
-        let table_arr: [[NielsPoint; 16]; 64] =
-            table.try_into().unwrap_or_else(|_| unreachable!());
+        let table_arr: [[NielsPoint; 16]; 64] = table.try_into().unwrap_or_else(|_| unreachable!());
         Box::new(table_arr)
     })
 }

@@ -68,12 +68,13 @@ All randomness is sourced from `getrandom` (OS-provided CSPRNG). No userspace PR
 
 ## Testing
 
-- **997+ unit and integration tests** across all crates
+- **3,467+ unit and integration tests** across all crates (21 ignored)
 - **Wycheproof test vectors**: 5000+ edge-case vectors from Google/C2SP covering AES-GCM, ChaCha20-Poly1305, ECDSA, ECDH, Ed25519, X25519, RSA, HKDF, HMAC, AES-CCM, AES-CBC
-- **Fuzz targets**: 10 libfuzzer targets for parser code (ASN.1, Base64, PEM, X.509, CRL, PKCS#8, PKCS#12, CMS, TLS record, TLS handshake)
+- **Fuzz targets**: 26 libfuzzer targets covering parsers (ASN.1, Base64, PEM, X.509, CRL, PKCS#8, PKCS#12, CMS), protocols (TLS record, TLS handshake, DTLS, TLCP, TLS 1.3/1.2 state machine), AEAD decrypt, crypto verification (RSA, ECDSA, SM2, CCM, HKDF, TLS PRF), and X.509 chain verification
 - **Miri**: Memory safety verification for bignum and utils crates
 - **Clippy**: Zero-warning policy with `-D warnings`
 - **cargo-audit**: Automated dependency vulnerability scanning
+- **cargo-deny**: Supply-chain policy enforcement (license, advisory, source restrictions)
 
 ## Disclaimer
 

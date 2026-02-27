@@ -61,6 +61,14 @@ jobs:
       - run: cargo test -p hitls-crypto --features rsa
       - run: cargo test -p hitls-crypto --features sm2
       - run: cargo test -p hitls-crypto --features pqc
+      # Test common feature combinations for hitls-crypto
+      - run: cargo test -p hitls-crypto --features aes,sha2
+      - run: cargo test -p hitls-crypto --features rsa,ecdsa
+      - run: cargo test -p hitls-crypto --features sm2,sm4
+      # Test individual TLS protocol features
+      - run: cargo test -p hitls-tls --features tls13
+      - run: cargo test -p hitls-tls --features tls12
+      - run: cargo test -p hitls-tls --features tlcp
 
   audit:
     name: Security Audit
@@ -74,7 +82,6 @@ jobs:
   miri:
     name: Miri (UB detection)
     runs-on: ubuntu-latest
-    continue-on-error: true
     env:
       MIRIFLAGS: "-Zmiri-disable-isolation"
     steps:
@@ -115,6 +122,13 @@ jobs:
           fail_ci_if_error: false
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+  deny:
+    name: Supply Chain Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: EmbarkStudios/cargo-deny-action@v2
 
   bench:
     name: Benchmark Check
