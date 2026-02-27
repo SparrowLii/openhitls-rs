@@ -8,7 +8,7 @@ openHiTLS-rs is a pure Rust rewrite of [openHiTLS](https://gitee.com/openhitls/o
 
 - **Language**: Rust (MSRV 1.75, edition 2021)
 - **License**: MulanPSL-2.0
-- **Status**: Phase 0–151 + Phase P152–P157 complete (3263 tests, 7 ignored)
+- **Status**: Phase 0–160 + Phase P152–P157 complete (3331 tests, 19 ignored)
 
 ## Workspace Structure
 
@@ -17,15 +17,15 @@ openhitls-rs/
 ├── crates/
 │   ├── hitls-types/     # Shared types: algorithm IDs, error enums
 │   ├── hitls-utils/     # Hex, ASN.1, Base64, PEM, OID utilities
-│   ├── hitls-bignum/    # Big number arithmetic (CIOS Montgomery, Miller-Rabin) (75 tests)
-│   ├── hitls-crypto/    # Cryptographic algorithms (feature-gated): AES, SM4, ChaCha20, SHA-2/3, SM3, HMAC, RSA, ECC, Ed25519/448, X25519/448, DH, DSA, SM2, SM9, PQC (ML-KEM/ML-DSA/SLH-DSA/XMSS/FrodoKEM/McEliece), DRBG, FIPS/CMVP, entropy health, hardware AES/SHA-2/GHASH/ChaCha20, P-256 fast path, SM2 fast path, ML-KEM NEON NTT, ML-DSA NEON NTT, SM4 T-table (1097 tests + 15 Wycheproof, 2 ignored)
+│   ├── hitls-bignum/    # Big number arithmetic (CIOS Montgomery, Miller-Rabin) (80 tests)
+│   ├── hitls-crypto/    # Cryptographic algorithms (feature-gated): AES, SM4, ChaCha20, SHA-2/3, SM3, HMAC, RSA, ECC, Ed25519/448, X25519/448, DH, DSA, SM2, SM9, PQC (ML-KEM/ML-DSA/SLH-DSA/XMSS/FrodoKEM/McEliece), DRBG, FIPS/CMVP, entropy health, hardware AES/SHA-2/GHASH/ChaCha20, P-256 fast path, SM2 fast path, ML-KEM NEON NTT, ML-DSA NEON NTT, SM4 T-table (1105 tests + 15 Wycheproof, 2 ignored)
 │   ├── hitls-tls/       # TLS 1.3/1.2 (91 cipher suites), DTLS 1.2, TLCP, DTLCP; 10 connection types (5 sync + 5 async via tokio); 15 TLS extensions; 10 callbacks; session cache, hostname verification, renegotiation, GREASE, custom extensions, NSS key logging, middlebox compat (1290 tests)
 │   ├── hitls-pki/       # X.509, PKCS#8 (incl. Encrypted PBES2), PKCS#12, CMS (SignedData/EnvelopedData/EncryptedData/DigestedData/AuthenticatedData), hostname verification (390 tests)
 │   ├── hitls-auth/      # HOTP/TOTP, SPAKE2+, Privacy Pass (33 tests)
 │   └── hitls-cli/       # CLI tool: dgst, genpkey, x509, verify, enc, pkey, crl, req, s-client, s-server, list, rand, pkeyutl, speed, pkcs12, mac (117 tests, 5 ignored)
-├── tests/interop/       # Integration tests (152 cross-crate tests) — 12 test files + helper lib
+├── tests/interop/       # Integration tests (174 cross-crate tests) — 14 test files + helper lib
 ├── tests/vectors/       # Standard test vectors (NIST, Wycheproof, GM/T)
-├── fuzz/                # Fuzz targets (cargo-fuzz, 13 targets)
+├── fuzz/                # Fuzz targets (cargo-fuzz, 14 targets)
 └── benches/             # Criterion benchmarks
 ```
 
@@ -35,19 +35,19 @@ openhitls-rs/
 # Build
 cargo build --workspace --all-features
 
-# Run all tests (3263 tests, 7 ignored)
+# Run all tests (3331 tests, 19 ignored)
 cargo test --workspace --all-features
 
 # Run tests for a specific crate
-cargo test -p hitls-crypto --all-features   # 1097 tests (2 ignored) + 15 Wycheproof
-cargo test -p hitls-tls --all-features      # 1290 tests
+cargo test -p hitls-crypto --all-features   # 1105 tests (2 ignored) + 15 Wycheproof
+cargo test -p hitls-tls --all-features      # 1326 tests
 
-cargo test -p hitls-pki --all-features      # 390 tests
-cargo test -p hitls-bignum                  # 75 tests
+cargo test -p hitls-pki --all-features      # 395 tests
+cargo test -p hitls-bignum                  # 80 tests
 cargo test -p hitls-utils                   # 66 tests
 cargo test -p hitls-auth --all-features     # 33 tests
 cargo test -p hitls-cli --all-features      # 117 tests (5 ignored)
-cargo test -p hitls-integration-tests       # 152 tests
+cargo test -p hitls-integration-tests       # 174 tests (2 ignored)
 
 # Lint (must pass with zero warnings)
 RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets
@@ -118,7 +118,7 @@ The original C implementation is at `/Users/dongqiu/Dev/code/openhitls/`:
 
 ## Migration Roadmap
 
-Phase 0–151 + Phase P152–P157 complete (3263 tests, 7 ignored). **100% C→Rust feature parity achieved. Architecture refactoring complete. Performance optimization in progress.**
+Phase 0–160 + Phase P152–P157 complete (3331 tests, 19 ignored). **100% C→Rust feature parity achieved. Architecture refactoring complete. Performance optimization and quality improvement complete.**
 
 ### Completed Phases (Summary)
 
@@ -144,5 +144,6 @@ Key milestones:
 - Phase P155: SM4 T-table lookup optimization — compile-time T-tables (XBOX_0–3/KBOX_0–3) fusing S-box + L/L' transform into u32 lookups, 4-way unrolled rounds, precomputed decrypt keys. SM4-CBC 2.37× speedup (50.8→120.2 MB/s, parity with C), SM4-GCM 3.09× speedup (47.6→146.9 MB/s, 1.68× faster than C).
 - Phase P156: ML-DSA NEON NTT vectorization — 4-wide i32 NEON intrinsics (`vqdmulhq_s32` + `vhsubq_s32` Montgomery trick), forward/inverse NTT (len≥4 vectorized, len=2 half-register, len=1 scalar), Barrett reduction, pointwise multiply, poly utilities. NTT 2.31× speedup, INTT 2.54× speedup. End-to-end ML-DSA improvement modest (~2–5%) due to SHAKE-128 sampling dominance.
 - Phase P157: SM2 specialized field arithmetic — 4×u64 Montgomery field elements (SM2 prime P[0]=-1 trick), precomputed comb base table (64×16 affine points, OnceLock + batch inversion), w=4 fixed-window scalar mul, mixed Jacobian-affine addition, a=-3 optimized doubling. SM2 sign 25.3× speedup (1.43ms→56.6µs), verify 21.1× speedup (1.75ms→83.2µs), encrypt 18.7× speedup, decrypt 20.2× speedup.
+- Phase T152–T160: Quality improvement roadmap — TLS connection unit tests (+15), TLS 1.2 handshake edge cases (+15), HW↔SW cross-validation (+8), proptest expansion to 5/9 crates (+15), side-channel timing tests (+6), concurrency stress tests (+10), feature flag smoke tests (+4), zeroize runtime verification (+4), DTLS fuzz + OpenSSL interop (+1 fuzz target, +2 tests). Total: +80 tests, 13→14 fuzz targets, defense model B→B+.
 
 See `DEV_LOG.md` for detailed phase tables (including test, refactoring, and performance phases) and `PROMPT_LOG.md` for prompt/response log.

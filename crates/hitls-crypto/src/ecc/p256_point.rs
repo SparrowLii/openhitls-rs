@@ -772,6 +772,61 @@ mod tests {
         assert_eq!(py, wy);
     }
 
+    // ===================================================================
+    // Phase T154 — HW↔SW cross-validation: P-256 fast vs generic
+    // ===================================================================
+
+    /// Verify precomputed comb table matches windowed scalar mul for multiple scalars.
+    #[test]
+    fn test_p256_base_mul_vs_windowed_multiple_scalars() {
+        let g = p256_generator();
+        let test_scalars: Vec<BigNum> = vec![
+            BigNum::from_u64(1),
+            BigNum::from_u64(2),
+            BigNum::from_u64(255),
+            BigNum::from_u64(65537),
+            BigNum::from_u64(0xDEADBEEF),
+            BigNum::from_u64(u64::MAX),
+        ];
+
+        for k in &test_scalars {
+            let precomp = p256_scalar_mul_base(k);
+            let windowed = p256_scalar_mul(k, &g);
+
+            let (px, py) = precomp.to_affine().unwrap();
+            let (wx, wy) = windowed.to_affine().unwrap();
+
+            assert_eq!(px, wx, "X mismatch for scalar {k:?}");
+            assert_eq!(py, wy, "Y mismatch for scalar {k:?}");
+        }
+    }
+
+    /// Verify scalar_mul_add decomposes correctly: k1*G + k2*Q = manual sum.
+    #[test]
+    fn test_p256_scalar_mul_add_decomposition() {
+        let g = p256_generator();
+
+        // Q = 42*G
+        let k42 = BigNum::from_u64(42);
+        let q = p256_scalar_mul(&k42, &g);
+
+        // k1=7, k2=11
+        let k1 = BigNum::from_u64(7);
+        let k2 = BigNum::from_u64(11);
+
+        // Combined
+        let combined = p256_scalar_mul_add(&k1, &k2, &q);
+        let (cx, cy) = combined.to_affine().unwrap();
+
+        // Manual: 7*G + 11*(42*G) = 7*G + 462*G = 469*G
+        let k469 = BigNum::from_u64(469);
+        let expected = p256_scalar_mul_base(&k469);
+        let (ex, ey) = expected.to_affine().unwrap();
+
+        assert_eq!(cx, ex, "scalar_mul_add X mismatch");
+        assert_eq!(cy, ey, "scalar_mul_add Y mismatch");
+    }
+
     #[test]
     fn test_precomputed_base_mul_large_scalar() {
         let params = get_curve_params(EccCurveId::NistP256).unwrap();

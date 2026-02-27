@@ -650,6 +650,44 @@ If I could offer you only one tip for the future, sunscreen would be it.";
         assert!(aead.decrypt(&[0u8; 11], b"", &[0u8; 20]).is_err());
     }
 
+    // ===================================================================
+    // Phase T154 — HW↔SW cross-validation: ChaCha20 block
+    // ===================================================================
+
+    /// Verify chacha20_block_soft matches auto-dispatched chacha20_block for many counters.
+    #[test]
+    fn test_chacha20_soft_vs_dispatch_stress() {
+        let key: [u8; 32] = core::array::from_fn(|i| (i * 0x13 + 0x42) as u8);
+        let nonce: [u8; 12] = core::array::from_fn(|i| (i * 7) as u8);
+
+        for counter in 0..64u32 {
+            let dispatch = chacha20_block(&key, counter, &nonce);
+            let soft = chacha20_block_soft(&key, counter, &nonce);
+            assert_eq!(
+                dispatch, soft,
+                "ChaCha20 block mismatch at counter={counter}"
+            );
+        }
+    }
+
+    /// Verify that a full 256-byte keystream is consistent between paths.
+    #[test]
+    fn test_chacha20_keystream_256_bytes_consistency() {
+        let key = [0xABu8; 32];
+        let nonce = [0xCDu8; 12];
+
+        let mut stream_dispatch = Vec::new();
+        let mut stream_soft = Vec::new();
+
+        for counter in 0..4u32 {
+            stream_dispatch.extend_from_slice(&chacha20_block(&key, counter, &nonce));
+            stream_soft.extend_from_slice(&chacha20_block_soft(&key, counter, &nonce));
+        }
+
+        assert_eq!(stream_dispatch.len(), 256);
+        assert_eq!(stream_dispatch, stream_soft);
+    }
+
     mod proptests {
         use super::super::ChaCha20Poly1305;
         use proptest::prelude::*;

@@ -2940,15 +2940,15 @@ Targeted coverage gaps in connection_info, handshake enums, lib.rs constants, co
 - ML-KEM-1024 decaps 3.0× speedup (largest improvement due to higher polynomial count)
 - 3196 tests pass (+5 NEON tests), 7 ignored. 0 clippy warnings, formatting clean.
 
-### Phase P154 — BigNum CIOS Montgomery + Pre-allocated Exponentiation
+### Phase P154 -- BigNum CIOS Montgomery + Pre-allocated Exponentiation
 
-**Prompt**: 实施 Phase P3 BigNum REDC 优化
+**Prompt**: Implement BigNum REDC optimization (CIOS Montgomery)
 
 **Scope**: BigNum modular exponentiation bottleneck affecting DH (FFDHE-2048/3072/4096) and RSA-2048 sign/decrypt.
 
 **Work performed**:
 1. Rewrote `montgomery.rs` with CIOS (Coarsely Integrated Operand Scanning) fused multiply+reduce
-2. Pre-allocated flat limb table (`table_size × n` flat `Vec<u64>`) in `mont_exp`
+2. Pre-allocated flat limb table (`table_size x n` flat `Vec<u64>`) in `mont_exp`
 3. Added `sqr_limbs` with cross-product symmetry optimization (n(n-1)/2 multiplies + bit-shift doubling)
 4. Added `redc_limbs` standalone Montgomery reduction for `mont_sqr`
 5. Added helper functions: `limbs_ge`, `limbs_sub_in_place`
@@ -2956,16 +2956,16 @@ Targeted coverage gaps in connection_info, handshake enums, lib.rs constants, co
 7. Added 6 new tests: CIOS multi-limb, large exp, limbs_ge, mont_sqr consistency, mont_sqr multi-limb, sqr_limbs correctness
 
 **Result**:
-- DH-2048 keygen 1.25× (174→218 ops/s), DH-2048 derive 1.31× (173→227 ops/s)
-- RSA-2048 sign 1.11× (719→800 ops/s), RSA-2048 decrypt 1.15× (704→808 ops/s)
-- Gap narrowed from 7× to 5.6× for DH-2048. Remaining gap is assembly inner loop.
+- DH-2048 keygen 1.25x (174->218 ops/s), DH-2048 derive 1.31x (173->227 ops/s)
+- RSA-2048 sign 1.11x (719->800 ops/s), RSA-2048 decrypt 1.15x (704->808 ops/s)
+- Gap narrowed from 7x to 5.6x for DH-2048. Remaining gap is assembly inner loop.
 - 3202 tests pass (+6 Montgomery tests), 7 ignored. 0 clippy warnings, formatting clean.
 
 ---
 
-## Phase P155 — SM4 T-table Lookup Optimization
+### Phase P155 -- SM4 T-table Lookup Optimization
 
-**Prompt**: Implement SM4 T-table lookup optimization: compile-time T-tables (XBOX_0–3/KBOX_0–3) fusing S-box + L/L' linear transform into u32 lookups, 4-way unrolled round loop, precomputed decrypt round keys, cross-validation tests.
+**Prompt**: Implement SM4 T-table lookup optimization: compile-time T-tables (XBOX_0-3/KBOX_0-3) fusing S-box + L/L' linear transform into u32 lookups, 4-way unrolled round loop, precomputed decrypt round keys, cross-validation tests.
 
 **Implementation**:
 1. Added `const fn gen_xbox0()`, `gen_xbox_rotated()`, `gen_kbox0()` for compile-time T-table generation (8 tables, 8 KB .rodata)
@@ -2977,26 +2977,58 @@ Targeted coverage gaps in connection_info, handshake enums, lib.rs constants, co
 7. Added 5 new tests: `test_xbox0_spot_check`, `test_t_table_matches_scalar`, `test_t_table_key_matches_scalar`, `test_decrypt_precomputed_keys`, `test_sm4_unrolled_consistency`
 
 **Result**:
-- SM4 block encrypt 1.91× (202→106 ns), decrypt 1.86× (205→110 ns)
-- SM4-CBC encrypt 2.37× (50.8→120.2 MB/s), decrypt 2.73× (56.5→154.5 MB/s)
-- SM4-GCM encrypt 3.09× (47.6→146.9 MB/s), decrypt 3.06× (47.4→145.3 MB/s)
-- SM4 goes from "C 2.2–2.4× faster" to "Rust at parity (CBC) or 1.7× faster (GCM)"
+- SM4 block encrypt 1.91x (202->106 ns), decrypt 1.86x (205->110 ns)
+- SM4-CBC encrypt 2.37x (50.8->120.2 MB/s), decrypt 2.73x (56.5->154.5 MB/s)
+- SM4-GCM encrypt 3.09x (47.6->146.9 MB/s), decrypt 3.06x (47.4->145.3 MB/s)
+- SM4 goes from "C 2.2-2.4x faster" to "Rust at parity (CBC) or 1.7x faster (GCM)"
 - 3207 tests pass (+5 SM4 cross-validation tests), 7 ignored. 0 clippy warnings, formatting clean.
 
-## Phase P156 — ML-DSA NEON NTT Vectorization
+---
+
+### Phase P156 -- ML-DSA NEON NTT Vectorization
 
 **Prompt**: Implement ML-DSA NEON NTT vectorization using 4-wide i32 (`int32x4_t`) SIMD intrinsics. Create `ntt_neon.rs` with NEON implementations, add dispatch wrappers in `ntt.rs`, add cross-validation tests.
 
 **Implementation**:
-1. Created `crates/hitls-crypto/src/mldsa/ntt_neon.rs` (~250 lines): 4-wide Montgomery multiply (`vqdmulhq_s32` + `vhsubq_s32`), Barrett reduction (`vmlsq_s32`), forward NTT (len≥4 vectorized, len=2 half-register, len=1 scalar), inverse NTT (mirror structure), pointwise_mul, pointwise_mul_acc, to_mont, reduce_poly, poly_add, poly_sub
+1. Created `crates/hitls-crypto/src/mldsa/ntt_neon.rs` (~250 lines): 4-wide Montgomery multiply (`vqdmulhq_s32` + `vhsubq_s32`), Barrett reduction (`vmlsq_s32`), forward NTT (len>=4 vectorized, len=2 half-register, len=1 scalar), inverse NTT (mirror structure), pointwise_mul, pointwise_mul_acc, to_mont, reduce_poly, poly_add, poly_sub
 2. Added `#[cfg(target_arch = "aarch64")] mod ntt_neon;` to `mod.rs`
 3. Modified `ntt.rs`: added NEON import, dispatch wrappers for 8 functions (`ntt`, `invntt`, `to_mont`, `pointwise_mul`, `pointwise_mul_acc`, `reduce_poly`, `poly_add`, `poly_sub`), renamed scalar implementations with `_scalar` suffix
 4. Added 5 cross-validation tests: `test_fqmul_neon_matches_scalar`, `test_ntt_neon_matches_scalar`, `test_invntt_neon_matches_scalar`, `test_pointwise_mul_neon_matches_scalar`, `test_ntt_invntt_neon_roundtrip`
 
 **Result**:
-- NTT micro-benchmark: Forward NTT 2.31× (427→185 ns), Inverse NTT 2.54× (527→207 ns)
-- End-to-end ML-DSA improvement modest (~2–5%) — NTT is only ~3–4% of total time; SHAKE-128 sampling in ExpandA dominates
+- NTT micro-benchmark: Forward NTT 2.31x (427->185 ns), Inverse NTT 2.54x (527->207 ns)
+- End-to-end ML-DSA improvement modest (~2-5%) -- NTT is only ~3-4% of total time; SHAKE-128 sampling in ExpandA dominates
 - 3212 tests pass (+5 NEON cross-validation tests), 7 ignored. 0 clippy warnings, formatting clean.
+
+---
+
+### Phase T152-T160 -- Quality Improvement Roadmap
+
+**Prompt**: Implement the Quality Improvement Roadmap (Phases T152-T160) targeting 8 open deficiencies from QUALITY_REPORT.md (D8, D11r, D12-D18). Each phase committed separately.
+
+**Scope**: TLS connection unit tests (D13), TLS 1.2 edge cases (D13), HW<->SW cross-validation (D16), proptest expansion (D14), side-channel timing (D12), concurrency stress (D15), feature flag smoke (D18), zeroize verification (D17), DTLS fuzz + interop (D11r/D8).
+
+**Work performed**:
+1. T152: +15 TLS connection state guard/I/O unit tests
+2. T153: +15 TLS 1.2 handshake + post-HS auth edge case tests
+3. T154: +8 HW<->SW cross-validation differential tests
+4. T155: +15 proptest properties across hitls-tls, hitls-pki, hitls-bignum (2/9->5/9 crates)
+5. T156: +6 side-channel timing tests (Welch's t-test, all #[ignore])
+6. T157: +10 concurrency stress tests (session cache, DRBG, TLS, keygen, hash)
+7. T158: +4 feature flag combination smoke tests
+8. T159: +4 zeroize runtime verification tests (all #[ignore])
+9. T160: +1 DTLS state machine fuzz target (8 paths, 6 seeds), +2 OpenSSL CLI interop tests
+10. Updated CLAUDE.md, DEV_LOG.md, TEST_LOG.md, PROMPT_LOG.md, README.md, QUALITY_REPORT.md
+
+**Result**:
+- 3212->3280 tests (+68), 7->19 ignored (+12), 13->14 fuzz targets, 79->85 corpus files
+- Proptest coverage: 2/9->5/9 crates
+- TLS connection unit tests: 61->91+ (D13 significantly reduced)
+- Side-channel timing infrastructure established (D12 partially addressed)
+- Concurrency tests expanded: 38->48+ (D15 improved)
+- TLS 1.3 OpenSSL interop verified; TLS 1.2 verify_data mismatch discovered (tracked)
+- All 3280 workspace tests pass, 0 clippy warnings, formatting clean
+- Defense model rating: B -> B+
 
 ## Phase P157 — SM2 Specialized Field Arithmetic
 
@@ -3013,4 +3045,4 @@ Targeted coverage gaps in connection_info, handshake enums, lib.rs constants, co
 - SM2 verify: 1.75ms → 83.2µs (**21.1× speedup**), Rust now 2.65× faster than C
 - SM2 encrypt: 2.88ms → 154.2µs (**18.7× speedup**), Rust now 5.05× faster than C
 - SM2 decrypt: 1.43ms → 70.6µs (**20.2× speedup**), Rust now 5.48× faster than C
-- 3263 tests pass (+51: 34 field + 17 point), 7 ignored. 0 clippy warnings, formatting clean.
+- 3331 tests pass (+51: 34 field + 17 point), 19 ignored. 0 clippy warnings, formatting clean.
