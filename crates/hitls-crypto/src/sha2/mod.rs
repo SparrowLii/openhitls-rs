@@ -7,6 +7,9 @@ use hitls_types::CryptoError;
 #[cfg(target_arch = "aarch64")]
 mod sha256_arm;
 
+#[cfg(target_arch = "aarch64")]
+mod sha512_arm;
+
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 mod sha256_x86;
 
@@ -233,9 +236,28 @@ fn sha256_compress_soft(state: &mut [u32; 8], block: &[u8]) {
     state[7] = state[7].wrapping_add(h);
 }
 
-// ===== SHA-512 compression =====
+// ===== SHA-512 compression with runtime dispatch =====
 
+/// SHA-512 compress function with automatic hardware acceleration.
+///
+/// - **ARMv8.2**: SHA-512 Crypto Extensions (`vsha512hq_u64` etc.)
+/// - **Fallback**: Pure-Rust software implementation
 fn sha512_compress(state: &mut [u64; 8], block: &[u8]) {
+    #[cfg(target_arch = "aarch64")]
+    {
+        if std::arch::is_aarch64_feature_detected!("sha3") {
+            // SAFETY: feature detection confirmed sha3 (SHA-512) is available
+            unsafe {
+                sha512_arm::sha512_compress_arm(state, block);
+            }
+            return;
+        }
+    }
+    sha512_compress_soft(state, block);
+}
+
+/// Software-only SHA-512 compress (pure Rust fallback).
+fn sha512_compress_soft(state: &mut [u64; 8], block: &[u8]) {
     let mut w = [0u64; 80];
 
     for i in 0..16 {
@@ -908,6 +930,55 @@ mod tests {
         ctx.update(&data).unwrap();
         let incr = ctx.finish().unwrap();
         assert_eq!(incr, oneshot);
+    }
+
+    // ===================================================================
+    // Phase P166 — HW↔SW cross-validation: SHA-512 compression
+    // ===================================================================
+
+    #[test]
+    fn test_sha512_compress_soft_vs_dispatch() {
+        let test_blocks: &[[u8; 128]] = &[
+            [0u8; 128],
+            core::array::from_fn(|i| i as u8),
+            core::array::from_fn(|i| (i * 7 + 0x42) as u8),
+            [0xFFu8; 128],
+        ];
+
+        for block in test_blocks {
+            let mut state_dispatch = H512;
+            let mut state_soft = H512;
+
+            sha512_compress(&mut state_dispatch, block);
+            sha512_compress_soft(&mut state_soft, block);
+
+            assert_eq!(
+                state_dispatch,
+                state_soft,
+                "SHA-512 compress mismatch for block {:02x?}",
+                &block[..4]
+            );
+        }
+    }
+
+    #[test]
+    fn test_sha512_compress_multi_block_consistency() {
+        let blocks: Vec<[u8; 128]> = (0..16u8)
+            .map(|i| core::array::from_fn(|j| i.wrapping_mul(j as u8).wrapping_add(0x13)))
+            .collect();
+
+        let mut state_dispatch = H512;
+        let mut state_soft = H512;
+
+        for block in &blocks {
+            sha512_compress(&mut state_dispatch, block);
+            sha512_compress_soft(&mut state_soft, block);
+        }
+
+        assert_eq!(
+            state_dispatch, state_soft,
+            "SHA-512 multi-block chaining diverged"
+        );
     }
 
     // ===================================================================
