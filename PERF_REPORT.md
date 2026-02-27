@@ -14,16 +14,16 @@ Comprehensive benchmarks across 60+ cryptographic algorithms comparing the origi
 | **ChaCha20-Poly1305** | **Rust ~2x faster** | Rust 677 MB/s vs C 344 MB/s — improved compiler codegen |
 | **Hash (SHA-256/384/512)** | **C 1.3–1.5x faster** | Gap narrowed dramatically from ~3x to ~1.4x with rustc 1.93.0 |
 | **HMAC** | **C 1.3–1.5x faster** | Dominated by underlying hash performance gap |
-| **SM4 (CBC/GCM)** | **C 2.2–2.4x faster** | Both pure software; C has hand-tuned assembly |
+| **SM4 (CBC/GCM)** | **Rust at parity to 1.7x faster** | T-table optimization + hardware GHASH close the gap |
 | **ECDSA / ECDH P-256** | **C 16–32x faster** | C has specialized P-256 field arithmetic; Rust uses generic BigNum |
 | **Ed25519 / X25519** | **Rust approaching parity** | Ed25519 sign: C 2x faster; X25519: Rust ~10% faster |
 | **SM2** | **C 2.8–6.1x faster** | Same root cause as ECDSA — generic BigNum vs specialized field ops |
 | **RSA-2048** | **Rust-only data** | C RSA not registered in benchmark binary |
 | **ML-KEM (Kyber)** | **C 6–18x faster** | C uses optimized NTT; Rust implementation is straightforward |
 | **ML-DSA (Dilithium)** | **C 2.1–6.1x faster** | Similar optimization gap to ML-KEM |
-| **DH (FFDHE)** | **C 7–12x faster** | BigNum modular exponentiation maturity |
+| **DH (FFDHE)** | **C 5.6–10x faster** | CIOS Montgomery improved from 7–12×; assembly inner loop gap remains |
 
-**Bottom line**: Symmetric ciphers (AES, ChaCha20) are **at parity or faster** in Rust. Hash performance gap **narrowed from 3x to 1.4x** with compiler improvements. Asymmetric operations remain **slower** due to generic BigNum — addressable with specialized field arithmetic.
+**Bottom line**: Symmetric ciphers (AES, ChaCha20, SM4) are **at parity or faster** in Rust. Hash performance gap **narrowed from 3x to 1.4x** with compiler improvements. Asymmetric operations remain **slower** due to generic BigNum — addressable with specialized field arithmetic.
 
 ---
 
@@ -80,8 +80,8 @@ Comprehensive benchmarks across 60+ cryptographic algorithms comparing the origi
 | AES-128-GCM | 155.7 | 343.5 | 165.8 | 345.4 | **2.21** | **2.08** |
 | AES-256-GCM | 144.4 | 330.8 | 142.4 | 332.8 | **2.29** | **2.34** |
 | ChaCha20-Poly1305 | 344.1 | 677.5 | 333.0 | 684.8 | **1.97** | **2.06** |
-| SM4-CBC | 119.9 | 50.8 | 127.1 | 56.5 | **0.42** | **0.44** |
-| SM4-GCM | 87.6 | 47.6 | 87.6 | 47.4 | **0.54** | **0.54** |
+| SM4-CBC | 119.9 | 120.2 | 127.1 | 154.5 | **1.00** | **1.22** |
+| SM4-GCM | 87.6 | 146.9 | 87.6 | 145.3 | **1.68** | **1.66** |
 
 > Ratio > 1.0 = Rust faster. CTR mode is symmetric (encrypt = decrypt).
 
@@ -90,8 +90,8 @@ Comprehensive benchmarks across 60+ cryptographic algorithms comparing the origi
 - **AES-CTR**: Rust 5.4–5.6x faster (improved from 3.3x) — CTR mode naturally allows parallel block encryption.
 - **AES-GCM**: Rust 2.1–2.3x faster (improved from 1.3x) — GHASH still limits the advantage.
 - **ChaCha20-Poly1305**: Rust now **2x faster** (was near-parity). The rustc 1.93.0 compiler generates better SIMD-like code for the quarter-round operations.
-- **SM4-CBC**: C is 2.3–2.4x faster — SM4 is pure software on both sides with no hardware acceleration, and C has hand-tuned assembly for the S-box lookup and linear transform.
-- **SM4-GCM**: C is 1.8x faster — similar to SM4-CBC but the GHASH component partially offsets the gap.
+- **SM4-CBC**: Rust now **at parity** for encrypt (1.00×) and **1.22× faster** for decrypt. Phase P155 T-table optimization (fused S-box + L-transform into 4×u32 lookups + 3 XOR) yielded 2.4× block-level speedup. CBC decrypt benefits from parallelizable block processing.
+- **SM4-GCM**: Rust now **1.7× faster** — T-table SM4 combined with hardware-accelerated GHASH (ARMv8 PMULL) significantly outperforms C's software SM4 + GHASH combination.
 
 ---
 
@@ -135,10 +135,10 @@ Comprehensive benchmarks across 60+ cryptographic algorithms comparing the origi
 | SM2 | Verify | 4,527 | 684 | **0.15** | Improved from 0.087 → 0.15 |
 | SM2 | Encrypt | 1,283 | 432 | **0.34** | Improved from 0.19 → 0.34 |
 | SM2 | Decrypt | 2,584 | 871 | **0.34** | Improved from 0.16 → 0.34 |
-| RSA-2048 | Sign (PSS) | — | 719 | — | C RSA not in benchmark binary |
-| RSA-2048 | Verify (PSS) | — | 27,414 | — | — |
-| RSA-2048 | Encrypt (OAEP) | — | 26,749 | — | — |
-| RSA-2048 | Decrypt (OAEP) | — | 704 | — | — |
+| RSA-2048 | Sign (PSS) | — | 800 | — | C RSA not in benchmark binary |
+| RSA-2048 | Verify (PSS) | — | 24,038 | — | — |
+| RSA-2048 | Encrypt (OAEP) | — | 23,148 | — | — |
+| RSA-2048 | Decrypt (OAEP) | — | 808 | — | — |
 
 **Analysis**:
 - **ECDSA P-256 (16–32x gap)**: Still the largest performance gap, but improved from 65x. The C implementation uses specialized P-256 field arithmetic with Montgomery multiplication using machine-word-sized limbs, while Rust uses the generic `hitls-bignum` library. A dedicated P-256 field implementation (as in BoringSSL/ring) would bring performance within 2–3x of C.
@@ -182,13 +182,13 @@ Comprehensive benchmarks across 60+ cryptographic algorithms comparing the origi
 
 | Group | C KeyGen (ops/s) | Rust KeyGen (ops/s) | C Derive (ops/s) | Rust Derive (ops/s) | Ratio (KeyGen) | Ratio (Derive) |
 |-------|-------------------|---------------------|-------------------|---------------------|----------------|----------------|
-| FFDHE-2048 | 1,219 | 174 | 997 | 173 | **0.14** | **0.17** |
-| FFDHE-3072 | 489 | 57 | 467 | 58 | **0.12** | **0.12** |
-| FFDHE-4096 | 290 | 25 | 288 | 25 | **0.086** | **0.087** |
+| FFDHE-2048 | 1,219 | 218 | 997 | 227 | **0.18** | **0.23** |
+| FFDHE-3072 | 489 | 66 | 467 | 67 | **0.14** | **0.14** |
+| FFDHE-4096 | 290 | 28 | 288 | 28 | **0.097** | **0.097** |
 | FFDHE-6144 | 136 | — | 133 | — | — | — |
 | FFDHE-8192 | 41 | — | 40 | — | — | — |
 
-**Analysis**: C is 7–12x faster for DH operations, with the gap widening for larger group sizes. The bottleneck is BigNum modular exponentiation — at FFDHE-4096, a single exponentiation takes ~40 ms in Rust vs ~3.5 ms in C. The C implementation likely uses optimized Montgomery multiplication with assembly-tuned inner loops. DH is rarely the bottleneck in modern TLS (ECDHE is strongly preferred), but these numbers highlight the BigNum optimization opportunity.
+**Analysis**: After Phase P154 (CIOS Montgomery), C is 5.6–10× faster for DH operations (improved from 7–12×). The gap remains significant because the O(n²) inner loop is unchanged — CIOS fuses multiply+reduce but performs the same number of `u64×u64+carry` operations. C uses hand-tuned assembly (`bn_mul_mont`) with optimized carry chains. Karatsuba multiplication (O(n^1.585)) would narrow the gap further. DH is rarely the bottleneck in modern TLS (ECDHE is strongly preferred).
 
 ---
 
@@ -234,6 +234,14 @@ Comprehensive benchmarks across 60+ cryptographic algorithms comparing the origi
 
 BigNum multiplication at 2048-bit (~781 ns) improved from ~1.11 µs (1.4x faster). This directly impacts RSA and DH operations. The 4096-bit multiply at 3.25 µs (was 4.0 µs) explains DH-4096 performance.
 
+**Modular exponentiation** (Phase P154 CIOS Montgomery):
+
+| Operation | Time |
+|-----------|------|
+| mod_exp 1024-bit | 634 µs |
+| mod_exp 2048-bit | 4.38 ms |
+| mod_exp 4096-bit | 36.96 ms |
+
 ---
 
 ## 4. Performance Heatmap (Updated)
@@ -244,19 +252,20 @@ BigNum multiplication at 2048-bit (~781 ns) improved from ~1.11 µs (1.4x faster
 
 ECDSA P-256 sign        ██████████████████████░░░░░░░░░░░░░░░░░░░░░  ×32
 ML-KEM-768 encaps       █████████████████░░░░░░░░░░░░░░░░░░░░░░░░░░  ×13
-DH-4096 keygen          ████████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░  ×12
-DH-2048 keygen          ██████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  ×7.0
+DH-4096 keygen          ██████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  ×10
+DH-2048 keygen          ████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  ×5.6
 SM2 verify              █████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  ×6.6
 ML-DSA-87 keygen        █████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  ×6.3
 SM2 sign                ████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  ×3.0
-SM4-CBC enc             ███████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  ×2.4
 Ed25519 sign            ██████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  ×2.0
-SM4-GCM enc             ██████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  ×1.8
 SHA-256                 █████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  ×1.35
 SHA-512                 █████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  ×1.34
 Ed25519 verify          █████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  ×1.30
+SM4-CBC enc             ░░░░░░░░░░░░░░░░░░░░░█░░░░░░░░░░░░░░░░░░░░░  ×1.0 R
 X25519 DH               ░░░░░░░░░░░░░░░░░░░░░██░░░░░░░░░░░░░░░░░░░░  ×1.1 R
+SM4-CBC dec             ░░░░░░░░░░░░░░░░░░░░░░██░░░░░░░░░░░░░░░░░░░  ×1.2 R
 HMAC-SHA256             ░░░░░░░░░░░░░░░░░░░░░░██░░░░░░░░░░░░░░░░░░░  ×1.3 R
+SM4-GCM                 ░░░░░░░░░░░░░░░░░░░░░░░░███░░░░░░░░░░░░░░░░  ×1.7 R
 ChaCha20-Poly1305       ░░░░░░░░░░░░░░░░░░░░░░░░████░░░░░░░░░░░░░░░  ×2.0 R
 AES-128-GCM             ░░░░░░░░░░░░░░░░░░░░░░░░█████░░░░░░░░░░░░░░  ×2.2 R
 AES-128-CBC enc         ░░░░░░░░░░░░░░░░░░░░░░░░███████░░░░░░░░░░░░  ×3.4 R
@@ -266,26 +275,26 @@ AES-128-CBC dec         ░░░░░░░░░░░░░░░░░░�
 
 ---
 
-## 5. Performance Optimization Roadmap (Phase P1–P8)
+## 5. Performance Optimization Roadmap (Phase P137–P160)
 
-All pending optimization tasks are tracked as numbered phases (Phase P1–P8), ordered by priority and TLS handshake impact.
+All optimization tasks are tracked as numbered phases using unified global numbering (Phase PN), ordered by priority and TLS handshake impact.
 
 ### Phase Overview
 
 | Phase | Optimization | Current Gap | Target | Effort | Status |
 |-------|-------------|-------------|--------|--------|--------|
-| **P1** | P-256 深度优化 (预计算表 + 专用约简) | 16–32× → 1.5–2× | 2–3× | High | **Complete** |
-| **P2** | ML-KEM SIMD NTT 向量化 | 6–18× | 2–3× | High | **Complete** |
-| **P3** | BigNum REDC 内循环 + Karatsuba 大数乘法 | 7–12× | 2–3× | High | Pending |
-| **P4** | SM4 T-table 查表优化 | 2.2–2.4× | ~1× | Medium | Pending |
-| **P5** | ML-DSA SIMD NTT 向量化 | 2–6× | ~1.5× | Medium | Pending |
-| **P6** | SM2 专用字段算术 | 2.8–6.1× | ~1.5× | Medium | Pending |
-| **P7** | SHA-512 硬件加速 (ARMv8.2 SHA512) | 1.35× | ~1× | Low | Pending |
-| **P8** | Ed25519 基点预计算表 | 2× | ~1.2× | Low | Pending |
+| **P152** | P-256 深度优化 (预计算表 + 专用约简) | 16–32× → 1.5–2× | 2–3× | High | **Complete** |
+| **P153** | ML-KEM SIMD NTT 向量化 | 6–18× | 2–3× | High | **Complete** |
+| **P154** | BigNum CIOS 融合乘+约简 + 预分配缓冲 | 7–12× → 5.6–10× | 2–3× | High | **Complete** |
+| **P155** | SM4 T-table 查表优化 | 2.2–2.4× → 1.0× | ~1× | Medium | **Complete** |
+| **P156** | ML-DSA SIMD NTT 向量化 | 2–6× | NTT 2.3×; E2E ~1.02× | Medium | **Complete** |
+| **P157** | SM2 专用字段算术 | 2.8–6.1× | ~1.5× | Medium | Pending |
+| **P158** | SHA-512 硬件加速 (ARMv8.2 SHA512) | 1.35× | ~1× | Low | Pending |
+| **P159** | Ed25519 基点预计算表 | 2× | ~1.2× | Low | Pending |
 
 ---
 
-### Phase P1 — P-256 深度优化 (预计算生成点表 + 专用约简) ✅ Complete
+### Phase P152 — P-256 深度优化 (预计算生成点表 + 专用约简) ✅ Complete
 
 **Result**: ECDSA P-256 sign **21× speedup** (1179→55.6 µs), verify **14× speedup** (1423→102.5 µs)
 
@@ -311,7 +320,7 @@ All pending optimization tasks are tracked as numbered phases (Phase P1–P8), o
 
 ---
 
-### Phase P2 — ML-KEM SIMD NTT 向量化 ✅ Complete
+### Phase P153 — ML-KEM SIMD NTT 向量化 ✅ Complete
 
 **Result**: ML-KEM-768 encaps **2.0× speedup** (109→54.8 µs), decaps **2.6× speedup** (95→36.0 µs), keygen **2.3× speedup** (155→66.5 µs)
 
@@ -342,77 +351,90 @@ All pending optimization tasks are tracked as numbered phases (Phase P1–P8), o
 
 ---
 
-### Phase P3 — BigNum REDC 内循环优化 + Karatsuba 大数乘法
+### Phase P154 — BigNum CIOS 融合乘+约简 + 预分配缓冲 ✅ Complete
 
-**Current gap**: DH-2048 7×, DH-3072 8×, DH-4096 12× slower than C
+**Result**: DH-2048 keygen **1.25× speedup** (174→218 ops/s), RSA-2048 sign **1.11× speedup** (719→800 ops/s)
 
-**Already implemented**:
-- `montgomery.rs`: Sliding window exponentiation (w=1 to w=6), precomputed table
-- Full multi-precision REDC reduction
-- Montgomery form throughout exponentiation
+**Optimizations implemented**:
 
-**Remaining bottlenecks**:
+| Optimization | Speedup | Detail |
+|-------------|---------|--------|
+| **CIOS fused multiply+reduce** | ~1.2× | Coarsely Integrated Operand Scanning: fuses multiplication and Montgomery reduction into a single pass on an (n+2)-limb accumulator. Eliminates the 2n-limb intermediate product and saves one full pass over the data. |
+| **Pre-allocated flat limb table** | ~1.05× | Exponentiation table stored as flat `Vec<u64>` (table_size × n) instead of `Vec<BigNum>`. Eliminates per-entry heap allocation and improves cache locality. |
+| **Single conditional subtraction** | minor | Replaces while-loop modular correction with a single comparison + subtraction (CIOS guarantees result < 2N). |
+| **Optimized squaring (sqr_limbs)** | ~1.1× sqr | Exploits a[i]*a[j] symmetry: n(n-1)/2 cross-products doubled via bit-shift + n diagonal terms, vs n² for schoolbook. Used in public `mont_sqr` API. |
 
-| Bottleneck | Impact | Detail |
-|------------|--------|--------|
-| **REDC inner loop unoptimized** | ~3–4× | Each REDC performs m × m u64×u64+carry operations. C uses assembly or SIMD for the inner loop. Rust u128 compiles to `umulh`+`mul` but carry chains cannot auto-vectorize |
-| **No Karatsuba multiplication** | ~1.5× | For 2048-bit (32 limbs), schoolbook needs 32²=1024 multiplies; Karatsuba ~300 (O(n^1.585)) |
-| **Conservative window size** | ~1.2× | w=6 for >512 bits is near-optimal, but w=7 (128-entry table) may help for 2048+ bit exponents |
-| **Binary long division** | ~1.5× | Knuth's Algorithm D not yet implemented (noted in `ops.rs`); current binary division is O(n²) |
+**Benchmark results** (Apple M4, rustc 1.93.0):
 
-**Affected algorithms**: DH (FFDHE-2048/3072/4096), RSA-2048 sign/decrypt
+| Operation | Before | After | Speedup | C Reference |
+|-----------|--------|-------|---------|-------------|
+| DH-2048 keygen | 5.75 ms (174 ops/s) | 4.59 ms (218 ops/s) | **1.25×** | 0.82 ms (1,219 ops/s) |
+| DH-2048 derive | 5.78 ms (173 ops/s) | 4.41 ms (227 ops/s) | **1.31×** | 1.00 ms (997 ops/s) |
+| DH-3072 keygen | 17.5 ms (57 ops/s) | 15.1 ms (66 ops/s) | **1.16×** | 2.04 ms (489 ops/s) |
+| DH-3072 derive | 17.2 ms (58 ops/s) | 14.9 ms (67 ops/s) | **1.16×** | 2.14 ms (467 ops/s) |
+| DH-4096 keygen | 40.0 ms (25 ops/s) | 36.3 ms (28 ops/s) | **1.12×** | 3.45 ms (290 ops/s) |
+| DH-4096 derive | 40.0 ms (25 ops/s) | 35.2 ms (28 ops/s) | **1.12×** | 3.47 ms (288 ops/s) |
+| RSA-2048 sign PSS | 1.39 ms (719 ops/s) | 1.25 ms (800 ops/s) | **1.11×** | — |
+| RSA-2048 decrypt OAEP | 1.42 ms (704 ops/s) | 1.24 ms (808 ops/s) | **1.15×** | — |
 
-**Expected improvement**: DH-2048 174 ops/s → 600–800 ops/s (3.5–4.5×)
-
----
-
-### Phase P4 — SM4 T-table 查表优化
-
-**Current gap**: SM4-CBC 2.4×, SM4-GCM 1.8× slower than C
-
-**Current implementation**: Pure Rust, per-round S-box lookup + L linear transform (no hardware acceleration).
-
-**Optimization plan**:
-- Precompute 4 T-tables (T0–T3) combining S-box substitution and L linear transform into single 32-bit table lookups
-- Each round: 4 table lookups + 3 XOR operations (replaces S-box + shift + XOR chain)
-- Table size: 4 × 256 × 4 bytes = 4 KB (cache-friendly)
-
-**Affected algorithms**: SM4-CBC, SM4-GCM, SM4-CTR → TLCP cipher suites
-
-**Expected improvement**: 50.8 MB/s → 100–120 MB/s (~2×), approaching C's 119.9 MB/s
+**Remaining gap to C**: DH-2048 ~5.6× (218 vs 1,219 ops/s). The dominant remaining bottleneck is the O(n²) inner loop: C uses hand-tuned assembly (`bn_mul_mont`) with platform-specific `umulh`+`madd` sequences. Pure Rust `u128` compiles to equivalent `umulh`+`mul` instructions but cannot match assembly carry-chain optimization. Karatsuba multiplication would provide ~1.3× for 32-limb numbers but is not yet implemented.
 
 ---
 
-### Phase P5 — ML-DSA SIMD NTT 向量化
+### Phase P155 — SM4 T-table 查表优化 ✅ Complete
 
-**Current gap**: ML-DSA-87 keygen 6×, verify 4.5×, sign 2.6× slower than C
+**Result**: SM4-CBC encrypt **2.37× speedup** (50.8→120.2 MB/s, parity with C), SM4-GCM encrypt **3.09× speedup** (47.6→146.9 MB/s, 1.68× faster than C)
 
-**Already implemented**:
-- `mldsa/ntt.rs`: Montgomery R=2^32 field arithmetic, 256-entry ZETAS table
-- 8-layer Cooley-Tukey NTT (modulus q=8380417, 24-bit)
-- Barrett reduction, freeze normalization
+**Optimizations implemented**:
 
-**Remaining bottlenecks** (similar to Phase P2):
+| Optimization | Speedup | Detail |
+|-------------|---------|--------|
+| **Compile-time T-tables (XBOX_0–3)** | ~1.9× block | `const fn` generates 4 × 256-entry u32 tables fusing SBOX + L-transform. Each round: 4 table lookups + 3 XOR (replaces 4 SBOX lookups + 4 rotations + 4 XOR). 4 KB total in .rodata. |
+| **Compile-time KBOX_0–3** | ~1.2× keygen | Same approach for key expansion T'-tables using L' linear transform. 4 KB additional. |
+| **4-way unrolled round loop** | ~1.1× all ops | Eliminates per-round `x.rotate_left(1)` by unrolling 4 rounds with explicit x0/x1/x2/x3 addressing. |
+| **Precomputed decrypt round keys** | ~1.15× decrypt | `round_keys_dec` stored in `Sm4Key`, computed once in `new()`. Eliminates per-block `round_keys.reverse()` in `decrypt_block()`. |
+
+**Benchmark results** (Apple M4, rustc 1.93.0):
+
+| Operation | Before | After | Speedup | C Reference |
+|-----------|--------|-------|---------|-------------|
+| SM4 block encrypt | 202 ns | 106 ns | **1.91×** | — |
+| SM4 block decrypt | 205 ns | 110 ns | **1.86×** | — |
+| SM4-CBC encrypt @8KB | 161.1 µs (50.8 MB/s) | 68.2 µs (120.2 MB/s) | **2.37×** | 119.9 MB/s |
+| SM4-CBC decrypt @8KB | 145.0 µs (56.5 MB/s) | 53.0 µs (154.5 MB/s) | **2.73×** | 127.1 MB/s |
+| SM4-GCM encrypt @8KB | 172.3 µs (47.6 MB/s) | 55.8 µs (146.9 MB/s) | **3.09×** | 87.6 MB/s |
+| SM4-GCM decrypt @8KB | 172.9 µs (47.4 MB/s) | 56.4 µs (145.3 MB/s) | **3.06×** | 87.6 MB/s |
+
+**Analysis**: SM4 goes from "C 2.2–2.4× faster" to "Rust at parity or 1.7× faster". The GCM improvement (3×) exceeds CBC (2.4×) because hardware-accelerated GHASH (ARMv8 PMULL, Phase P138) combines with optimized T-table SM4 to outperform C's software GHASH + hand-tuned SM4 assembly.
+
+---
+
+### Phase P156 — ML-DSA SIMD NTT 向量化 ✅ Complete
+
+**NTT micro-benchmark**: Forward NTT 2.31× (427→185 ns), Inverse NTT 2.54× (527→207 ns).
+
+**End-to-end impact**: Modest (~2–5%) because NTT constitutes only ~3–4% of total ML-DSA operation time. The dominant cost is SHAKE-128 sampling in ExpandA.
+
+**Implementation**: 4-wide `int32x4_t` NEON intrinsics for Montgomery multiply (`vqdmulhq_s32` + `vhsubq_s32`), forward/inverse NTT (len≥4 fully vectorized, len=2 half-register, len=1 scalar), Barrett reduction (`vmlsq_s32`), and 6 polynomial utility functions. Runtime dispatch via `is_aarch64_feature_detected!("neon")` with scalar fallback.
+
+**Remaining ML-DSA bottlenecks**:
 
 | Bottleneck | Impact | Detail |
 |------------|--------|--------|
-| **No SIMD butterfly operations** | ~2–3× | Larger modulus (24-bit) still fits NEON i32 lanes; 4-way parallel butterflies feasible |
-| **Rejection loop in signing** | ~1.3× | Signature generation may reject and retry full NTT computation; hint-based approach reduces retries |
-| **SHAKE-256 batch squeeze** | ~1.2× | Sampling from SHAKE output is sequential; batch squeeze improves throughput |
+| **SHAKE-128/256 sampling** | ~5–10× | ExpandA dominates keygen/verify; SHAKE is ~70–90% of total time |
+| **Rejection loop in signing** | ~1.3× | Signature generation may reject and retry; varies per attempt |
 
 **Affected algorithms**: ML-DSA-44/65/87 (PQC digital signatures)
 
-**Expected improvement**: 3–5× improvement across keygen/sign/verify
-
 ---
 
-### Phase P6 — SM2 专用字段算术
+### Phase P157 — SM2 专用字段算术
 
 **Current gap**: SM2 sign 3×, verify 6.6×, encrypt 3×, decrypt 3× slower than C
 
 **Current implementation**: Uses generic ECC code path backed by `hitls-bignum` (heap-allocated BigNum for all field operations).
 
-**Optimization plan** (mirrors Phase P1 approach for P-256):
+**Optimization plan** (mirrors Phase P152 approach for P-256):
 - Implement `sm2_field.rs`: 4×u64 Montgomery representation for SM2 prime p
 - SM2 modulus: p = FFFFFFFE FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF 00000000 FFFFFFFF FFFFFFFF
 - Specialized point operations with `sm2_point.rs`
@@ -425,7 +447,7 @@ All pending optimization tasks are tracked as numbered phases (Phase P1–P8), o
 
 ---
 
-### Phase P7 — SHA-512 硬件加速
+### Phase P158 — SHA-512 硬件加速
 
 **Current gap**: SHA-512 1.34× slower than C (662.8 vs 885.7 MB/s)
 
@@ -442,7 +464,7 @@ All pending optimization tasks are tracked as numbered phases (Phase P1–P8), o
 
 ---
 
-### Phase P8 — Ed25519 基点预计算表
+### Phase P159 — Ed25519 基点预计算表
 
 **Current gap**: Ed25519 sign 2×, verify 1.3× slower than C
 
@@ -461,12 +483,12 @@ All pending optimization tasks are tracked as numbered phases (Phase P1–P8), o
 
 ### Impact on TLS Handshake Latency
 
-| Handshake Type | Before P1 (Rust) | After Phase P1 | C Reference |
+| Handshake Type | Before P152 (Rust) | After Phase P152 | C Reference |
 |---------------|---------------|----------------|-------------|
 | **ECDHE-P256 + AES-128-GCM** | ~3.8 ms | **~0.23 ms** | 0.21 ms |
 | **X25519 + AES-128-GCM** | ~0.018 ms | 0.018 ms (no change needed) | 0.020 ms |
-| **ML-KEM-768 hybrid** | ~0.11 ms | ~0.025 ms (after P2) | 0.008 ms |
-| **FFDHE-2048** | ~5.8 ms | ~1.5 ms (after P3) | 0.82 ms |
+| **ML-KEM-768 hybrid** | ~0.11 ms | ~0.025 ms (after P153) | 0.008 ms |
+| **FFDHE-2048** | ~5.8 ms | **~4.4 ms** (P154 CIOS) | 0.82 ms |
 
 A TLS 1.3 handshake with ECDHE-P256 + AES-128-GCM involves:
 - 1 ECDH key derive (~1.2 ms Rust vs ~0.074 ms C)
@@ -474,7 +496,7 @@ A TLS 1.3 handshake with ECDHE-P256 + AES-128-GCM involves:
 - 1 ECDSA P-256 sign (~1.2 ms Rust vs ~0.037 ms C)
 - HKDF/SHA-256 derivations (~negligible at small sizes)
 
-**Phase P1** reduced ECDHE-P256 handshake from ~3.8 ms to ~0.23 ms, **within 1.1× of C** (0.21 ms).
+**Phase P152** reduced ECDHE-P256 handshake from ~3.8 ms to ~0.23 ms, **within 1.1× of C** (0.21 ms).
 
 For **X25519-based handshakes**: ~0.018 ms (Rust) vs ~0.020 ms (C) — **Rust is already faster!** This is the recommended key exchange for Rust deployments.
 
@@ -601,9 +623,9 @@ sha256 @8KB:             19,318    sha384 @8KB:             19,934
 sha512 @8KB:             12,356    sm3 @8KB:                20,670
 hmac-sha256 @8KB:        19,905    hmac-sha512 @8KB:        21,745
 hmac-sm3 @8KB:           36,376
-sm4-cbc enc @8KB:       161,139    sm4-cbc dec @8KB:       144,954
-sm4-gcm enc @8KB:       172,294    sm4-gcm dec @8KB:       172,902
-sm4 block enc:              202    sm4 block dec:              205
+sm4-cbc enc @8KB:        68,159    sm4-cbc dec @8KB:        53,044
+sm4-gcm enc @8KB:        55,750    sm4-gcm dec @8KB:        56,401
+sm4 block enc:              106    sm4 block dec:              110
 ecdsa-p256 sign:      1,179,423    ecdsa-p256 verify:    1,422,736
 ecdh p256 derive:     1,205,139    x25519 dh:               18,362
 ed25519 sign:            30,268    ed25519 verify:          54,019
