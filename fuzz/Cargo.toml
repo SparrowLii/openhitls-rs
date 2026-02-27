@@ -12,7 +12,7 @@ libfuzzer-sys = "0.4"
 hitls-utils = { path = "../crates/hitls-utils" }
 hitls-crypto = { path = "../crates/hitls-crypto", features = ["aes", "modes", "chacha20", "rsa", "ecdsa", "sm2", "hkdf"] }
 hitls-pki = { path = "../crates/hitls-pki" }
-hitls-tls = { path = "../crates/hitls-tls", features = ["tls12", "dtls12", "tlcp"] }
+hitls-tls = { path = "../crates/hitls-tls", features = ["tls12", "tls13", "dtls12", "tlcp"] }
 hitls-types = { path = "../crates/hitls-types" }
 
 [[bin]]
@@ -135,3 +135,12 @@ name = "fuzz_tls12_prf"
 path = "fuzz_targets/fuzz_tls12_prf.rs"
 doc = false
 
+[[bin]]
+name = "fuzz_tls13_state_machine"
+path = "fuzz_targets/fuzz_tls13_state_machine.rs"
+doc = false
+
+[[bin]]
+name = "fuzz_tls12_state_machine"
+path = "fuzz_targets/fuzz_tls12_state_machine.rs"
+doc = false
