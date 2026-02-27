@@ -1,6 +1,7 @@
 //! PKCS#1 v1.5 padding for RSA signatures and encryption (RFC 8017).
 
 use hitls_types::CryptoError;
+use subtle::ConstantTimeEq;
 
 /// DigestInfo DER prefix for SHA-256 (OID 2.16.840.1.101.3.4.2.1).
 const DIGEST_INFO_SHA256: &[u8] = &[
@@ -76,7 +77,6 @@ pub(crate) fn pkcs1v15_verify_unpad(
     let expected_em = pkcs1v15_sign_pad(expected_digest, k)?;
 
     // Constant-time comparison
-    use subtle::ConstantTimeEq;
     Ok(em.ct_eq(&expected_em).into())
 }
 
@@ -110,31 +110,36 @@ pub(crate) fn pkcs1v15_encrypt_pad(msg: &[u8], k: usize) -> Result<Vec<u8>, Cryp
 /// RSAES-PKCS1-v1_5 decryption unpadding (RFC 8017 §7.2.2).
 ///
 /// Parses EM = 0x00 || 0x02 || PS || 0x00 || M and returns M.
+/// Uses constant-time scan to avoid timing side-channels.
 pub(crate) fn pkcs1v15_decrypt_unpad(em: &[u8]) -> Result<Vec<u8>, CryptoError> {
     if em.len() < 11 {
         return Err(CryptoError::RsaInvalidPadding);
     }
 
-    // Check header bytes
-    if em[0] != 0x00 || em[1] != 0x02 {
+    // Constant-time header check
+    let header_ok = em[0].ct_eq(&0x00).unwrap_u8() & em[1].ct_eq(&0x02).unwrap_u8();
+
+    // Constant-time separator scan: always iterate all bytes after header.
+    // Record the position of the first 0x00 byte without early exit.
+    let mut found_sep = 0u8;
+    let mut sep_idx = 0usize;
+    for (i, &byte) in em.iter().enumerate().skip(2) {
+        let is_zero = byte.ct_eq(&0x00).unwrap_u8();
+        let is_first = is_zero & !found_sep;
+        if is_first == 1 {
+            sep_idx = i;
+        }
+        found_sep |= is_zero;
+    }
+
+    // PS must be at least 8 bytes (separator at index >= 10)
+    let ps_ok = if sep_idx >= 10 { 1u8 } else { 0u8 };
+
+    if header_ok & found_sep & ps_ok != 1 {
         return Err(CryptoError::RsaInvalidPadding);
     }
 
-    // Find the 0x00 separator after PS (PS must be at least 8 bytes)
-    let mut sep_idx = None;
-    for (i, &byte) in em.iter().enumerate().skip(2) {
-        if byte == 0x00 {
-            if i < 10 {
-                // PS too short (less than 8 bytes)
-                return Err(CryptoError::RsaInvalidPadding);
-            }
-            sep_idx = Some(i);
-            break;
-        }
-    }
-
-    let sep = sep_idx.ok_or(CryptoError::RsaInvalidPadding)?;
-    Ok(em[sep + 1..].to_vec())
+    Ok(em[sep_idx + 1..].to_vec())
 }
 
 /// Fill a buffer with random non-zero bytes.
@@ -336,6 +341,36 @@ mod tests {
         em[1] = 0x02;
         // All remaining bytes are 0xFF, no separator
         assert!(pkcs1v15_decrypt_unpad(&em).is_err());
+    }
+
+    #[test]
+    fn test_pkcs1v15_decrypt_varied_separator_positions() {
+        // Verify that messages with separator at various valid positions
+        // (>= index 10) all decrypt successfully.
+        for &sep_pos in &[10usize, 50, 100, 200] {
+            let k = 256; // RSA-2048 modulus length
+            if sep_pos >= k - 1 {
+                continue;
+            }
+            let msg_len = k - sep_pos - 1;
+            let msg: Vec<u8> = (0..msg_len).map(|i| (i & 0xFF) as u8).collect();
+
+            // Build EM: 0x00 || 0x02 || PS(non-zero) || 0x00 || M
+            let mut em = Vec::with_capacity(k);
+            em.push(0x00);
+            em.push(0x02);
+            // PS: non-zero random bytes from index 2 to sep_pos-1
+            let ps_len = sep_pos - 2;
+            for i in 0..ps_len {
+                em.push(((i % 254) + 1) as u8); // 1..255, never 0
+            }
+            em.push(0x00); // separator at sep_pos
+            em.extend_from_slice(&msg);
+            assert_eq!(em.len(), k);
+
+            let recovered = pkcs1v15_decrypt_unpad(&em).unwrap();
+            assert_eq!(recovered, msg, "Failed at separator position {sep_pos}");
+        }
     }
 
     #[test]

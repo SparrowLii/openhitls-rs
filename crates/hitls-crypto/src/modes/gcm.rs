@@ -8,6 +8,7 @@ use crate::aes::AesKey;
 use crate::provider::BlockCipher;
 use hitls_types::CryptoError;
 use subtle::ConstantTimeEq;
+use zeroize::Zeroize;
 
 const GCM_TAG_SIZE: usize = 16;
 
@@ -317,10 +318,11 @@ pub fn gcm_decrypt(
     let (ct_data, received_tag) = ciphertext.split_at(ct_len);
 
     let cipher = AesKey::new(key)?;
-    let (plaintext, computed_tag) = gcm_crypt_generic(&cipher, nonce, aad, ct_data, false)?;
+    let (mut plaintext, computed_tag) = gcm_crypt_generic(&cipher, nonce, aad, ct_data, false)?;
 
     // Constant-time tag comparison
     if computed_tag.ct_eq(received_tag).unwrap_u8() != 1 {
+        plaintext.zeroize();
         return Err(CryptoError::AeadTagVerifyFail);
     }
 
@@ -359,9 +361,10 @@ pub fn sm4_gcm_decrypt(
     let (ct_data, received_tag) = ciphertext.split_at(ct_len);
 
     let cipher = crate::sm4::Sm4Key::new(key)?;
-    let (plaintext, computed_tag) = gcm_crypt_generic(&cipher, nonce, aad, ct_data, false)?;
+    let (mut plaintext, computed_tag) = gcm_crypt_generic(&cipher, nonce, aad, ct_data, false)?;
 
     if computed_tag.ct_eq(received_tag).unwrap_u8() != 1 {
+        plaintext.zeroize();
         return Err(CryptoError::AeadTagVerifyFail);
     }
 

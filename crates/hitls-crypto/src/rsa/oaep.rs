@@ -3,6 +3,7 @@
 //! Uses SHA-256 as the hash function and MGF1 as the mask generation function.
 
 use hitls_types::CryptoError;
+use subtle::ConstantTimeEq;
 
 use crate::sha2::Sha256;
 
@@ -110,23 +111,28 @@ pub(crate) fn oaep_decrypt_unpad(em: &[u8]) -> Result<Vec<u8>, CryptoError> {
     let lhash = l_hash();
 
     // Check lHash matches (constant-time)
-    use subtle::ConstantTimeEq;
-    let lhash_valid: bool = db[..H_LEN].ct_eq(&lhash).into();
+    let lhash_valid = db[..H_LEN].ct_eq(&lhash).unwrap_u8();
 
-    // Find the 0x01 separator
-    let mut found_one = false;
-    let mut msg_start = 0;
+    // Constant-time separator scan: always iterate the entire PS||0x01||M region.
+    // Accumulate flags with bitwise ops to avoid secret-dependent branches.
+    let mut found_one = 0u8;
+    let mut invalid = 0u8;
+    let mut msg_start = 0usize;
     for (i, &byte) in db.iter().enumerate().take(db_len).skip(H_LEN) {
-        if byte == 0x01 && !found_one {
-            found_one = true;
+        let is_zero = byte.ct_eq(&0x00).unwrap_u8();
+        let is_one = byte.ct_eq(&0x01).unwrap_u8();
+        let is_first_one = is_one & !found_one;
+        // Any byte that is neither 0x00 nor 0x01 before the separator is invalid
+        invalid |= (!is_zero & !is_one) & !found_one;
+        // Record position of first 0x01 via conditional select
+        if is_first_one == 1 {
             msg_start = i + 1;
-            break;
-        } else if byte != 0x00 {
-            return Err(CryptoError::RsaInvalidPadding);
         }
+        found_one |= is_one;
     }
 
-    if y != 0x00 || !lhash_valid || !found_one {
+    let y_ok = y.ct_eq(&0x00).unwrap_u8();
+    if y_ok & lhash_valid & found_one & !invalid != 1 {
         return Err(CryptoError::RsaInvalidPadding);
     }
 
@@ -212,6 +218,56 @@ mod tests {
         em[1 + H_LEN + 5] ^= 0xFF;
         // Decryption should fail (lHash mismatch or structural error)
         assert!(oaep_decrypt_unpad(&em).is_err());
+    }
+
+    #[test]
+    fn test_oaep_decrypt_invalid_db_byte_rejected() {
+        // Construct a valid EM, then replace a PS byte with 0x02 to test that
+        // the constant-time scan correctly rejects invalid bytes before the separator.
+        let msg = b"test data";
+        let k = 128;
+        let em = oaep_encrypt_pad(msg, k).unwrap();
+        let recovered = oaep_decrypt_unpad(&em).unwrap();
+        assert_eq!(recovered, msg);
+
+        // Now tamper: flip a byte in the DB region (after unmasking) by corrupting maskedDB.
+        // The simplest approach: construct EM manually with bad PS byte.
+        let lhash = l_hash();
+        let db_len = k - H_LEN - 1;
+        let mut db = Vec::with_capacity(db_len);
+        db.extend_from_slice(&lhash);
+        // PS with an invalid byte (0x02 instead of 0x00)
+        let ps_len = db_len - H_LEN - 1 - msg.len();
+        for i in 0..ps_len {
+            if i == ps_len / 2 {
+                db.push(0x02); // Invalid: neither 0x00 nor 0x01
+            } else {
+                db.push(0x00);
+            }
+        }
+        db.push(0x01);
+        db.extend_from_slice(msg);
+
+        // Use a fixed seed so the result is deterministic
+        let seed = vec![0xAAu8; H_LEN];
+        let db_mask = mgf1_sha256(&seed, db_len);
+        let masked_db: Vec<u8> = db.iter().zip(db_mask.iter()).map(|(a, b)| a ^ b).collect();
+        let seed_mask = mgf1_sha256(&masked_db, H_LEN);
+        let masked_seed: Vec<u8> = seed
+            .iter()
+            .zip(seed_mask.iter())
+            .map(|(a, b)| a ^ b)
+            .collect();
+
+        let mut em_bad = Vec::with_capacity(k);
+        em_bad.push(0x00);
+        em_bad.extend_from_slice(&masked_seed);
+        em_bad.extend_from_slice(&masked_db);
+
+        assert!(
+            oaep_decrypt_unpad(&em_bad).is_err(),
+            "OAEP should reject DB with invalid byte (0x02) in PS region"
+        );
     }
 
     #[test]

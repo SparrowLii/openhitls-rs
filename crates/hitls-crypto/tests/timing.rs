@@ -312,3 +312,77 @@ fn test_bignum_ct_eq_constant_time() {
         "BigNum ct_eq may not be constant-time: |t| = {t:.2} (threshold: {T_THRESHOLD})"
     );
 }
+
+// ============================================================
+// Test 7: RSA OAEP decrypt — valid vs corrupted maskedDB
+// ============================================================
+#[test]
+#[ignore]
+fn test_rsa_oaep_decrypt_constant_time() {
+    use hitls_crypto::rsa::{RsaPadding, RsaPrivateKey};
+
+    let priv_key = RsaPrivateKey::generate(2048).unwrap();
+    let pub_key = priv_key.public_key();
+    let msg = [0x42u8; 32];
+    let valid_ct = pub_key.encrypt(RsaPadding::Oaep, &msg).unwrap();
+
+    let t = timing_t_test(
+        // Class A: valid ciphertext (decryption succeeds)
+        |_| valid_ct.clone(),
+        // Class B: corrupted ciphertext (maskedDB region altered → padding error)
+        |i| {
+            let mut bad = valid_ct.clone();
+            let offset = 64 + (i % (bad.len().saturating_sub(65)));
+            if offset < bad.len() {
+                bad[offset] ^= 0xFF;
+            }
+            bad
+        },
+        // Operation: RSA OAEP decrypt
+        |ct| {
+            let _ = black_box(priv_key.decrypt(RsaPadding::Oaep, ct));
+        },
+    );
+
+    assert!(
+        t < T_THRESHOLD,
+        "RSA OAEP decrypt may not be constant-time: |t| = {t:.2} (threshold: {T_THRESHOLD})"
+    );
+}
+
+// ============================================================
+// Test 8: RSA PKCS#1v15 decrypt — valid vs PS-too-short msg
+// ============================================================
+#[test]
+#[ignore]
+fn test_rsa_pkcs1v15_decrypt_constant_time() {
+    use hitls_crypto::rsa::{RsaPadding, RsaPrivateKey};
+
+    let priv_key = RsaPrivateKey::generate(2048).unwrap();
+    let pub_key = priv_key.public_key();
+    let msg = [0x55u8; 64];
+    let valid_ct = pub_key.encrypt(RsaPadding::Pkcs1v15Encrypt, &msg).unwrap();
+
+    let t = timing_t_test(
+        // Class A: valid ciphertext (decryption succeeds)
+        |_| valid_ct.clone(),
+        // Class B: corrupted ciphertext (different content → padding error)
+        |i| {
+            let mut bad = valid_ct.clone();
+            let offset = 10 + (i % (bad.len().saturating_sub(11)));
+            if offset < bad.len() {
+                bad[offset] ^= 0x01;
+            }
+            bad
+        },
+        // Operation: RSA PKCS#1v15 decrypt
+        |ct| {
+            let _ = black_box(priv_key.decrypt(RsaPadding::Pkcs1v15Encrypt, ct));
+        },
+    );
+
+    assert!(
+        t < T_THRESHOLD,
+        "RSA PKCS#1v15 decrypt may not be constant-time: |t| = {t:.2} (threshold: {T_THRESHOLD})"
+    );
+}

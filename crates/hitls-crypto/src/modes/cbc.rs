@@ -4,6 +4,7 @@ use crate::aes::{AesKey, AES_BLOCK_SIZE};
 use crate::provider::BlockCipher;
 use hitls_types::CryptoError;
 use subtle::ConstantTimeEq;
+use zeroize::Zeroize;
 
 /// Encrypt data using CBC mode with AES and PKCS#7 padding.
 pub fn cbc_encrypt(key: &[u8], iv: &[u8], plaintext: &[u8]) -> Result<Vec<u8>, CryptoError> {
@@ -56,6 +57,7 @@ pub fn cbc_decrypt(key: &[u8], iv: &[u8], ciphertext: &[u8]) -> Result<Vec<u8>, 
     // PKCS#7 unpad (constant-time check)
     let pad_val = *output.last().ok_or(CryptoError::InvalidPadding)? as usize;
     if pad_val == 0 || pad_val > AES_BLOCK_SIZE {
+        output.zeroize();
         return Err(CryptoError::InvalidPadding);
     }
     let pad_byte = pad_val as u8;
@@ -64,6 +66,7 @@ pub fn cbc_decrypt(key: &[u8], iv: &[u8], ciphertext: &[u8]) -> Result<Vec<u8>, 
         valid &= b.ct_eq(&pad_byte).unwrap_u8();
     }
     if valid != 1 {
+        output.zeroize();
         return Err(CryptoError::InvalidPadding);
     }
     output.truncate(output.len() - pad_val);
@@ -129,6 +132,7 @@ pub fn cbc_decrypt_with(
     // PKCS#7 unpad (constant-time check)
     let pad_val = *output.last().ok_or(CryptoError::InvalidPadding)? as usize;
     if pad_val == 0 || pad_val > bs {
+        output.zeroize();
         return Err(CryptoError::InvalidPadding);
     }
     let pad_byte = pad_val as u8;
@@ -137,6 +141,7 @@ pub fn cbc_decrypt_with(
         valid &= b.ct_eq(&pad_byte).unwrap_u8();
     }
     if valid != 1 {
+        output.zeroize();
         return Err(CryptoError::InvalidPadding);
     }
     output.truncate(output.len() - pad_val);
