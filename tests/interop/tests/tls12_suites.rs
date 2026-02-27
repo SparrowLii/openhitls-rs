@@ -371,6 +371,178 @@ fn test_tcp_tls12_psk_chacha20() {
 }
 
 // -------------------------------------------------------
+// PSK expansion (Phase T162)
+// -------------------------------------------------------
+
+#[test]
+fn test_tcp_tls12_psk_aes256_gcm() {
+    use hitls_tls::CipherSuite;
+    let suite = CipherSuite::TLS_PSK_WITH_AES_256_GCM_SHA384;
+    let (cc, sc) = make_psk_configs(suite, &[]);
+    let (cs, ss) = run_tls12_tcp_loopback(cc, sc);
+    assert_eq!(cs, suite);
+    assert_eq!(ss, suite);
+}
+
+#[test]
+fn test_tcp_tls12_psk_aes128_cbc_sha() {
+    use hitls_tls::CipherSuite;
+    let suite = CipherSuite::TLS_PSK_WITH_AES_128_CBC_SHA;
+    let (cc, sc) = make_psk_configs(suite, &[]);
+    let (cs, ss) = run_tls12_tcp_loopback(cc, sc);
+    assert_eq!(cs, suite);
+    assert_eq!(ss, suite);
+}
+
+#[test]
+fn test_tcp_tls12_psk_aes256_cbc_sha() {
+    use hitls_tls::CipherSuite;
+    let suite = CipherSuite::TLS_PSK_WITH_AES_256_CBC_SHA;
+    let (cc, sc) = make_psk_configs(suite, &[]);
+    let (cs, ss) = run_tls12_tcp_loopback(cc, sc);
+    assert_eq!(cs, suite);
+    assert_eq!(ss, suite);
+}
+
+#[test]
+fn test_tcp_tls12_psk_aes128_cbc_sha256() {
+    use hitls_tls::CipherSuite;
+    let suite = CipherSuite::TLS_PSK_WITH_AES_128_CBC_SHA256;
+    let (cc, sc) = make_psk_configs(suite, &[]);
+    let (cs, ss) = run_tls12_tcp_loopback(cc, sc);
+    assert_eq!(cs, suite);
+    assert_eq!(ss, suite);
+}
+
+#[test]
+fn test_tcp_tls12_psk_aes128_ccm_8() {
+    use hitls_tls::CipherSuite;
+    let suite = CipherSuite::TLS_PSK_WITH_AES_128_CCM_8;
+    let (cc, sc) = make_psk_configs(suite, &[]);
+    let (cs, ss) = run_tls12_tcp_loopback(cc, sc);
+    assert_eq!(cs, suite);
+    assert_eq!(ss, suite);
+}
+
+// -------------------------------------------------------
+// DHE_PSK expansion (Phase T162)
+// -------------------------------------------------------
+
+#[test]
+fn test_tcp_tls12_dhe_psk_aes256_gcm() {
+    use hitls_tls::crypt::NamedGroup;
+    use hitls_tls::CipherSuite;
+    let suite = CipherSuite::TLS_DHE_PSK_WITH_AES_256_GCM_SHA384;
+    let (cc, sc) = make_psk_configs(suite, &[NamedGroup::FFDHE2048]);
+    let (cs, ss) = run_tls12_tcp_loopback(cc, sc);
+    assert_eq!(cs, suite);
+    assert_eq!(ss, suite);
+}
+
+#[test]
+fn test_tcp_tls12_dhe_psk_aes128_cbc_sha() {
+    use hitls_tls::crypt::NamedGroup;
+    use hitls_tls::CipherSuite;
+    let suite = CipherSuite::TLS_DHE_PSK_WITH_AES_128_CBC_SHA;
+    let (cc, sc) = make_psk_configs(suite, &[NamedGroup::FFDHE2048]);
+    let (cs, ss) = run_tls12_tcp_loopback(cc, sc);
+    assert_eq!(cs, suite);
+    assert_eq!(ss, suite);
+}
+
+#[test]
+fn test_tcp_tls12_dhe_psk_aes256_cbc_sha() {
+    use hitls_tls::crypt::NamedGroup;
+    use hitls_tls::CipherSuite;
+    let suite = CipherSuite::TLS_DHE_PSK_WITH_AES_256_CBC_SHA;
+    let (cc, sc) = make_psk_configs(suite, &[NamedGroup::FFDHE2048]);
+    let (cs, ss) = run_tls12_tcp_loopback(cc, sc);
+    assert_eq!(cs, suite);
+    assert_eq!(ss, suite);
+}
+
+#[test]
+fn test_tcp_tls12_dhe_psk_aes128_ccm() {
+    use hitls_tls::crypt::NamedGroup;
+    use hitls_tls::CipherSuite;
+    let suite = CipherSuite::TLS_DHE_PSK_WITH_AES_128_CCM;
+    let (cc, sc) = make_psk_configs(suite, &[NamedGroup::FFDHE2048]);
+    let (cs, ss) = run_tls12_tcp_loopback(cc, sc);
+    assert_eq!(cs, suite);
+    assert_eq!(ss, suite);
+}
+
+#[test]
+fn test_tcp_tls12_dhe_psk_chacha20_poly1305() {
+    use hitls_tls::crypt::NamedGroup;
+    use hitls_tls::CipherSuite;
+    let suite = CipherSuite::TLS_DHE_PSK_WITH_CHACHA20_POLY1305_SHA256;
+    let (cc, sc) = make_psk_configs(suite, &[NamedGroup::FFDHE2048]);
+    let (cs, ss) = run_tls12_tcp_loopback(cc, sc);
+    assert_eq!(cs, suite);
+    assert_eq!(ss, suite);
+}
+
+// -------------------------------------------------------
+// ECDHE_PSK expansion (Phase T162)
+// -------------------------------------------------------
+
+#[test]
+fn test_tcp_tls12_ecdhe_psk_aes256_gcm() {
+    use hitls_tls::crypt::NamedGroup;
+    use hitls_tls::CipherSuite;
+    let suite = CipherSuite::TLS_ECDHE_PSK_WITH_AES_256_GCM_SHA384;
+    let (cc, sc) = make_psk_configs(suite, &[NamedGroup::SECP256R1]);
+    let (cs, ss) = run_tls12_tcp_loopback(cc, sc);
+    assert_eq!(cs, suite);
+    assert_eq!(ss, suite);
+}
+
+#[test]
+fn test_tcp_tls12_ecdhe_psk_aes128_cbc_sha() {
+    use hitls_tls::crypt::NamedGroup;
+    use hitls_tls::CipherSuite;
+    let suite = CipherSuite::TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA;
+    let (cc, sc) = make_psk_configs(suite, &[NamedGroup::SECP256R1]);
+    let (cs, ss) = run_tls12_tcp_loopback(cc, sc);
+    assert_eq!(cs, suite);
+    assert_eq!(ss, suite);
+}
+
+#[test]
+fn test_tcp_tls12_ecdhe_psk_aes256_cbc_sha() {
+    use hitls_tls::crypt::NamedGroup;
+    use hitls_tls::CipherSuite;
+    let suite = CipherSuite::TLS_ECDHE_PSK_WITH_AES_256_CBC_SHA;
+    let (cc, sc) = make_psk_configs(suite, &[NamedGroup::SECP256R1]);
+    let (cs, ss) = run_tls12_tcp_loopback(cc, sc);
+    assert_eq!(cs, suite);
+    assert_eq!(ss, suite);
+}
+
+#[test]
+fn test_tcp_tls12_ecdhe_psk_aes128_cbc_sha256() {
+    use hitls_tls::crypt::NamedGroup;
+    use hitls_tls::CipherSuite;
+    let suite = CipherSuite::TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256;
+    let (cc, sc) = make_psk_configs(suite, &[NamedGroup::SECP256R1]);
+    let (cs, ss) = run_tls12_tcp_loopback(cc, sc);
+    assert_eq!(cs, suite);
+    assert_eq!(ss, suite);
+}
+
+#[test]
+fn test_tcp_tls12_ecdhe_psk_chacha20_poly1305() {
+    use hitls_tls::crypt::NamedGroup;
+    use hitls_tls::CipherSuite;
+    let suite = CipherSuite::TLS_ECDHE_PSK_WITH_CHACHA20_POLY1305_SHA256;
+    let (cc, sc) = make_psk_configs(suite, &[NamedGroup::SECP256R1]);
+    let (cs, ss) = run_tls12_tcp_loopback(cc, sc);
+    assert_eq!(cs, suite);
+    assert_eq!(ss, suite);
+}
+
+// -------------------------------------------------------
 // 53–56. DH_ANON / ECDH_ANON cipher suites (RFC 5246/4492)
 // -------------------------------------------------------
 
