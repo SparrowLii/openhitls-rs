@@ -257,7 +257,8 @@ impl KeySchedule {
         finished_key: &[u8],
         transcript_hash: &[u8],
     ) -> Result<Vec<u8>, TlsError> {
-        hmac_hash(self.hash_alg, finished_key, transcript_hash)
+        let (buf, len) = hmac_hash(self.hash_alg, finished_key, transcript_hash)?;
+        Ok(buf[..len].to_vec())
     }
 
     /// Derive the client early traffic secret (for 0-RTT data).

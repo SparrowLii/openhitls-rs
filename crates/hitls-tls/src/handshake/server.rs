@@ -149,12 +149,12 @@ pub(crate) fn encrypt_ticket(
     let mut mac_input = Vec::with_capacity(12 + ciphertext.len());
     mac_input.extend_from_slice(&nonce);
     mac_input.extend_from_slice(&ciphertext);
-    let mac = hmac_hash(alg, ticket_key, &mac_input)?;
+    let (mac, mac_len) = hmac_hash(alg, ticket_key, &mac_input)?;
 
-    let mut ticket = Vec::with_capacity(12 + ciphertext.len() + mac.len());
+    let mut ticket = Vec::with_capacity(12 + ciphertext.len() + mac_len);
     ticket.extend_from_slice(&nonce);
     ticket.extend_from_slice(&ciphertext);
-    ticket.extend_from_slice(&mac);
+    ticket.extend_from_slice(&mac[..mac_len]);
     Ok(ticket)
 }
 
@@ -177,9 +177,9 @@ pub(crate) fn decrypt_ticket(
     let mut mac_input = Vec::with_capacity(12 + ciphertext.len());
     mac_input.extend_from_slice(nonce);
     mac_input.extend_from_slice(ciphertext);
-    let expected_mac = hmac_hash(alg, ticket_key, &mac_input)?;
+    let (expected_mac, expected_mac_len) = hmac_hash(alg, ticket_key, &mac_input)?;
 
-    if !bool::from(mac.ct_eq(&expected_mac)) {
+    if !bool::from(mac.ct_eq(&expected_mac[..expected_mac_len])) {
         return Err(TlsError::HandshakeFailed(
             "ticket MAC verification failed".into(),
         ));

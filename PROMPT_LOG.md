@@ -3339,3 +3339,15 @@ Targeted coverage gaps in connection_info, handshake enums, lib.rs constants, co
 - Eliminates one heap allocation per CBC record decryption
 - All 75 CBC + 136 TLCP/DTLCP tests pass, 1,360 TLS tests pass, 188 integration tests pass
 - 3,484 tests (unchanged), 21 ignored, 0 clippy warnings
+
+## Phase P40 — HMAC Hash Stack Return (2026-03-01)
+
+**Prompt**: Change `hmac_hash()` return type from `Vec<u8>` to `([u8; 64], usize)` to eliminate per-call heap allocation.
+
+**Result**:
+- `hmac_hash` returns `([u8; MAX_OUTPUT_SIZE], usize)` stack array with length
+- `hkdf_extract` converts to `Vec<u8>` at API boundary
+- `p_hash` loop uses destructured `(buf, len)` — zero heap alloc per iteration
+- `compute_finished_verify_data` and ticket encrypt/decrypt updated
+- All 23 HKDF + 17 PRF tests pass, 1,360 TLS tests pass, 188 integration tests pass
+- 3,484 tests (unchanged), 21 ignored, 0 clippy warnings

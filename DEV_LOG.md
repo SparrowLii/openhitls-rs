@@ -6,7 +6,7 @@ Category summary:
 - Implementation: I1–I81 (81 phases)
 - Testing: T1–T63 (63 phases)
 - Refactoring: R1–R12 (12 phases)
-- Performance: P1–P39 (39 phases)
+- Performance: P1–P40 (40 phases)
 
 | # | Phase | Type | Title | Date |
 |---|-------|------|-------|------|
@@ -205,6 +205,7 @@ Category summary:
 | 193 | P37 | Perf | TLCP/DTLCP Record Stack Arrays | 2026-03-01 |
 | 194 | P38 | Perf | TLCP/DTLCP CBC HMAC Caching | 2026-03-01 |
 | 195 | P39 | Perf | CBC Decrypt Truncate-in-Place | 2026-03-01 |
+| 196 | P40 | Perf | HMAC Hash Stack Return | 2026-03-01 |
 
 ---
 
@@ -11233,6 +11234,29 @@ Eliminated redundant heap allocation in CBC record decryption across all 4 decry
 - 3,484 total tests, 21 ignored, 0 clippy warnings
 
 ### Build Status (Post P39)
+- `cargo test --workspace --all-features`: 3,484 passed, 0 failed, 21 ignored
+- `RUSTFLAGS="-D warnings" cargo clippy`: 0 warnings
+- `cargo fmt --all -- --check`: clean
+
+## Phase P40 — HMAC Hash Stack Return (2026-03-01)
+
+### Summary
+Changed `hmac_hash()` return type from `Vec<u8>` to `([u8; MAX_OUTPUT_SIZE], usize)` — a stack-allocated 64-byte array with length. This eliminates a heap allocation on every HMAC computation, which is called multiple times per PRF iteration (TLS 1.2) and per HKDF-Extract/Expand step (TLS 1.3). The `hkdf_extract` wrapper converts to `Vec<u8>` at the API boundary since callers store it in struct fields.
+
+### Changes
+| File | Change |
+|------|--------|
+| `crates/hitls-tls/src/crypt/hkdf.rs` | `hmac_hash` returns `([u8; 64], usize)`; `hkdf_extract` converts to `Vec` at boundary; all test callers updated |
+| `crates/hitls-tls/src/crypt/prf.rs` | `p_hash` loop uses `(buf, len)` destructuring; no heap alloc per iteration; test callers updated |
+| `crates/hitls-tls/src/crypt/key_schedule.rs` | `compute_finished_verify_data` converts to `Vec` at return |
+| `crates/hitls-tls/src/handshake/server.rs` | Ticket encrypt/decrypt use `(mac, mac_len)` slicing |
+
+### Test Results
+- All 23 HKDF tests pass, 17 PRF tests pass
+- 1,360 TLS tests pass, 188 integration tests pass
+- 3,484 total tests, 21 ignored, 0 clippy warnings
+
+### Build Status (Post P40)
 - `cargo test --workspace --all-features`: 3,484 passed, 0 failed, 21 ignored
 - `RUSTFLAGS="-D warnings" cargo clippy`: 0 warnings
 - `cargo fmt --all -- --check`: clean
