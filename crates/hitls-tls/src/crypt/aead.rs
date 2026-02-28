@@ -4,7 +4,6 @@
 
 use crate::CipherSuite;
 use hitls_types::TlsError;
-use zeroize::Zeroize;
 
 /// Trait for TLS record-layer AEAD operations.
 pub trait TlsAead: Send + Sync {
@@ -24,8 +23,10 @@ pub trait TlsAead: Send + Sync {
 }
 
 /// AES-GCM AEAD (128-bit or 256-bit key).
+/// Stores pre-expanded AES key and GHASH table to avoid per-record key expansion.
 pub struct AesGcmAead {
-    key: Vec<u8>,
+    cipher: hitls_crypto::aes::AesKey,
+    table: hitls_crypto::modes::gcm::GhashTable,
 }
 
 impl AesGcmAead {
@@ -35,20 +36,20 @@ impl AesGcmAead {
                 "AES-GCM: invalid key length".into(),
             ));
         }
-        Ok(Self { key: key.to_vec() })
-    }
-}
-
-impl Drop for AesGcmAead {
-    fn drop(&mut self) {
-        self.key.zeroize();
+        let cipher =
+            hitls_crypto::aes::AesKey::new(key).map_err(TlsError::CryptoError)?;
+        let table = hitls_crypto::modes::gcm::GhashTable::from_cipher(&cipher)
+            .map_err(TlsError::CryptoError)?;
+        Ok(Self { cipher, table })
     }
 }
 
 impl TlsAead for AesGcmAead {
     fn encrypt(&self, nonce: &[u8], aad: &[u8], plaintext: &[u8]) -> Result<Vec<u8>, TlsError> {
-        hitls_crypto::modes::gcm::gcm_encrypt(&self.key, nonce, aad, plaintext)
-            .map_err(TlsError::CryptoError)
+        hitls_crypto::modes::gcm::gcm_encrypt_with(
+            &self.cipher, &self.table, nonce, aad, plaintext,
+        )
+        .map_err(TlsError::CryptoError)
     }
 
     fn decrypt(
@@ -57,8 +58,10 @@ impl TlsAead for AesGcmAead {
         aad: &[u8],
         ciphertext_with_tag: &[u8],
     ) -> Result<Vec<u8>, TlsError> {
-        hitls_crypto::modes::gcm::gcm_decrypt(&self.key, nonce, aad, ciphertext_with_tag)
-            .map_err(TlsError::CryptoError)
+        hitls_crypto::modes::gcm::gcm_decrypt_with(
+            &self.cipher, &self.table, nonce, aad, ciphertext_with_tag,
+        )
+        .map_err(TlsError::CryptoError)
     }
 
     fn tag_size(&self) -> usize {
@@ -67,8 +70,9 @@ impl TlsAead for AesGcmAead {
 }
 
 /// AES-CCM AEAD (128-bit or 256-bit key, 16-byte tag).
+/// Stores pre-expanded AES key to avoid per-record key expansion.
 pub struct AesCcmAead {
-    key: Vec<u8>,
+    cipher: hitls_crypto::aes::AesKey,
 }
 
 impl AesCcmAead {
@@ -78,19 +82,15 @@ impl AesCcmAead {
                 "AES-CCM: invalid key length".into(),
             ));
         }
-        Ok(Self { key: key.to_vec() })
-    }
-}
-
-impl Drop for AesCcmAead {
-    fn drop(&mut self) {
-        self.key.zeroize();
+        let cipher =
+            hitls_crypto::aes::AesKey::new(key).map_err(TlsError::CryptoError)?;
+        Ok(Self { cipher })
     }
 }
 
 impl TlsAead for AesCcmAead {
     fn encrypt(&self, nonce: &[u8], aad: &[u8], plaintext: &[u8]) -> Result<Vec<u8>, TlsError> {
-        hitls_crypto::modes::ccm::ccm_encrypt(&self.key, nonce, aad, plaintext, 16)
+        hitls_crypto::modes::ccm::ccm_encrypt_with_key(&self.cipher, nonce, aad, plaintext, 16)
             .map_err(TlsError::CryptoError)
     }
 
@@ -100,8 +100,10 @@ impl TlsAead for AesCcmAead {
         aad: &[u8],
         ciphertext_with_tag: &[u8],
     ) -> Result<Vec<u8>, TlsError> {
-        hitls_crypto::modes::ccm::ccm_decrypt(&self.key, nonce, aad, ciphertext_with_tag, 16)
-            .map_err(TlsError::CryptoError)
+        hitls_crypto::modes::ccm::ccm_decrypt_with_key(
+            &self.cipher, nonce, aad, ciphertext_with_tag, 16,
+        )
+        .map_err(TlsError::CryptoError)
     }
 
     fn tag_size(&self) -> usize {
@@ -110,8 +112,9 @@ impl TlsAead for AesCcmAead {
 }
 
 /// AES-CCM_8 AEAD (128-bit or 256-bit key, 8-byte tag).
+/// Stores pre-expanded AES key to avoid per-record key expansion.
 pub struct AesCcm8Aead {
-    key: Vec<u8>,
+    cipher: hitls_crypto::aes::AesKey,
 }
 
 impl AesCcm8Aead {
@@ -121,19 +124,15 @@ impl AesCcm8Aead {
                 "AES-CCM_8: invalid key length".into(),
             ));
         }
-        Ok(Self { key: key.to_vec() })
-    }
-}
-
-impl Drop for AesCcm8Aead {
-    fn drop(&mut self) {
-        self.key.zeroize();
+        let cipher =
+            hitls_crypto::aes::AesKey::new(key).map_err(TlsError::CryptoError)?;
+        Ok(Self { cipher })
     }
 }
 
 impl TlsAead for AesCcm8Aead {
     fn encrypt(&self, nonce: &[u8], aad: &[u8], plaintext: &[u8]) -> Result<Vec<u8>, TlsError> {
-        hitls_crypto::modes::ccm::ccm_encrypt(&self.key, nonce, aad, plaintext, 8)
+        hitls_crypto::modes::ccm::ccm_encrypt_with_key(&self.cipher, nonce, aad, plaintext, 8)
             .map_err(TlsError::CryptoError)
     }
 
@@ -143,8 +142,10 @@ impl TlsAead for AesCcm8Aead {
         aad: &[u8],
         ciphertext_with_tag: &[u8],
     ) -> Result<Vec<u8>, TlsError> {
-        hitls_crypto::modes::ccm::ccm_decrypt(&self.key, nonce, aad, ciphertext_with_tag, 8)
-            .map_err(TlsError::CryptoError)
+        hitls_crypto::modes::ccm::ccm_decrypt_with_key(
+            &self.cipher, nonce, aad, ciphertext_with_tag, 8,
+        )
+        .map_err(TlsError::CryptoError)
     }
 
     fn tag_size(&self) -> usize {
@@ -189,9 +190,11 @@ impl TlsAead for ChaCha20Poly1305Aead {
 }
 
 /// SM4-GCM AEAD (128-bit key only).
+/// Stores pre-expanded SM4 key and GHASH table to avoid per-record key expansion.
 #[cfg(any(feature = "tlcp", feature = "sm_tls13"))]
 pub struct Sm4GcmAead {
-    key: Vec<u8>,
+    cipher: hitls_crypto::sm4::Sm4Key,
+    table: hitls_crypto::modes::gcm::GhashTable,
 }
 
 #[cfg(any(feature = "tlcp", feature = "sm_tls13"))]
@@ -202,22 +205,21 @@ impl Sm4GcmAead {
                 "SM4-GCM: key must be 16 bytes".into(),
             ));
         }
-        Ok(Self { key: key.to_vec() })
-    }
-}
-
-#[cfg(any(feature = "tlcp", feature = "sm_tls13"))]
-impl Drop for Sm4GcmAead {
-    fn drop(&mut self) {
-        self.key.zeroize();
+        let cipher =
+            hitls_crypto::sm4::Sm4Key::new(key).map_err(TlsError::CryptoError)?;
+        let table = hitls_crypto::modes::gcm::GhashTable::from_cipher(&cipher)
+            .map_err(TlsError::CryptoError)?;
+        Ok(Self { cipher, table })
     }
 }
 
 #[cfg(any(feature = "tlcp", feature = "sm_tls13"))]
 impl TlsAead for Sm4GcmAead {
     fn encrypt(&self, nonce: &[u8], aad: &[u8], plaintext: &[u8]) -> Result<Vec<u8>, TlsError> {
-        hitls_crypto::modes::gcm::sm4_gcm_encrypt(&self.key, nonce, aad, plaintext)
-            .map_err(TlsError::CryptoError)
+        hitls_crypto::modes::gcm::gcm_encrypt_with(
+            &self.cipher, &self.table, nonce, aad, plaintext,
+        )
+        .map_err(TlsError::CryptoError)
     }
 
     fn decrypt(
@@ -226,8 +228,10 @@ impl TlsAead for Sm4GcmAead {
         aad: &[u8],
         ciphertext_with_tag: &[u8],
     ) -> Result<Vec<u8>, TlsError> {
-        hitls_crypto::modes::gcm::sm4_gcm_decrypt(&self.key, nonce, aad, ciphertext_with_tag)
-            .map_err(TlsError::CryptoError)
+        hitls_crypto::modes::gcm::gcm_decrypt_with(
+            &self.cipher, &self.table, nonce, aad, ciphertext_with_tag,
+        )
+        .map_err(TlsError::CryptoError)
     }
 
     fn tag_size(&self) -> usize {
@@ -236,9 +240,10 @@ impl TlsAead for Sm4GcmAead {
 }
 
 /// SM4-CCM AEAD (128-bit key only).
+/// Stores pre-expanded SM4 key to avoid per-record key expansion.
 #[cfg(feature = "sm_tls13")]
 pub struct Sm4CcmAead {
-    key: Vec<u8>,
+    cipher: hitls_crypto::sm4::Sm4Key,
 }
 
 #[cfg(feature = "sm_tls13")]
@@ -249,22 +254,19 @@ impl Sm4CcmAead {
                 "SM4-CCM: key must be 16 bytes".into(),
             ));
         }
-        Ok(Self { key: key.to_vec() })
-    }
-}
-
-#[cfg(feature = "sm_tls13")]
-impl Drop for Sm4CcmAead {
-    fn drop(&mut self) {
-        self.key.zeroize();
+        let cipher =
+            hitls_crypto::sm4::Sm4Key::new(key).map_err(TlsError::CryptoError)?;
+        Ok(Self { cipher })
     }
 }
 
 #[cfg(feature = "sm_tls13")]
 impl TlsAead for Sm4CcmAead {
     fn encrypt(&self, nonce: &[u8], aad: &[u8], plaintext: &[u8]) -> Result<Vec<u8>, TlsError> {
-        hitls_crypto::modes::ccm::sm4_ccm_encrypt(&self.key, nonce, aad, plaintext, 16)
-            .map_err(TlsError::CryptoError)
+        hitls_crypto::modes::ccm::sm4_ccm_encrypt_with_key(
+            &self.cipher, nonce, aad, plaintext, 16,
+        )
+        .map_err(TlsError::CryptoError)
     }
 
     fn decrypt(
@@ -273,8 +275,10 @@ impl TlsAead for Sm4CcmAead {
         aad: &[u8],
         ciphertext_with_tag: &[u8],
     ) -> Result<Vec<u8>, TlsError> {
-        hitls_crypto::modes::ccm::sm4_ccm_decrypt(&self.key, nonce, aad, ciphertext_with_tag, 16)
-            .map_err(TlsError::CryptoError)
+        hitls_crypto::modes::ccm::sm4_ccm_decrypt_with_key(
+            &self.cipher, nonce, aad, ciphertext_with_tag, 16,
+        )
+        .map_err(TlsError::CryptoError)
     }
 
     fn tag_size(&self) -> usize {

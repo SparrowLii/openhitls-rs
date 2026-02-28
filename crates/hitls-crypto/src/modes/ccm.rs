@@ -65,6 +65,28 @@ pub fn ccm_decrypt(
     ccm_decrypt_impl(&cipher, nonce, aad, ciphertext, tag_len)
 }
 
+/// Encrypt using a pre-expanded AES key (avoids per-record key expansion).
+pub fn ccm_encrypt_with_key(
+    cipher: &AesKey,
+    nonce: &[u8],
+    aad: &[u8],
+    plaintext: &[u8],
+    tag_len: usize,
+) -> Result<Vec<u8>, CryptoError> {
+    ccm_encrypt_impl(cipher, nonce, aad, plaintext, tag_len)
+}
+
+/// Decrypt using a pre-expanded AES key (avoids per-record key expansion).
+pub fn ccm_decrypt_with_key(
+    cipher: &AesKey,
+    nonce: &[u8],
+    aad: &[u8],
+    ciphertext: &[u8],
+    tag_len: usize,
+) -> Result<Vec<u8>, CryptoError> {
+    ccm_decrypt_impl(cipher, nonce, aad, ciphertext, tag_len)
+}
+
 // ---------------------------------------------------------------------------
 // SM4-CCM public API
 // ---------------------------------------------------------------------------
@@ -103,6 +125,30 @@ pub fn sm4_ccm_decrypt(
 ) -> Result<Vec<u8>, CryptoError> {
     let cipher = crate::sm4::Sm4Key::new(key)?;
     ccm_decrypt_impl(&cipher, nonce, aad, ciphertext, tag_len)
+}
+
+/// Encrypt using a pre-expanded SM4 key (avoids per-record key expansion).
+#[cfg(feature = "sm4")]
+pub fn sm4_ccm_encrypt_with_key(
+    cipher: &crate::sm4::Sm4Key,
+    nonce: &[u8],
+    aad: &[u8],
+    plaintext: &[u8],
+    tag_len: usize,
+) -> Result<Vec<u8>, CryptoError> {
+    ccm_encrypt_impl(cipher, nonce, aad, plaintext, tag_len)
+}
+
+/// Decrypt using a pre-expanded SM4 key (avoids per-record key expansion).
+#[cfg(feature = "sm4")]
+pub fn sm4_ccm_decrypt_with_key(
+    cipher: &crate::sm4::Sm4Key,
+    nonce: &[u8],
+    aad: &[u8],
+    ciphertext: &[u8],
+    tag_len: usize,
+) -> Result<Vec<u8>, CryptoError> {
+    ccm_decrypt_impl(cipher, nonce, aad, ciphertext, tag_len)
 }
 
 // ---------------------------------------------------------------------------

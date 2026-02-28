@@ -72,7 +72,10 @@ impl Gf128 {
 
 /// Precomputed GHASH table (16 entries for 4-bit multiplication).
 /// Also stores the raw H value for hardware-accelerated paths.
-pub(crate) struct GhashTable {
+///
+/// Construct once per key and reuse across multiple GCM operations
+/// to avoid redundant table computation.
+pub struct GhashTable {
     table: [Gf128; 16],
     /// Raw hash subkey H (big-endian bytes) for hardware GHASH.
     h_raw: [u8; 16],
@@ -81,6 +84,16 @@ pub(crate) struct GhashTable {
 }
 
 impl GhashTable {
+    /// Build a GHASH table from a pre-expanded block cipher.
+    ///
+    /// Computes H = Encrypt(0^128) and builds the 4-bit multiplication table.
+    /// Use this to pre-compute the table once per key.
+    pub fn from_cipher<C: BlockCipher>(cipher: &C) -> Result<Self, CryptoError> {
+        let mut h_block = [0u8; 16];
+        cipher.encrypt_block(&mut h_block)?;
+        Ok(Self::new(&h_block))
+    }
+
     pub(crate) fn new(h: &[u8; 16]) -> Self {
         let mut table = [Gf128::default(); 16];
         // table[0] = 0 (already default)
@@ -216,20 +229,16 @@ fn inc32(counter: &mut [u8; 16]) {
     counter[12..16].copy_from_slice(&ctr.to_be_bytes());
 }
 
-/// Internal GCM encrypt/decrypt (generic over block cipher).
-fn gcm_crypt_generic<C: BlockCipher>(
+/// Internal GCM encrypt/decrypt with a pre-built GHASH table (generic over block cipher).
+fn gcm_crypt_with_table<C: BlockCipher>(
     cipher: &C,
+    table: &GhashTable,
     nonce: &[u8],
     aad: &[u8],
     input: &[u8],
     encrypting: bool,
 ) -> Result<(Vec<u8>, [u8; GCM_TAG_SIZE]), CryptoError> {
     let block_size = cipher.block_size();
-
-    // Compute H = Encrypt(0^128)
-    let mut h_block = [0u8; 16];
-    cipher.encrypt_block(&mut h_block)?;
-    let table = GhashTable::new(&h_block);
 
     // Compute J0 (initial counter)
     let mut j0 = [0u8; 16];
@@ -288,6 +297,19 @@ fn gcm_crypt_generic<C: BlockCipher>(
     Ok((output, tag))
 }
 
+/// Internal GCM encrypt/decrypt (generic over block cipher).
+/// Computes GHASH table on each call — use `gcm_crypt_with_table` for repeated operations.
+fn gcm_crypt_generic<C: BlockCipher>(
+    cipher: &C,
+    nonce: &[u8],
+    aad: &[u8],
+    input: &[u8],
+    encrypting: bool,
+) -> Result<(Vec<u8>, [u8; GCM_TAG_SIZE]), CryptoError> {
+    let table = GhashTable::from_cipher(cipher)?;
+    gcm_crypt_with_table(cipher, &table, nonce, aad, input, encrypting)
+}
+
 /// Encrypt and authenticate data using AES-GCM.
 /// Returns ciphertext || 16-byte tag.
 pub fn gcm_encrypt(
@@ -321,6 +343,44 @@ pub fn gcm_decrypt(
     let (mut plaintext, computed_tag) = gcm_crypt_generic(&cipher, nonce, aad, ct_data, false)?;
 
     // Constant-time tag comparison
+    if computed_tag.ct_eq(received_tag).unwrap_u8() != 1 {
+        plaintext.zeroize();
+        return Err(CryptoError::AeadTagVerifyFail);
+    }
+
+    Ok(plaintext)
+}
+
+/// Encrypt using a pre-expanded cipher and GHASH table (avoids per-record key expansion).
+pub fn gcm_encrypt_with<C: BlockCipher>(
+    cipher: &C,
+    table: &GhashTable,
+    nonce: &[u8],
+    aad: &[u8],
+    plaintext: &[u8],
+) -> Result<Vec<u8>, CryptoError> {
+    let (mut ct, tag) = gcm_crypt_with_table(cipher, table, nonce, aad, plaintext, true)?;
+    ct.extend_from_slice(&tag);
+    Ok(ct)
+}
+
+/// Decrypt using a pre-expanded cipher and GHASH table (avoids per-record key expansion).
+pub fn gcm_decrypt_with<C: BlockCipher>(
+    cipher: &C,
+    table: &GhashTable,
+    nonce: &[u8],
+    aad: &[u8],
+    ciphertext: &[u8],
+) -> Result<Vec<u8>, CryptoError> {
+    if ciphertext.len() < GCM_TAG_SIZE {
+        return Err(CryptoError::InvalidArg);
+    }
+    let ct_len = ciphertext.len() - GCM_TAG_SIZE;
+    let (ct_data, received_tag) = ciphertext.split_at(ct_len);
+
+    let (mut plaintext, computed_tag) =
+        gcm_crypt_with_table(cipher, table, nonce, aad, ct_data, false)?;
+
     if computed_tag.ct_eq(received_tag).unwrap_u8() != 1 {
         plaintext.zeroize();
         return Err(CryptoError::AeadTagVerifyFail);
