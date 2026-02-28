@@ -37,8 +37,9 @@ fuzz_target!(|data: &[u8]| {
             // Tamper ct with fuzz data and decapsulate — must not panic
             if !rest.is_empty() {
                 let mut tampered = ct.clone();
+                let tlen = tampered.len();
                 for (i, &b) in rest.iter().enumerate() {
-                    tampered[i % tampered.len()] ^= b;
+                    tampered[i % tlen] ^= b;
                 }
                 let _ = kp.decapsulate(&tampered);
             }

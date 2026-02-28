@@ -48,8 +48,9 @@ fuzz_target!(|data: &[u8]| {
 
         // Also try fuzzed signature
         let mut tampered_sig = sig.clone();
+        let tlen = tampered_sig.len();
         for (i, &b) in tamper.iter().enumerate() {
-            tampered_sig[i % tampered_sig.len()] ^= b;
+            tampered_sig[i % tlen] ^= b;
         }
         let _ = pk.verify(padding, digest, &tampered_sig);
     }

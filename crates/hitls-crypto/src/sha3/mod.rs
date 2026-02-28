@@ -245,8 +245,7 @@ impl KeccakState {
             self.state_to_bytes_into(&mut state_bytes);
             let available = self.rate - self.buf_len;
             let copy_len = available.min(output.len());
-            output[..copy_len]
-                .copy_from_slice(&state_bytes[self.buf_len..self.buf_len + copy_len]);
+            output[..copy_len].copy_from_slice(&state_bytes[self.buf_len..self.buf_len + copy_len]);
             offset = copy_len;
             self.buf_len += copy_len;
             if self.buf_len < self.rate {
