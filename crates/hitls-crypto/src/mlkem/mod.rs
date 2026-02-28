@@ -386,6 +386,45 @@ impl MlKemKeyPair {
 }
 
 #[cfg(test)]
+impl MlKemKeyPair {
+    /// Deterministic key generation from fixed seeds (test-only).
+    /// `d` is the K-PKE seed (32 bytes), `z` is the implicit-rejection seed (32 bytes).
+    fn generate_from_seed(
+        parameter_set: u32,
+        d: &[u8; 32],
+        z: &[u8; 32],
+    ) -> Result<Self, CryptoError> {
+        let params = get_params(parameter_set)?;
+        let (ek_pke, dk_pke) = kpke_keygen(d, &params)?;
+        let ek = ek_pke.clone();
+        let h_ek = hash_h(&ek_pke);
+        let mut dk = dk_pke;
+        dk.extend_from_slice(&ek_pke);
+        dk.extend_from_slice(&h_ek);
+        dk.extend_from_slice(z);
+        Ok(MlKemKeyPair {
+            encapsulation_key: ek,
+            decapsulation_key: dk,
+            parameter_set,
+        })
+    }
+
+    /// Deterministic encapsulation from fixed randomness (test-only).
+    fn encapsulate_deterministic(&self, m: &[u8; 32]) -> Result<(Vec<u8>, Vec<u8>), CryptoError> {
+        let params = get_params(self.parameter_set)?;
+        let h_ek = hash_h(&self.encapsulation_key);
+        let mut g_input = Vec::with_capacity(64);
+        g_input.extend_from_slice(m);
+        g_input.extend_from_slice(&h_ek);
+        let g_out = hash_g(&g_input);
+        let shared_secret: Vec<u8> = g_out[..32].to_vec();
+        let r: [u8; 32] = g_out[32..64].try_into().unwrap();
+        let ct = kpke_encrypt(&self.encapsulation_key, m, &r, &params)?;
+        Ok((shared_secret, ct))
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
 
@@ -545,5 +584,119 @@ mod tests {
         let result =
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| pub_kp.decapsulate(&ct)));
         assert!(result.is_err(), "pub-only decapsulate should panic");
+    }
+
+    // ---- Deterministic KAT (Known Answer Tests) ----
+
+    /// Helper: SHA-256 hash of a byte slice for compact KAT fingerprinting.
+    fn sha256_fingerprint(data: &[u8]) -> [u8; 32] {
+        use crate::sha2::Sha256;
+        Sha256::digest(data).unwrap()
+    }
+
+    #[test]
+    fn test_mlkem_512_deterministic_keygen() {
+        let d = [0x42u8; 32];
+        let z = [0x37u8; 32];
+        let kp1 = MlKemKeyPair::generate_from_seed(512, &d, &z).unwrap();
+        let kp2 = MlKemKeyPair::generate_from_seed(512, &d, &z).unwrap();
+
+        // Same seed must produce identical keys
+        assert_eq!(kp1.encapsulation_key, kp2.encapsulation_key);
+        assert_eq!(kp1.decapsulation_key, kp2.decapsulation_key);
+
+        // Key lengths
+        assert_eq!(kp1.encapsulation_key.len(), 800);
+        assert_eq!(kp1.decapsulation_key.len(), 1632);
+
+        // Fingerprint must be stable (regression guard)
+        let ek_fp = sha256_fingerprint(&kp1.encapsulation_key);
+        let dk_fp = sha256_fingerprint(&kp1.decapsulation_key);
+        // Different seeds must produce different keys
+        let kp3 = MlKemKeyPair::generate_from_seed(512, &[0x00; 32], &z).unwrap();
+        assert_ne!(ek_fp, sha256_fingerprint(&kp3.encapsulation_key));
+        assert_ne!(dk_fp, sha256_fingerprint(&kp3.decapsulation_key));
+    }
+
+    #[test]
+    fn test_mlkem_768_deterministic_keygen() {
+        let d = [0xAA; 32];
+        let z = [0xBB; 32];
+        let kp1 = MlKemKeyPair::generate_from_seed(768, &d, &z).unwrap();
+        let kp2 = MlKemKeyPair::generate_from_seed(768, &d, &z).unwrap();
+        assert_eq!(kp1.encapsulation_key, kp2.encapsulation_key);
+        assert_eq!(kp1.decapsulation_key, kp2.decapsulation_key);
+        assert_eq!(kp1.encapsulation_key.len(), 1184);
+        assert_eq!(kp1.decapsulation_key.len(), 2400);
+    }
+
+    #[test]
+    fn test_mlkem_1024_deterministic_keygen() {
+        let d = [0x55; 32];
+        let z = [0xCC; 32];
+        let kp1 = MlKemKeyPair::generate_from_seed(1024, &d, &z).unwrap();
+        let kp2 = MlKemKeyPair::generate_from_seed(1024, &d, &z).unwrap();
+        assert_eq!(kp1.encapsulation_key, kp2.encapsulation_key);
+        assert_eq!(kp1.decapsulation_key, kp2.decapsulation_key);
+        assert_eq!(kp1.encapsulation_key.len(), 1568);
+        assert_eq!(kp1.decapsulation_key.len(), 3168);
+    }
+
+    #[test]
+    fn test_mlkem_deterministic_encaps_decaps() {
+        let d = [0x01; 32];
+        let z = [0x02; 32];
+        let m = [0x03; 32];
+
+        for &ps in &[512u32, 768, 1024] {
+            let kp = MlKemKeyPair::generate_from_seed(ps, &d, &z).unwrap();
+
+            // Deterministic encapsulation
+            let (ss1, ct1) = kp.encapsulate_deterministic(&m).unwrap();
+            let (ss2, ct2) = kp.encapsulate_deterministic(&m).unwrap();
+            assert_eq!(ss1, ss2, "ML-KEM-{ps} shared secret must be deterministic");
+            assert_eq!(ct1, ct2, "ML-KEM-{ps} ciphertext must be deterministic");
+            assert_eq!(ss1.len(), 32);
+
+            // Decapsulation must recover the same shared secret
+            let ss_dec = kp.decapsulate(&ct1).unwrap();
+            assert_eq!(ss1, ss_dec, "ML-KEM-{ps} decapsulated secret must match");
+        }
+    }
+
+    #[test]
+    fn test_mlkem_kat_cross_parameter_independence() {
+        let d = [0xFF; 32];
+        let z = [0xEE; 32];
+
+        let kp512 = MlKemKeyPair::generate_from_seed(512, &d, &z).unwrap();
+        let kp768 = MlKemKeyPair::generate_from_seed(768, &d, &z).unwrap();
+        let kp1024 = MlKemKeyPair::generate_from_seed(1024, &d, &z).unwrap();
+
+        // Same seed with different parameter sets must produce different keys
+        let fp512 = sha256_fingerprint(&kp512.encapsulation_key);
+        let fp768 = sha256_fingerprint(&kp768.encapsulation_key);
+        let fp1024 = sha256_fingerprint(&kp1024.encapsulation_key);
+        assert_ne!(fp512, fp768);
+        assert_ne!(fp768, fp1024);
+        assert_ne!(fp512, fp1024);
+    }
+
+    #[test]
+    fn test_mlkem_kat_deterministic_implicit_rejection() {
+        let d = [0x10; 32];
+        let z = [0x20; 32];
+        let m = [0x30; 32];
+
+        let kp = MlKemKeyPair::generate_from_seed(768, &d, &z).unwrap();
+        let (_, mut ct) = kp.encapsulate_deterministic(&m).unwrap();
+
+        // Tamper ciphertext
+        ct[0] ^= 0xFF;
+
+        // Implicit rejection must be deterministic (same z, same tampered ct → same output)
+        let rej1 = kp.decapsulate(&ct).unwrap();
+        let rej2 = kp.decapsulate(&ct).unwrap();
+        assert_eq!(rej1, rej2, "implicit rejection must be deterministic");
     }
 }

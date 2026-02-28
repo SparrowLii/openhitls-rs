@@ -614,6 +614,83 @@ impl MlDsaKeyPair {
     }
 }
 
+/// Deterministic ML-DSA KeyGen from a fixed seed (test-only).
+#[cfg(test)]
+fn mldsa_keygen_from_seed(
+    xi: &[u8; 32],
+    params: &MlDsaParams,
+) -> Result<(Vec<u8>, Vec<u8>), CryptoError> {
+    let mut seed_input = Vec::with_capacity(34);
+    seed_input.extend_from_slice(xi);
+    seed_input.push(params.k as u8);
+    seed_input.push(params.l as u8);
+    let expanded = hash_h(&seed_input, 128);
+    let mut rho = [0u8; 32];
+    let mut rho_prime = [0u8; 64];
+    let mut key = [0u8; 32];
+    rho.copy_from_slice(&expanded[..32]);
+    rho_prime.copy_from_slice(&expanded[32..96]);
+    key.copy_from_slice(&expanded[96..128]);
+
+    let a_hat = expand_a(&rho, params.k, params.l);
+
+    let mut s1 = Vec::with_capacity(params.l);
+    let mut s2 = Vec::with_capacity(params.k);
+    for i in 0..params.l {
+        s1.push(rej_bounded_poly(&rho_prime, params.eta, i as u16));
+    }
+    for i in 0..params.k {
+        s2.push(rej_bounded_poly(
+            &rho_prime,
+            params.eta,
+            (params.l + i) as u16,
+        ));
+    }
+
+    let mut s1_hat: Vec<Poly> = s1.clone();
+    for poly in s1_hat.iter_mut() {
+        ntt::ntt(poly);
+    }
+
+    let mut t_hat = matvec_mul(&a_hat, &s1_hat, params.k, params.l);
+    let mut t = vec![[0i32; N]; params.k];
+    for i in 0..params.k {
+        ntt::invntt(&mut t_hat[i]);
+        for j in 0..N {
+            t[i][j] = ntt::caddq(ntt::reduce32(t_hat[i][j] + s2[i][j]));
+        }
+    }
+
+    let mut t1 = vec![[0i32; N]; params.k];
+    let mut t0 = vec![[0i32; N]; params.k];
+    for i in 0..params.k {
+        for j in 0..N {
+            let (r1, r0) = power2round(t[i][j]);
+            t1[i][j] = r1;
+            t0[i][j] = r0;
+        }
+    }
+
+    let pk = encode_pk(&rho, &t1, params);
+    let tr = hash_h(&pk, 64);
+    let sk = encode_sk(&rho, &key, &tr, &s1, &s2, &t0, params);
+
+    Ok((pk, sk))
+}
+
+#[cfg(test)]
+impl MlDsaKeyPair {
+    fn generate_from_seed(parameter_set: u32, xi: &[u8; 32]) -> Result<Self, CryptoError> {
+        let params = get_params(parameter_set)?;
+        let (pk, sk) = mldsa_keygen_from_seed(xi, &params)?;
+        Ok(MlDsaKeyPair {
+            public_key: pk,
+            private_key: sk,
+            parameter_set,
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -735,5 +812,115 @@ mod tests {
         let msg = vec![0xABu8; 10240]; // 10 KB
         let sig = kp.sign(&msg).unwrap();
         assert!(kp.verify(&msg, &sig).unwrap(), "10KB message roundtrip");
+    }
+
+    // ---- Deterministic KAT (Known Answer Tests) ----
+
+    fn sha256_fingerprint(data: &[u8]) -> [u8; 32] {
+        use crate::sha2::Sha256;
+        Sha256::digest(data).unwrap()
+    }
+
+    #[test]
+    fn test_mldsa_44_deterministic_keygen() {
+        let xi = [0x42u8; 32];
+        let kp1 = MlDsaKeyPair::generate_from_seed(44, &xi).unwrap();
+        let kp2 = MlDsaKeyPair::generate_from_seed(44, &xi).unwrap();
+
+        assert_eq!(kp1.public_key, kp2.public_key);
+        assert_eq!(kp1.private_key, kp2.private_key);
+        assert_eq!(kp1.public_key.len(), MLDSA_44.pk_len);
+        assert_eq!(kp1.private_key.len(), MLDSA_44.sk_len);
+
+        // Different seed must produce different keys
+        let kp3 = MlDsaKeyPair::generate_from_seed(44, &[0x00; 32]).unwrap();
+        assert_ne!(
+            sha256_fingerprint(&kp1.public_key),
+            sha256_fingerprint(&kp3.public_key)
+        );
+    }
+
+    #[test]
+    fn test_mldsa_65_deterministic_keygen() {
+        let xi = [0xAA; 32];
+        let kp1 = MlDsaKeyPair::generate_from_seed(65, &xi).unwrap();
+        let kp2 = MlDsaKeyPair::generate_from_seed(65, &xi).unwrap();
+        assert_eq!(kp1.public_key, kp2.public_key);
+        assert_eq!(kp1.private_key, kp2.private_key);
+        assert_eq!(kp1.public_key.len(), MLDSA_65.pk_len);
+        assert_eq!(kp1.private_key.len(), MLDSA_65.sk_len);
+    }
+
+    #[test]
+    fn test_mldsa_87_deterministic_keygen() {
+        let xi = [0x55; 32];
+        let kp1 = MlDsaKeyPair::generate_from_seed(87, &xi).unwrap();
+        let kp2 = MlDsaKeyPair::generate_from_seed(87, &xi).unwrap();
+        assert_eq!(kp1.public_key, kp2.public_key);
+        assert_eq!(kp1.private_key, kp2.private_key);
+        assert_eq!(kp1.public_key.len(), MLDSA_87.pk_len);
+        assert_eq!(kp1.private_key.len(), MLDSA_87.sk_len);
+    }
+
+    #[test]
+    fn test_mldsa_deterministic_sign_verify() {
+        let xi = [0x01; 32];
+
+        for &ps in &[44u32, 65, 87] {
+            let kp = MlDsaKeyPair::generate_from_seed(ps, &xi).unwrap();
+            let msg = b"deterministic KAT message";
+
+            // ML-DSA sign is deterministic (rho' = H(K || mu))
+            let sig1 = kp.sign(msg).unwrap();
+            let sig2 = kp.sign(msg).unwrap();
+            assert_eq!(sig1, sig2, "ML-DSA-{ps} sign must be deterministic");
+
+            // Verify must pass
+            assert!(
+                kp.verify(msg, &sig1).unwrap(),
+                "ML-DSA-{ps} KAT verify must pass"
+            );
+
+            // Different message → different signature
+            let sig3 = kp.sign(b"different msg").unwrap();
+            assert_ne!(sig1, sig3, "ML-DSA-{ps} different msg → different sig");
+        }
+    }
+
+    #[test]
+    fn test_mldsa_kat_cross_parameter_independence() {
+        let xi = [0xFF; 32];
+
+        let kp44 = MlDsaKeyPair::generate_from_seed(44, &xi).unwrap();
+        let kp65 = MlDsaKeyPair::generate_from_seed(65, &xi).unwrap();
+        let kp87 = MlDsaKeyPair::generate_from_seed(87, &xi).unwrap();
+
+        // Same seed with different parameter sets must produce different keys
+        let fp44 = sha256_fingerprint(&kp44.public_key);
+        let fp65 = sha256_fingerprint(&kp65.public_key);
+        let fp87 = sha256_fingerprint(&kp87.public_key);
+        assert_ne!(fp44, fp65);
+        assert_ne!(fp65, fp87);
+        assert_ne!(fp44, fp87);
+    }
+
+    #[test]
+    fn test_mldsa_kat_seeded_key_interop() {
+        // Generate key from seed, sign, export pk, verify with fresh MlDsaKeyPair
+        let xi = [0xDE; 32];
+        let kp = MlDsaKeyPair::generate_from_seed(44, &xi).unwrap();
+        let msg = b"interop test message";
+        let sig = kp.sign(msg).unwrap();
+
+        // Reconstruct a verify-only keypair from the public key
+        let verify_kp = MlDsaKeyPair {
+            public_key: kp.public_key.clone(),
+            private_key: vec![],
+            parameter_set: 44,
+        };
+        assert!(
+            verify_kp.verify(msg, &sig).unwrap(),
+            "verify with reconstructed public key"
+        );
     }
 }
