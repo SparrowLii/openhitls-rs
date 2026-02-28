@@ -6,7 +6,7 @@ Category summary:
 - Implementation: I1–I81 (81 phases)
 - Testing: T1–T63 (63 phases)
 - Refactoring: R1–R12 (12 phases)
-- Performance: P1–P29 (29 phases)
+- Performance: P1–P31 (31 phases)
 
 | # | Phase | Type | Title | Date |
 |---|-------|------|-------|------|
@@ -195,6 +195,8 @@ Category summary:
 | 183 | P27 | Perf | CCM Zero-Allocation Tag + CBC-MAC | 2026-03-01 |
 | 184 | P28 | Perf | ChaCha20-Poly1305 Padding Stack Arrays | 2026-03-01 |
 | 185 | P29 | Perf | PBKDF2 Inner Loop Stack Arrays | 2026-03-01 |
+| 186 | P30 | Perf | HKDF Expand Stack Arrays + HMAC Reuse | 2026-03-01 |
+| 187 | P31 | Perf | TLS PRF Stack Arrays | 2026-03-01 |
 
 ---
 
@@ -10976,6 +10978,54 @@ Replaced all heap-allocated buffers in PBKDF2 inner loop with `[0u8; 32]` stack 
 - 3,484 total tests, 21 ignored, 0 clippy warnings
 
 ### Build Status (Post P28–P29)
+- `cargo test --workspace --all-features`: 3,484 passed, 0 failed, 21 ignored
+- `RUSTFLAGS="-D warnings" cargo clippy`: 0 warnings
+- `cargo fmt --all -- --check`: clean
+
+---
+
+## Phase P30 — HKDF Expand Stack Arrays + HMAC Reuse (2026-03-01)
+
+### Summary
+Replaced Vec allocations in HKDF `expand()` with `[u8; 32]` stack array for the T buffer, reused a single `Hmac` instance with `reset()` across all expand iterations (instead of creating a new `Hmac` per iteration). Default salt uses `[0u8; 32]` stack array instead of `vec![0u8; 32]`.
+
+### Changes
+| File | Change |
+|------|--------|
+| `crates/hitls-crypto/src/hkdf/mod.rs` | `new()`: zero-salt `vec![0u8; 32]` → `[0u8; 32]`, eliminated `salt.to_vec()` |
+| `crates/hitls-crypto/src/hkdf/mod.rs` | `expand()`: `t_prev`/`t` Vec → single `[u8; 32]` stack buffer, single HMAC with `reset()` |
+
+### Allocation Savings Per HKDF Expand
+| Item | Before | After |
+|------|--------|-------|
+| HMAC instances | N (one per iteration) | 1 (reused via reset) |
+| T buffer | N Vec (one per iteration) | 1 stack `[u8; 32]` |
+| t_prev | N Vec reassign | eliminated (same buffer) |
+| Default salt | 1 Vec | 1 stack array |
+
+### Test Results
+- All 7 HKDF tests pass (3 RFC vectors + from_prk + max_len + zero_len + proptest)
+- 1 Wycheproof HKDF-SHA256 vector passes
+- 3,484 total tests, 21 ignored, 0 clippy warnings
+
+---
+
+## Phase P31 — TLS PRF Stack Arrays (2026-03-01)
+
+### Summary
+Replaced Vec concatenation buffers in TLS 1.2 PRF with stack arrays. `label_seed` uses `[u8; 128]` (covers all TLS label+seed combinations), `ai_seed` uses `[u8; 192]` (hash output + label_seed). Eliminated per-iteration Vec allocation for A(i)||seed concatenation.
+
+### Changes
+| File | Change |
+|------|--------|
+| `crates/hitls-tls/src/crypt/prf.rs` | `prf()`: label_seed `Vec` → `[u8; 128]` stack with fallback |
+| `crates/hitls-tls/src/crypt/prf.rs` | `p_hash()`: `a = seed.to_vec()` eliminated, ai_seed `Vec` → `[u8; 192]` stack |
+
+### Test Results
+- All 17 PRF tests pass (SHA-256, SHA-384, SM3 variants)
+- 3,484 total tests, 21 ignored, 0 clippy warnings
+
+### Build Status (Post P30–P31)
 - `cargo test --workspace --all-features`: 3,484 passed, 0 failed, 21 ignored
 - `RUSTFLAGS="-D warnings" cargo clippy`: 0 warnings
 - `cargo fmt --all -- --check`: clean
