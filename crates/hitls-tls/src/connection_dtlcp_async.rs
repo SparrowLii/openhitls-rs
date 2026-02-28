@@ -56,7 +56,7 @@ fn create_dtlcp_encryptor(
         Ok(DtlcpEncryptor::Cbc(DtlcpRecordEncryptorCbc::new(
             enc_key.to_vec(),
             mac_key.to_vec(),
-        )))
+        )?))
     } else {
         Ok(DtlcpEncryptor::Gcm(DtlcpRecordEncryptorGcm::new(
             enc_key,
@@ -79,7 +79,7 @@ fn create_dtlcp_decryptor(
         Ok(DtlcpDecryptor::Cbc(DtlcpRecordDecryptorCbc::new(
             enc_key.to_vec(),
             mac_key.to_vec(),
-        )))
+        )?))
     } else {
         Ok(DtlcpDecryptor::Gcm(DtlcpRecordDecryptorGcm::new(
             enc_key,

@@ -6,7 +6,7 @@ Category summary:
 - Implementation: I1–I81 (81 phases)
 - Testing: T1–T63 (63 phases)
 - Refactoring: R1–R12 (12 phases)
-- Performance: P1–P37 (37 phases)
+- Performance: P1–P38 (38 phases)
 
 | # | Phase | Type | Title | Date |
 |---|-------|------|-------|------|
@@ -203,6 +203,7 @@ Category summary:
 | 191 | P35 | Perf | RSA Padding Stack Arrays | 2026-03-01 |
 | 192 | P36 | Perf | HKDF Label Stack Encoding | 2026-03-01 |
 | 193 | P37 | Perf | TLCP/DTLCP Record Stack Arrays | 2026-03-01 |
+| 194 | P38 | Perf | TLCP/DTLCP CBC HMAC Caching | 2026-03-01 |
 
 ---
 
@@ -11184,6 +11185,30 @@ Eliminated per-record heap allocations in TLCP and DTLCP CBC record encryption/d
 - 1,360 TLS tests pass, 0 clippy warnings
 
 ### Build Status (Post P37)
+- `cargo test --workspace --all-features`: 3,484 passed, 0 failed, 21 ignored
+- `RUSTFLAGS="-D warnings" cargo clippy`: 0 warnings
+- `cargo fmt --all -- --check`: clean
+
+## Phase P38 — TLCP/DTLCP CBC HMAC Caching (2026-03-01)
+
+### Summary
+Cached HMAC-SM3 instances in TLCP and DTLCP CBC record encryptor/decryptor structs. Previously, each record encrypt/decrypt created a new `Hmac::new(|| Box::new(Sm3::new()))` — allocating 3 boxed digest instances per record. Now the HMAC is created once during struct construction and reused via `reset()` per record, eliminating all per-record heap allocations for MAC computation.
+
+### Changes
+| File | Change |
+|------|--------|
+| `crates/hitls-tls/src/record/encryption_tlcp.rs` | Replaced `compute_cbc_mac` with `compute_cbc_mac_with` using cached `Hmac`; `RecordEncryptorTlcpCbc`/`RecordDecryptorTlcpCbc` store `hmac` field; `new()` returns `Result` |
+| `crates/hitls-tls/src/record/encryption_dtlcp.rs` | Same pattern: `compute_dtlcp_cbc_mac_with` with cached `Hmac`; `DtlcpRecordEncryptorCbc`/`DtlcpRecordDecryptorCbc` store `hmac` field; `new()` returns `Result` |
+| `crates/hitls-tls/src/connection_tlcp.rs` | Updated callers: `.new(...).unwrap()` |
+| `crates/hitls-tls/src/connection_dtlcp.rs` | Updated callers: `.new(...)?` |
+| `crates/hitls-tls/src/connection_dtlcp_async.rs` | Updated callers: `.new(...)?` |
+
+### Test Results
+- All 13 TLCP + 15 DTLCP encryption tests pass
+- 1,360 TLS tests pass, 188 integration tests pass
+- 3,484 total tests, 21 ignored, 0 clippy warnings
+
+### Build Status (Post P38)
 - `cargo test --workspace --all-features`: 3,484 passed, 0 failed, 21 ignored
 - `RUSTFLAGS="-D warnings" cargo clippy`: 0 warnings
 - `cargo fmt --all -- --check`: clean
