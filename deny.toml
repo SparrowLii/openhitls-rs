@@ -1,10 +1,8 @@
 # cargo-deny configuration — supply-chain policy for openHiTLS-rs
 
 [advisories]
-vulnerability = "deny"
 unmaintained = "workspace"
-yanked = "workspace"
-notice = "workspace"
+yanked = "warn"
 
 [licenses]
 unlicensed = "deny"
