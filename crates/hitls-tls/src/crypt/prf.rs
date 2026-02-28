@@ -57,23 +57,22 @@ fn p_hash(
     let mut result = Vec::with_capacity(output_len);
 
     // A(0) = seed → A(1) = HMAC(secret, seed)
-    let mut a = hmac_hash(alg, secret, seed)?;
+    let (mut a, a_len) = hmac_hash(alg, secret, seed)?;
 
     // Stack buffer for A(i) || seed concatenation (max: 64 + 128 = 192)
     let mut ai_seed_buf = [0u8; MAX_HASH_OUTPUT + MAX_LABEL_SEED];
-    let a_len = a.len();
 
     while result.len() < output_len {
         // Build A(i) || seed in stack buffer
-        ai_seed_buf[..a_len].copy_from_slice(&a);
+        ai_seed_buf[..a_len].copy_from_slice(&a[..a_len]);
         ai_seed_buf[a_len..a_len + seed.len()].copy_from_slice(seed);
-        let block = hmac_hash(alg, secret, &ai_seed_buf[..a_len + seed.len()])?;
+        let (block, block_len) = hmac_hash(alg, secret, &ai_seed_buf[..a_len + seed.len()])?;
 
-        result.extend_from_slice(&block);
+        result.extend_from_slice(&block[..block_len]);
 
         // A(i+1) = HMAC_hash(secret, A(i))
         if result.len() < output_len {
-            a = hmac_hash(alg, secret, &a)?;
+            (a, _) = hmac_hash(alg, secret, &a[..a_len])?;
         }
     }
 
@@ -237,14 +236,14 @@ mod tests {
         label_seed.extend_from_slice(&seed);
 
         // A(1) = HMAC(secret, label_seed)
-        let a1 = hmac_hash(HashAlgId::Sha256, &secret, &label_seed).unwrap();
+        let (a1, a1_len) = hmac_hash(HashAlgId::Sha256, &secret, &label_seed).unwrap();
         // P(1) = HMAC(secret, A(1) || label_seed)
-        let mut a1_seed = a1.clone();
+        let mut a1_seed = a1[..a1_len].to_vec();
         a1_seed.extend_from_slice(&label_seed);
-        let p1 = hmac_hash(HashAlgId::Sha256, &secret, &a1_seed).unwrap();
+        let (p1, p1_len) = hmac_hash(HashAlgId::Sha256, &secret, &a1_seed).unwrap();
 
         // For 32 bytes output, P(1) is exactly one SHA-256 block
-        assert_eq!(output, p1);
+        assert_eq!(output, &p1[..p1_len]);
 
         // Log for verification
         eprintln!("PRF output: {}", to_hex(&output));
@@ -364,14 +363,14 @@ mod tests {
         label_seed.extend_from_slice(&seed);
 
         // A(1) = HMAC-SM3(secret, label_seed)
-        let a1 = hmac_hash(HashAlgId::Sm3, &secret, &label_seed).unwrap();
+        let (a1, a1_len) = hmac_hash(HashAlgId::Sm3, &secret, &label_seed).unwrap();
         // P(1) = HMAC-SM3(secret, A(1) || label_seed)
-        let mut a1_seed = a1.clone();
+        let mut a1_seed = a1[..a1_len].to_vec();
         a1_seed.extend_from_slice(&label_seed);
-        let p1 = hmac_hash(HashAlgId::Sm3, &secret, &a1_seed).unwrap();
+        let (p1, p1_len) = hmac_hash(HashAlgId::Sm3, &secret, &a1_seed).unwrap();
 
         // For 32 bytes output, P(1) is exactly one SM3 block
-        assert_eq!(output, p1);
+        assert_eq!(output, &p1[..p1_len]);
 
         eprintln!("SM3 PRF output: {}", to_hex(&output));
     }

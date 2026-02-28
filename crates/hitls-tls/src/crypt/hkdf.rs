@@ -38,7 +38,12 @@ fn prepare_key_block(
 }
 
 /// One-shot HMAC: `HMAC(key, data)`. All buffers are stack-allocated.
-pub(crate) fn hmac_hash(alg: HashAlgId, key: &[u8], data: &[u8]) -> Result<Vec<u8>, TlsError> {
+/// Returns `(output_array, output_len)` — use `&result.0[..result.1]` to access the MAC.
+pub(crate) fn hmac_hash(
+    alg: HashAlgId,
+    key: &[u8],
+    data: &[u8],
+) -> Result<([u8; MAX_OUTPUT_SIZE], usize), TlsError> {
     let (mut key_block, block_size, output_size) = prepare_key_block(alg, key)?;
 
     // Inner: H((K XOR ipad) || data) — XOR in-place into stack buffer
@@ -67,26 +72,29 @@ pub(crate) fn hmac_hash(alg: HashAlgId, key: &[u8], data: &[u8]) -> Result<Vec<u
     outer
         .update(&inner_hash[..output_size])
         .map_err(TlsError::CryptoError)?;
-    let mut out = vec![0u8; output_size];
-    outer.finish(&mut out).map_err(TlsError::CryptoError)?;
+    let mut out = [0u8; MAX_OUTPUT_SIZE];
+    outer
+        .finish(&mut out[..output_size])
+        .map_err(TlsError::CryptoError)?;
 
     key_block.zeroize();
     xor_key.zeroize();
     inner_hash.zeroize();
-    Ok(out)
+    Ok((out, output_size))
 }
 
 /// HKDF-Extract(salt, IKM) -> PRK.
 ///
 /// This is `HMAC-Hash(salt, IKM)`. If salt is empty, uses `hash_len` zero bytes.
 pub fn hkdf_extract(alg: HashAlgId, salt: &[u8], ikm: &[u8]) -> Result<Vec<u8>, TlsError> {
-    if salt.is_empty() {
+    let (buf, len) = if salt.is_empty() {
         let zero_salt = [0u8; MAX_OUTPUT_SIZE];
         let hash_len = DigestVariant::output_size_for(alg);
-        hmac_hash(alg, &zero_salt[..hash_len], ikm)
+        hmac_hash(alg, &zero_salt[..hash_len], ikm)?
     } else {
-        hmac_hash(alg, salt, ikm)
-    }
+        hmac_hash(alg, salt, ikm)?
+    };
+    Ok(buf[..len].to_vec())
 }
 
 /// HKDF-Expand(PRK, info, length) -> OKM.
@@ -307,11 +315,11 @@ mod tests {
         // RFC 2202 Test Case 1: HMAC-SHA256 with known key and data
         let key = hex("0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b");
         let data = b"Hi There";
-        let result = hmac_hash(HashAlgId::Sha256, &key, data).unwrap();
-        assert_eq!(result.len(), 32);
+        let (result, len) = hmac_hash(HashAlgId::Sha256, &key, data).unwrap();
+        assert_eq!(len, 32);
         // Verify determinism
-        let result2 = hmac_hash(HashAlgId::Sha256, &key, data).unwrap();
-        assert_eq!(result, result2);
+        let (result2, len2) = hmac_hash(HashAlgId::Sha256, &key, data).unwrap();
+        assert_eq!(&result[..len], &result2[..len2]);
     }
 
     #[test]
@@ -319,8 +327,8 @@ mod tests {
         // Key longer than block size (64 bytes for SHA-256) gets hashed first
         let long_key = vec![0xAA; 131]; // > 64 bytes
         let data = b"Test With Long Key";
-        let result = hmac_hash(HashAlgId::Sha256, &long_key, data).unwrap();
-        assert_eq!(result.len(), 32);
+        let (_, len) = hmac_hash(HashAlgId::Sha256, &long_key, data).unwrap();
+        assert_eq!(len, 32);
     }
 
     #[test]
@@ -412,14 +420,14 @@ mod tests {
     #[test]
     fn test_hmac_hash_empty_data() {
         let key = hex("0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b");
-        let result = hmac_hash(HashAlgId::Sha256, &key, b"").unwrap();
-        assert_eq!(result.len(), 32);
+        let (result, len) = hmac_hash(HashAlgId::Sha256, &key, b"").unwrap();
+        assert_eq!(len, 32);
         // HMAC with empty data should still produce deterministic output
-        let result2 = hmac_hash(HashAlgId::Sha256, &key, b"").unwrap();
-        assert_eq!(result, result2);
+        let (result2, len2) = hmac_hash(HashAlgId::Sha256, &key, b"").unwrap();
+        assert_eq!(&result[..len], &result2[..len2]);
         // Should differ from HMAC with non-empty data
-        let result3 = hmac_hash(HashAlgId::Sha256, &key, b"data").unwrap();
-        assert_ne!(result, result3);
+        let (result3, len3) = hmac_hash(HashAlgId::Sha256, &key, b"data").unwrap();
+        assert_ne!(&result[..len], &result3[..len3]);
     }
 
     #[test]
@@ -435,16 +443,16 @@ mod tests {
     fn test_hmac_hash_sm3() {
         let key = hex("0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b");
         let data = b"Hi There";
-        let result = hmac_hash(HashAlgId::Sm3, &key, data).unwrap();
-        assert_eq!(result.len(), 32); // SM3 output is 32 bytes
+        let (result, len) = hmac_hash(HashAlgId::Sm3, &key, data).unwrap();
+        assert_eq!(len, 32); // SM3 output is 32 bytes
 
         // Deterministic
-        let result2 = hmac_hash(HashAlgId::Sm3, &key, data).unwrap();
-        assert_eq!(result, result2);
+        let (result2, len2) = hmac_hash(HashAlgId::Sm3, &key, data).unwrap();
+        assert_eq!(&result[..len], &result2[..len2]);
 
         // Differs from HMAC-SHA256 with same inputs
-        let sha256_result = hmac_hash(HashAlgId::Sha256, &key, data).unwrap();
-        assert_ne!(result, sha256_result);
+        let (sha256_result, sha256_len) = hmac_hash(HashAlgId::Sha256, &key, data).unwrap();
+        assert_ne!(&result[..len], &sha256_result[..sha256_len]);
     }
 
     #[cfg(any(feature = "tlcp", feature = "sm_tls13"))]
@@ -491,16 +499,16 @@ mod tests {
 
         // Key exactly 64 bytes (SHA-256 block_size): NOT hashed, used directly
         let key_64 = vec![0xAA; 64];
-        let result_64 = hmac_hash(HashAlgId::Sha256, &key_64, data).unwrap();
-        assert_eq!(result_64.len(), 32);
+        let (result_64, len_64) = hmac_hash(HashAlgId::Sha256, &key_64, data).unwrap();
+        assert_eq!(len_64, 32);
 
         // Key 65 bytes: IS hashed (key > block_size triggers hash)
         let key_65 = vec![0xAA; 65];
-        let result_65 = hmac_hash(HashAlgId::Sha256, &key_65, data).unwrap();
-        assert_eq!(result_65.len(), 32);
+        let (result_65, len_65) = hmac_hash(HashAlgId::Sha256, &key_65, data).unwrap();
+        assert_eq!(len_65, 32);
 
         // Results must differ (different effective keys)
-        assert_ne!(result_64, result_65);
+        assert_ne!(&result_64[..len_64], &result_65[..len_65]);
     }
 
     #[test]
