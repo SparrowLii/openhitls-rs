@@ -29,12 +29,13 @@ fn gen_a_mul_add_shake(
         // Generate 4 rows of A using SHAKE128(row_index_le16 || seed_a)
         let mut a_rows = vec![0u16; rows_this * n];
 
+        let mut row_bytes = vec![0u8; n * 2];
         for r in 0..rows_this {
             let row_idx = (i + r) as u16;
             let mut xof = Shake128::new();
             xof.update(&row_idx.to_le_bytes())?;
             xof.update(seed_a)?;
-            let row_bytes = xof.squeeze(n * 2)?;
+            xof.squeeze_into(&mut row_bytes);
             for j in 0..n {
                 a_rows[r * n + j] =
                     u16::from_le_bytes([row_bytes[2 * j], row_bytes[2 * j + 1]]) & q_mask;
@@ -150,12 +151,13 @@ pub(crate) fn mul_add_sa_plus_e(
                 let rows_this = core::cmp::min(4, n - i);
                 let mut a_rows = vec![0u16; rows_this * n];
 
+                let mut row_bytes = vec![0u8; n * 2];
                 for r in 0..rows_this {
                     let row_idx = (i + r) as u16;
                     let mut xof = Shake128::new();
                     xof.update(&row_idx.to_le_bytes())?;
                     xof.update(seed_a)?;
-                    let row_bytes = xof.squeeze(n * 2)?;
+                    xof.squeeze_into(&mut row_bytes);
                     for j in 0..n {
                         a_rows[r * n + j] =
                             u16::from_le_bytes([row_bytes[2 * j], row_bytes[2 * j + 1]]) & q_mask;

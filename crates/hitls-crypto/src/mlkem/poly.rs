@@ -176,7 +176,8 @@ pub(crate) fn rej_sample(xof: &mut Shake128) -> Poly {
     // Squeeze 504 bytes at once (3 SHAKE-128 blocks of 168 bytes).
     // This yields ~336 12-bit candidates; we need ~341 on average (256/0.75).
     while ctr < N {
-        let block = xof.squeeze(504).unwrap();
+        let mut block = [0u8; 504];
+        xof.squeeze_into(&mut block);
         let mut pos = 0;
         while pos + 2 < block.len() && ctr < N {
             let d1 = (block[pos] as u16) | ((block[pos + 1] as u16 & 0x0F) << 8);

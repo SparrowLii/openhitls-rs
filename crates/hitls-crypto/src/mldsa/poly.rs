@@ -84,7 +84,8 @@ pub(crate) fn rej_ntt_poly(rho: &[u8; 32], i: u8, j: u8) -> Poly {
     let mut r = [0i32; N];
     let mut ctr = 0;
     while ctr < N {
-        let block = xof.squeeze(504).unwrap();
+        let mut block = [0u8; 504];
+        xof.squeeze_into(&mut block);
         let mut pos = 0;
         while pos + 2 < block.len() && ctr < N {
             let mut t = (block[pos] as u32)
@@ -124,7 +125,8 @@ pub(crate) fn rej_bounded_poly(sigma: &[u8], eta: usize, nonce: u16) -> Poly {
     let mut r = [0i32; N];
     let mut ctr = 0;
     while ctr < N {
-        let block = xof.squeeze(136).unwrap();
+        let mut block = [0u8; 136];
+        xof.squeeze_into(&mut block);
         let mut pos = 0;
         while pos < block.len() && ctr < N {
             let b0 = (block[pos] & 0x0F) as i32;
@@ -222,7 +224,8 @@ pub(crate) fn sample_in_ball(seed: &[u8], tau: usize) -> Poly {
     xof.update(seed).unwrap();
 
     // Squeeze a full SHAKE-256 block: first 8 bytes are sign bits, rest are index candidates
-    let mut buf = xof.squeeze(136).unwrap();
+    let mut buf = [0u8; 136];
+    xof.squeeze_into(&mut buf);
     let mut signs: u64 = 0;
     for (i, &byte) in buf[..8].iter().enumerate() {
         signs |= (byte as u64) << (8 * i);
@@ -235,7 +238,7 @@ pub(crate) fn sample_in_ball(seed: &[u8], tau: usize) -> Poly {
         let j;
         loop {
             if buf_pos >= buf.len() {
-                buf = xof.squeeze(136).unwrap();
+                xof.squeeze_into(&mut buf);
                 buf_pos = 0;
             }
             let candidate = buf[buf_pos] as usize;

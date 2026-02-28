@@ -239,23 +239,25 @@ impl KeccakState {
 
         let mut state_bytes = [0u8; 200];
         let mut offset = 0;
-        let buf_offset = self.buf_len; // how many bytes already squeezed from this block
 
-        if buf_offset > 0 && buf_offset < self.rate {
+        // Handle leftover bytes from a previous squeeze (partial block consumed)
+        if self.buf_len > 0 && self.buf_len < self.rate {
             self.state_to_bytes_into(&mut state_bytes);
-            let available = self.rate - buf_offset;
+            let available = self.rate - self.buf_len;
             let copy_len = available.min(output.len());
-            output[..copy_len].copy_from_slice(&state_bytes[buf_offset..buf_offset + copy_len]);
+            output[..copy_len]
+                .copy_from_slice(&state_bytes[self.buf_len..self.buf_len + copy_len]);
             offset = copy_len;
-            if buf_offset + copy_len < self.rate {
-                self.buf_len = buf_offset + copy_len;
+            self.buf_len += copy_len;
+            if self.buf_len < self.rate {
                 return;
             }
-            self.buf_len = 0;
+            // buf_len == rate: block fully consumed, fall through to main loop
         }
 
         while offset < output.len() {
-            if offset > 0 || buf_offset > 0 {
+            // Permute unless this is the very first block (buf_len == 0 only on first squeeze)
+            if self.buf_len > 0 {
                 keccak_f1600(&mut self.state);
             }
             self.state_to_bytes_into(&mut state_bytes);
@@ -263,12 +265,7 @@ impl KeccakState {
             let copy_len = remaining.min(self.rate);
             output[offset..offset + copy_len].copy_from_slice(&state_bytes[..copy_len]);
             offset += copy_len;
-
-            if copy_len < self.rate {
-                self.buf_len = copy_len;
-            } else {
-                self.buf_len = 0;
-            }
+            self.buf_len = copy_len;
         }
     }
 
@@ -494,6 +491,11 @@ impl Shake128 {
         Ok(output)
     }
 
+    /// Squeeze output directly into a caller-provided buffer (zero-allocation).
+    pub fn squeeze_into(&mut self, output: &mut [u8]) {
+        self.inner.squeeze(output);
+    }
+
     pub fn reset(&mut self) {
         self.inner.reset();
     }
@@ -528,6 +530,11 @@ impl Shake256 {
         let mut output = vec![0u8; output_len];
         self.inner.squeeze(&mut output);
         Ok(output)
+    }
+
+    /// Squeeze output directly into a caller-provided buffer (zero-allocation).
+    pub fn squeeze_into(&mut self, output: &mut [u8]) {
+        self.inner.squeeze(output);
     }
 
     pub fn reset(&mut self) {
@@ -677,5 +684,37 @@ mod tests {
         let mut combined = s1;
         combined.extend_from_slice(&s2);
         assert_eq!(combined, s_full);
+    }
+
+    #[test]
+    fn test_shake128_squeeze_into_matches_squeeze() {
+        let mut xof1 = Shake128::new();
+        xof1.update(b"squeeze_into test").unwrap();
+        let vec_out = xof1.squeeze(504).unwrap();
+
+        let mut xof2 = Shake128::new();
+        xof2.update(b"squeeze_into test").unwrap();
+        let mut buf = [0u8; 504];
+        xof2.squeeze_into(&mut buf);
+
+        assert_eq!(vec_out, buf.as_slice());
+    }
+
+    #[test]
+    fn test_shake256_squeeze_into_incremental() {
+        // Verify incremental squeeze_into matches contiguous squeeze
+        let mut xof1 = Shake256::new();
+        xof1.update(b"incremental").unwrap();
+        let full = xof1.squeeze(272).unwrap();
+
+        let mut xof2 = Shake256::new();
+        xof2.update(b"incremental").unwrap();
+        let mut part1 = [0u8; 136];
+        let mut part2 = [0u8; 136];
+        xof2.squeeze_into(&mut part1);
+        xof2.squeeze_into(&mut part2);
+
+        assert_eq!(&full[..136], &part1);
+        assert_eq!(&full[136..], &part2);
     }
 }
