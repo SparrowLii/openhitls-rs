@@ -217,8 +217,8 @@ fn inc32(counter: &mut [u8; 16]) {
 }
 
 /// Internal GCM encrypt/decrypt (generic over block cipher).
-fn gcm_crypt_generic(
-    cipher: &dyn BlockCipher,
+fn gcm_crypt_generic<C: BlockCipher>(
+    cipher: &C,
     nonce: &[u8],
     aad: &[u8],
     input: &[u8],

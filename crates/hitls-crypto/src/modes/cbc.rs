@@ -74,8 +74,8 @@ pub fn cbc_decrypt(key: &[u8], iv: &[u8], ciphertext: &[u8]) -> Result<Vec<u8>, 
 }
 
 /// Encrypt data using CBC mode with a generic block cipher and PKCS#7 padding.
-pub fn cbc_encrypt_with(
-    cipher: &dyn BlockCipher,
+pub fn cbc_encrypt_with<C: BlockCipher>(
+    cipher: &C,
     iv: &[u8],
     plaintext: &[u8],
 ) -> Result<Vec<u8>, CryptoError> {
@@ -103,8 +103,8 @@ pub fn cbc_encrypt_with(
 }
 
 /// Decrypt data using CBC mode with a generic block cipher and remove PKCS#7 padding.
-pub fn cbc_decrypt_with(
-    cipher: &dyn BlockCipher,
+pub fn cbc_decrypt_with<C: BlockCipher>(
+    cipher: &C,
     iv: &[u8],
     ciphertext: &[u8],
 ) -> Result<Vec<u8>, CryptoError> {
