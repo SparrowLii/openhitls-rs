@@ -1,10 +1,10 @@
 #![no_main]
 use libfuzzer_sys::fuzz_target;
 
-/// Simulate feeding a sequence of TLS 1.3 handshake messages through the codec.
-/// Each chunk is prefixed with a 1-byte HandshakeType selector and 2-byte length,
-/// then dispatched to the appropriate decoder. This exercises message sequencing
-/// and interleaving that a real state machine would encounter.
+// Simulate feeding a sequence of TLS 1.3 handshake messages through the codec.
+// Each chunk is prefixed with a 1-byte HandshakeType selector and 2-byte length,
+// then dispatched to the appropriate decoder. This exercises message sequencing
+// and interleaving that a real state machine would encounter.
 fuzz_target!(|data: &[u8]| {
     // Need at least 3 bytes per chunk (1B type + 2B length)
     if data.len() < 3 {

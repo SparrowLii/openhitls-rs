@@ -280,6 +280,7 @@ mod tests {
 
     // ===== Phase T112: SM3 PRF tests =====
 
+    #[cfg(any(feature = "tlcp", feature = "sm_tls13"))]
     #[test]
     fn test_prf_sm3_basic() {
         // Basic smoke test: SM3 PRF should produce deterministic output
@@ -293,6 +294,7 @@ mod tests {
         assert_eq!(output1.len(), 32);
     }
 
+    #[cfg(any(feature = "tlcp", feature = "sm_tls13"))]
     #[test]
     fn test_prf_sm3_vs_sha256_differ() {
         // Same inputs with SM3 vs SHA-256 must produce different output
@@ -305,6 +307,7 @@ mod tests {
         assert_ne!(out_sm3, out_sha256);
     }
 
+    #[cfg(any(feature = "tlcp", feature = "sm_tls13"))]
     #[test]
     fn test_prf_sm3_various_output_lengths() {
         let secret = b"secret";
@@ -324,6 +327,7 @@ mod tests {
         assert_eq!(&long[..32], &short[..]);
     }
 
+    #[cfg(any(feature = "tlcp", feature = "sm_tls13"))]
     #[test]
     fn test_prf_sm3_known_vector_manual() {
         // Cross-validate SM3 PRF against manual P_SM3 computation

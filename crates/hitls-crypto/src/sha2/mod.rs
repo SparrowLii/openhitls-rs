@@ -7,7 +7,7 @@ use hitls_types::CryptoError;
 #[cfg(target_arch = "aarch64")]
 mod sha256_arm;
 
-#[cfg(target_arch = "aarch64")]
+#[cfg(all(target_arch = "aarch64", has_sha512_arm_intrinsics))]
 mod sha512_arm;
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
@@ -243,7 +243,7 @@ fn sha256_compress_soft(state: &mut [u32; 8], block: &[u8]) {
 /// - **ARMv8.2**: SHA-512 Crypto Extensions (`vsha512hq_u64` etc.)
 /// - **Fallback**: Pure-Rust software implementation
 fn sha512_compress(state: &mut [u64; 8], block: &[u8]) {
-    #[cfg(target_arch = "aarch64")]
+    #[cfg(all(target_arch = "aarch64", has_sha512_arm_intrinsics))]
     {
         if std::arch::is_aarch64_feature_detected!("sha3") {
             // SAFETY: feature detection confirmed sha3 (SHA-512) is available

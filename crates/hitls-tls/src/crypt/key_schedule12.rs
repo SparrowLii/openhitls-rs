@@ -710,6 +710,7 @@ mod tests {
 
     // ===== Phase T112: SM3 key schedule tests =====
 
+    #[cfg(any(feature = "tlcp", feature = "sm_tls13"))]
     #[test]
     fn test_derive_master_secret_sm3() {
         let pms = hex("0303aabbccdd");
@@ -809,6 +810,7 @@ mod tests {
         assert!(kb1.server_write_mac_key.is_empty());
     }
 
+    #[cfg(any(feature = "tlcp", feature = "sm_tls13"))]
     #[test]
     fn test_compute_verify_data_sm3_client() {
         let master_secret = [0xABu8; 48];
@@ -844,6 +846,7 @@ mod tests {
         assert_ne!(vd, vd_server);
     }
 
+    #[cfg(any(feature = "tlcp", feature = "sm_tls13"))]
     #[test]
     fn test_compute_verify_data_sm3_server() {
         let master_secret = [0xBBu8; 48];
@@ -941,6 +944,7 @@ mod tests {
         assert_ne!(kb1.client_write_key, kb2.client_write_key);
     }
 
+    #[cfg(any(feature = "tlcp", feature = "sm_tls13"))]
     #[test]
     fn test_sm3_full_verify_pipeline() {
         // Full pipeline: SM3 master secret → SM3 transcript hash → SM3 verify_data

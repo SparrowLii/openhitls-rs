@@ -219,6 +219,7 @@ mod tests {
 
     // ===== Phase T112: SM3 transcript hash tests =====
 
+    #[cfg(any(feature = "tlcp", feature = "sm_tls13"))]
     #[test]
     fn test_transcript_sm3_empty_hash() {
         // GM/T 0004-2012: SM3("") known value
@@ -230,6 +231,7 @@ mod tests {
         );
     }
 
+    #[cfg(any(feature = "tlcp", feature = "sm_tls13"))]
     #[test]
     fn test_transcript_sm3_incremental() {
         let mut th = TranscriptHash::new(HashAlgId::Sm3);
@@ -253,6 +255,7 @@ mod tests {
         assert_eq!(h3.len(), 32);
     }
 
+    #[cfg(any(feature = "tlcp", feature = "sm_tls13"))]
     #[test]
     fn test_transcript_sm3_hash_len() {
         let th = TranscriptHash::new(HashAlgId::Sm3);
