@@ -3314,3 +3314,17 @@ Targeted coverage gaps in connection_info, handshake enums, lib.rs constants, co
 - Callers updated: `extend_from_slice(&padding[..padding_len])`, `ct_eq(&expected_mac)`
 - All 13 TLCP + 15 DTLCP encryption tests pass
 - 3,484 tests (unchanged), 21 ignored, 0 clippy warnings
+
+## Phase P38 — TLCP/DTLCP CBC HMAC Caching (2026-03-01)
+
+**Prompt**: Cache HMAC instance in TLCP/DTLCP CBC record structs to eliminate per-record Hmac::new + 3 Box allocations.
+
+**Result**:
+- Replaced `compute_cbc_mac` / `compute_dtlcp_cbc_mac` with `compute_cbc_mac_with` / `compute_dtlcp_cbc_mac_with` taking `&mut Hmac` + `out: &mut [u8; SM3_MAC_SIZE]`
+- Added `create_sm3_hmac(mac_key)` helper in both files
+- 4 CBC record structs (`RecordEncryptorTlcpCbc`, `RecordDecryptorTlcpCbc`, `DtlcpRecordEncryptorCbc`, `DtlcpRecordDecryptorCbc`) now store `hmac: Hmac` field instead of `mac_key: Vec<u8>`
+- `new()` returns `Result<Self, TlsError>` instead of `Self`
+- Updated callers in `connection_tlcp.rs`, `connection_dtlcp.rs`, `connection_dtlcp_async.rs`
+- Eliminates 3 Box allocations (factory closure + inner digest + trait object) per record
+- All 13 TLCP + 15 DTLCP encryption tests pass, 1,360 TLS tests pass, 188 integration tests pass
+- 3,484 tests (unchanged), 21 ignored, 0 clippy warnings

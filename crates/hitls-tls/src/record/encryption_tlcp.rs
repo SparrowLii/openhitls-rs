@@ -25,21 +25,22 @@ const GCM_EXPLICIT_NONCE_LEN: usize = 8;
 
 // ─── Helpers ──────────────────────────────────────────────
 
-/// Compute HMAC-SM3 MAC for TLCP CBC records.
-///
-/// MAC = HMAC-SM3(mac_key, seq(8) || type(1) || version(2) || length(2) || fragment)
-fn compute_cbc_mac(
-    mac_key: &[u8],
+/// Create an HMAC-SM3 instance for TLCP CBC records.
+fn create_sm3_hmac(mac_key: &[u8]) -> Result<hitls_crypto::hmac::Hmac, TlsError> {
+    use hitls_crypto::hmac::Hmac;
+    use hitls_crypto::sm3::Sm3;
+    Hmac::new(|| Box::new(Sm3::new()) as Box<_>, mac_key).map_err(TlsError::CryptoError)
+}
+
+/// Compute HMAC-SM3 MAC using a cached HMAC instance (reset + reuse, zero heap allocation).
+fn compute_cbc_mac_with(
+    hmac: &mut hitls_crypto::hmac::Hmac,
     seq: u64,
     content_type: ContentType,
     fragment: &[u8],
-) -> Result<[u8; SM3_MAC_SIZE], TlsError> {
-    use hitls_crypto::hmac::Hmac;
-    use hitls_crypto::sm3::Sm3;
-
-    let mut hmac =
-        Hmac::new(|| Box::new(Sm3::new()) as Box<_>, mac_key).map_err(TlsError::CryptoError)?;
-
+    out: &mut [u8; SM3_MAC_SIZE],
+) -> Result<(), TlsError> {
+    hmac.reset();
     hmac.update(&seq.to_be_bytes())
         .map_err(TlsError::CryptoError)?;
     hmac.update(&[content_type as u8])
@@ -49,10 +50,7 @@ fn compute_cbc_mac(
     hmac.update(&(fragment.len() as u16).to_be_bytes())
         .map_err(TlsError::CryptoError)?;
     hmac.update(fragment).map_err(TlsError::CryptoError)?;
-
-    let mut mac = [0u8; SM3_MAC_SIZE];
-    hmac.finish(&mut mac).map_err(TlsError::CryptoError)?;
-    Ok(mac)
+    hmac.finish(out).map_err(TlsError::CryptoError)
 }
 
 /// Build TLS-style padding for CBC.
@@ -123,24 +121,24 @@ fn build_nonce_tlcp(fixed_iv: &[u8], explicit_nonce: &[u8; GCM_EXPLICIT_NONCE_LE
 /// TLCP CBC MAC-then-encrypt record encryptor.
 pub struct RecordEncryptorTlcpCbc {
     enc_key: Vec<u8>,
-    mac_key: Vec<u8>,
+    hmac: hitls_crypto::hmac::Hmac,
     seq: u64,
 }
 
 impl Drop for RecordEncryptorTlcpCbc {
     fn drop(&mut self) {
         self.enc_key.zeroize();
-        self.mac_key.zeroize();
     }
 }
 
 impl RecordEncryptorTlcpCbc {
-    pub fn new(enc_key: Vec<u8>, mac_key: Vec<u8>) -> Self {
-        Self {
+    pub fn new(enc_key: Vec<u8>, mac_key: Vec<u8>) -> Result<Self, TlsError> {
+        let hmac = create_sm3_hmac(&mac_key)?;
+        Ok(Self {
             enc_key,
-            mac_key,
+            hmac,
             seq: 0,
-        }
+        })
     }
 
     /// Encrypt a record with MAC-then-encrypt.
@@ -156,7 +154,8 @@ impl RecordEncryptorTlcpCbc {
         }
 
         // Compute MAC over plaintext
-        let mac = compute_cbc_mac(&self.mac_key, self.seq, content_type, plaintext)?;
+        let mut mac = [0u8; SM3_MAC_SIZE];
+        compute_cbc_mac_with(&mut self.hmac, self.seq, content_type, plaintext, &mut mac)?;
 
         // Build: plaintext || MAC || TLS-padding
         let data_len = plaintext.len() + SM3_MAC_SIZE;
@@ -200,24 +199,24 @@ impl RecordEncryptorTlcpCbc {
 /// TLCP CBC record decryptor.
 pub struct RecordDecryptorTlcpCbc {
     enc_key: Vec<u8>,
-    mac_key: Vec<u8>,
+    hmac: hitls_crypto::hmac::Hmac,
     seq: u64,
 }
 
 impl Drop for RecordDecryptorTlcpCbc {
     fn drop(&mut self) {
         self.enc_key.zeroize();
-        self.mac_key.zeroize();
     }
 }
 
 impl RecordDecryptorTlcpCbc {
-    pub fn new(enc_key: Vec<u8>, mac_key: Vec<u8>) -> Self {
-        Self {
+    pub fn new(enc_key: Vec<u8>, mac_key: Vec<u8>) -> Result<Self, TlsError> {
+        let hmac = create_sm3_hmac(&mac_key)?;
+        Ok(Self {
             enc_key,
-            mac_key,
+            hmac,
             seq: 0,
-        }
+        })
     }
 
     /// Decrypt a TLCP CBC record.
@@ -273,11 +272,13 @@ impl RecordDecryptorTlcpCbc {
         };
 
         // Compute expected MAC
-        let expected_mac = compute_cbc_mac(
-            &self.mac_key,
+        let mut expected_mac = [0u8; SM3_MAC_SIZE];
+        compute_cbc_mac_with(
+            &mut self.hmac,
             self.seq,
             record.content_type,
             &decrypted[..content_len],
+            &mut expected_mac,
         )?;
 
         // Compare received MAC (constant-time)
@@ -494,8 +495,8 @@ mod tests {
         let enc_key = vec![0x42u8; 16];
         let mac_key = vec![0xABu8; 32];
 
-        let mut enc = RecordEncryptorTlcpCbc::new(enc_key.clone(), mac_key.clone());
-        let mut dec = RecordDecryptorTlcpCbc::new(enc_key, mac_key);
+        let mut enc = RecordEncryptorTlcpCbc::new(enc_key.clone(), mac_key.clone()).unwrap();
+        let mut dec = RecordDecryptorTlcpCbc::new(enc_key, mac_key).unwrap();
 
         let plaintext = b"hello TLCP CBC MAC-then-encrypt";
         let record = enc
@@ -517,9 +518,9 @@ mod tests {
         let enc_key = vec![0x42u8; 16];
         let mac_key = vec![0xABu8; 32];
 
-        let mut enc = RecordEncryptorTlcpCbc::new(enc_key.clone(), mac_key.clone());
+        let mut enc = RecordEncryptorTlcpCbc::new(enc_key.clone(), mac_key.clone()).unwrap();
         // Use different mac_key for decryption → MAC mismatch
-        let mut dec = RecordDecryptorTlcpCbc::new(enc_key, vec![0xCDu8; 32]);
+        let mut dec = RecordDecryptorTlcpCbc::new(enc_key, vec![0xCDu8; 32]).unwrap();
 
         let record = enc
             .encrypt_record(ContentType::ApplicationData, b"secret")
@@ -532,8 +533,8 @@ mod tests {
         let enc_key = vec![0x42u8; 16];
         let mac_key = vec![0xABu8; 32];
 
-        let mut enc = RecordEncryptorTlcpCbc::new(enc_key.clone(), mac_key.clone());
-        let mut dec = RecordDecryptorTlcpCbc::new(enc_key, mac_key);
+        let mut enc = RecordEncryptorTlcpCbc::new(enc_key.clone(), mac_key.clone()).unwrap();
+        let mut dec = RecordDecryptorTlcpCbc::new(enc_key, mac_key).unwrap();
 
         let mut record = enc
             .encrypt_record(ContentType::ApplicationData, b"secret data")
@@ -549,8 +550,8 @@ mod tests {
         let enc_key = vec![0x42u8; 16];
         let mac_key = vec![0xABu8; 32];
 
-        let mut enc = RecordEncryptorTlcpCbc::new(enc_key.clone(), mac_key.clone());
-        let mut dec = RecordDecryptorTlcpCbc::new(enc_key, mac_key);
+        let mut enc = RecordEncryptorTlcpCbc::new(enc_key.clone(), mac_key.clone()).unwrap();
+        let mut dec = RecordDecryptorTlcpCbc::new(enc_key, mac_key).unwrap();
 
         let record = enc
             .encrypt_record(ContentType::ApplicationData, b"")
@@ -615,8 +616,8 @@ mod tests {
         let enc_key = vec![0x42u8; 16];
         let mac_key = vec![0xABu8; 32];
 
-        let mut enc = RecordEncryptorTlcpCbc::new(enc_key.clone(), mac_key.clone());
-        let mut dec = RecordDecryptorTlcpCbc::new(enc_key, mac_key);
+        let mut enc = RecordEncryptorTlcpCbc::new(enc_key.clone(), mac_key.clone()).unwrap();
+        let mut dec = RecordDecryptorTlcpCbc::new(enc_key, mac_key).unwrap();
 
         for i in 0..5 {
             let msg = format!("message {i}");
@@ -634,7 +635,7 @@ mod tests {
     fn test_cbc_decrypt_fragment_too_short() {
         let enc_key = vec![0x42u8; 16];
         let mac_key = vec![0xABu8; 32];
-        let mut dec = RecordDecryptorTlcpCbc::new(enc_key, mac_key);
+        let mut dec = RecordDecryptorTlcpCbc::new(enc_key, mac_key).unwrap();
 
         // Minimum is SM4_BLOCK_SIZE + SM4_BLOCK_SIZE * 3 = 64 bytes
         let short_record = Record {
@@ -653,7 +654,7 @@ mod tests {
     fn test_cbc_decrypt_not_block_aligned() {
         let enc_key = vec![0x42u8; 16];
         let mac_key = vec![0xABu8; 32];
-        let mut dec = RecordDecryptorTlcpCbc::new(enc_key, mac_key);
+        let mut dec = RecordDecryptorTlcpCbc::new(enc_key, mac_key).unwrap();
 
         // IV(16) + encrypted data that is not a multiple of SM4_BLOCK_SIZE
         // 16 (IV) + 49 bytes (not multiple of 16) = 65 total, >= 64 minimum
