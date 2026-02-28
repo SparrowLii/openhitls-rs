@@ -6,7 +6,7 @@ Category summary:
 - Implementation: I1–I81 (81 phases)
 - Testing: T1–T63 (63 phases)
 - Refactoring: R1–R12 (12 phases)
-- Performance: P1–P22 (22 phases)
+- Performance: P1–P25 (25 phases)
 
 | # | Phase | Type | Title | Date |
 |---|-------|------|-------|------|
@@ -188,6 +188,9 @@ Category summary:
 | 176 | P22 | Perf | Miller-Rabin Montgomery Optimization | 2026-03-01 |
 | 177 | T63 | Test | PQC Fuzz + Signature Sign Fuzz | 2026-03-01 |
 | 178 | I81 | Impl | HybridKEM Generalization — All 12 Variants | 2026-03-01 |
+| 179 | P23 | Perf | GCM/CCM Per-Record Key Schedule + GHASH Table Caching | 2026-03-01 |
+| 180 | P24 | Perf | TLS 1.2 CBC Per-Record AES Key Caching | 2026-03-01 |
+| 181 | P25 | Perf | CBC Generic Path Stack Array Optimization | 2026-03-01 |
 
 ---
 
@@ -10767,5 +10770,83 @@ Generalize HybridKEM from X25519+ML-KEM-768 only to all 12 parameter combination
 ### Build Status (Post I81)
 - `cargo test --workspace --all-features`: 3,484 passed, 0 failed, 21 ignored
 - `cargo test -p hitls-crypto --all-features -- hybridkem`: 12 passed (was 7, +5 net)
+- `RUSTFLAGS="-D warnings" cargo clippy`: 0 warnings
+- `cargo fmt --all -- --check`: clean
+
+---
+
+## Phase P23 — GCM/CCM Per-Record Key Schedule + GHASH Table Caching (2026-03-01)
+
+### Summary
+Eliminated per-record AES key expansion and GHASH table recomputation in TLS AEAD operations. AesGcmAead/Sm4GcmAead now store pre-expanded cipher key + precomputed GhashTable. AesCcmAead/Sm4CcmAead store pre-expanded cipher key. Made GhashTable public, added `GhashTable::from_cipher()`, split `gcm_crypt_generic` into `gcm_crypt_with_table` + wrapper. Added `ccm_encrypt_with_key`/`ccm_decrypt_with_key` for both AES and SM4.
+
+### Changes
+| File | Change |
+|------|--------|
+| `crates/hitls-crypto/src/modes/gcm.rs` | Made `GhashTable` public, added `from_cipher()`, split into `gcm_crypt_with_table` |
+| `crates/hitls-crypto/src/modes/gcm.rs` | Added `gcm_encrypt_with`/`gcm_decrypt_with` generic public APIs |
+| `crates/hitls-crypto/src/modes/ccm.rs` | Added `ccm_encrypt_with_key`/`ccm_decrypt_with_key` (AES), `sm4_ccm_encrypt_with_key`/`sm4_ccm_decrypt_with_key` (SM4) |
+| `crates/hitls-tls/src/crypt/aead.rs` | `AesGcmAead`: `key: Vec<u8>` → `cipher: AesKey` + `table: GhashTable` |
+| `crates/hitls-tls/src/crypt/aead.rs` | `AesCcmAead`/`AesCcm8Aead`: `key: Vec<u8>` → `cipher: AesKey` |
+| `crates/hitls-tls/src/crypt/aead.rs` | `Sm4GcmAead`: `key: Vec<u8>` → `cipher: Sm4Key` + `table: GhashTable` |
+| `crates/hitls-tls/src/crypt/aead.rs` | `Sm4CcmAead`: `key: Vec<u8>` → `cipher: Sm4Key` |
+| `crates/hitls-tls/src/crypt/aead.rs` | Removed manual `Drop` impls and `zeroize` import |
+
+### Test Results
+- All 3,479 tests pass, 21 ignored
+- 0 clippy warnings
+
+---
+
+## Phase P24 — TLS 1.2 CBC Per-Record AES Key Caching (2026-03-01)
+
+### Summary
+Eliminated per-record AES key expansion in TLS 1.2 CBC record encryption/decryption. All 4 CBC record structs (RecordEncryptor12Cbc, RecordDecryptor12Cbc, RecordEncryptor12EtM, RecordDecryptor12EtM) now store a pre-expanded `AesKey` instead of raw key bytes. Changed `aes_cbc_encrypt_raw`/`aes_cbc_decrypt_raw` to accept `&AesKey`. Constructor changed from infallible to `Result<Self, TlsError>` (no panic in library code).
+
+### Changes
+| File | Change |
+|------|--------|
+| `crates/hitls-tls/src/record/encryption12_cbc.rs` | `aes_cbc_encrypt_raw`/`aes_cbc_decrypt_raw` → `aes_cbc_encrypt_with`/`aes_cbc_decrypt_with` accepting `&AesKey` |
+| `crates/hitls-tls/src/record/encryption12_cbc.rs` | 4 structs: `enc_key: Vec<u8>` → `cipher: AesKey`, constructors return `Result` |
+| `crates/hitls-tls/src/record/mod.rs` | 4 `activate_*` functions return `Result<(), TlsError>` |
+| `crates/hitls-tls/src/connection12/client.rs` | ~12 activate call sites: `);` → `)?;` |
+| `crates/hitls-tls/src/connection12/server.rs` | ~12 activate call sites: `);` → `)?;` |
+| `crates/hitls-tls/src/connection12_async.rs` | ~24 activate call sites: `);` → `)?;` |
+| `crates/hitls-tls/src/connection12/tests.rs` | ~28 test call sites: `);` → `.unwrap();` |
+| `tests/interop/tests/protocol_attacks.rs` | ~10 `::new()` calls: `);` → `.unwrap();` |
+
+### Test Results
+- All 3,479 tests pass, 21 ignored
+- 0 clippy warnings
+
+---
+
+## Phase P25 — CBC Generic Path Stack Array Optimization (2026-03-01)
+
+### Summary
+Replaced `Vec<u8>` heap-allocated temporaries with `[u8; 16]` stack arrays in `cbc_encrypt_with` and `cbc_decrypt_with`. The per-block `ct_copy` allocation in decrypt was the worst offender — one heap allocation per 16-byte block.
+
+### Changes
+| File | Change |
+|------|--------|
+| `crates/hitls-crypto/src/modes/cbc.rs` | `cbc_encrypt_with`: `let mut prev = vec![0u8; bs]` → `let mut prev = [0u8; 16]` |
+| `crates/hitls-crypto/src/modes/cbc.rs` | `cbc_decrypt_with`: same for `prev`, plus `chunk.to_vec()` → `[0u8; 16]` stack array |
+
+### Test Results
+- All 20 CBC tests pass (19 unit + 1 Wycheproof)
+- All 75 TLS CBC tests pass
+- 0 clippy warnings
+
+---
+
+### Aggregate Counts (Post P23–P25)
+
+| Metric | Before | After | Delta |
+|--------|--------|-------|-------|
+| Tests | 3,484 | 3,484 | 0 |
+| Ignored | 21 | 21 | 0 |
+
+### Build Status (Post P23–P25)
+- `cargo test --workspace --all-features`: 3,484 passed, 0 failed, 21 ignored
 - `RUSTFLAGS="-D warnings" cargo clippy`: 0 warnings
 - `cargo fmt --all -- --check`: clean

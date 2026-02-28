@@ -3177,3 +3177,16 @@ Targeted coverage gaps in connection_info, handshake enums, lib.rs constants, co
 - Updated interop test: `generate()` → `generate(HybridKemParamId::X25519MlKem768)`
 - 12 unit tests: roundtrip (all 12), pk/ct lengths (all 12), tamper, cross-key, cross-variant, multiple encaps, from_public_key roundtrip/decap-fail/invalid-length/pk-match
 - 3,479→3,484 tests (+5 net), 21 ignored, 0 clippy warnings, formatting clean
+
+---
+
+## Phase P23–P25 — Batch B Performance Optimizations (2026-03-01)
+
+**Prompt**: Implement Batch B optimizations: P23 GCM/CCM per-record key schedule + GHASH table caching, P24 TLS 1.2 CBC per-record AES key caching, P25 CBC generic path stack array optimization. Commit each individually.
+
+**Result**:
+- **P23**: GCM/CCM key caching — AesGcmAead/Sm4GcmAead store `AesKey`/`Sm4Key` + `GhashTable` (eliminates per-record key expansion + GHASH table build), AesCcmAead/Sm4CcmAead store pre-expanded cipher. Made `GhashTable` public, added `from_cipher()`, split `gcm_crypt_generic` into `gcm_crypt_with_table`.
+- **P24**: TLS 1.2 CBC key caching — 4 CBC record structs store `AesKey` instead of `Vec<u8>`, constructors return `Result`. Updated ~85 call sites across 7 files.
+- **P25**: CBC stack arrays — `Vec<u8>` → `[u8; 16]` for `prev`/`ct_copy` in `cbc_encrypt_with`/`cbc_decrypt_with`, eliminates per-block heap allocation.
+- 3,484 tests (unchanged), 21 ignored
+- All tests pass, 0 clippy warnings, formatting clean
