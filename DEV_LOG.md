@@ -6,7 +6,7 @@ Category summary:
 - Implementation: I1–I81 (81 phases)
 - Testing: T1–T63 (63 phases)
 - Refactoring: R1–R12 (12 phases)
-- Performance: P1–P34 (34 phases)
+- Performance: P1–P35 (35 phases)
 
 | # | Phase | Type | Title | Date |
 |---|-------|------|-------|------|
@@ -200,6 +200,7 @@ Category summary:
 | 188 | P32 | Perf | TLS HKDF Stack Arrays | 2026-03-01 |
 | 189 | P33 | Perf | Key Schedule + Export Stack Arrays | 2026-03-01 |
 | 190 | P34 | Perf | Handshake Hash Output Stack Arrays | 2026-03-01 |
+| 191 | P35 | Perf | RSA Padding Stack Arrays | 2026-03-01 |
 
 ---
 
@@ -11120,6 +11121,27 @@ Replaced all `vec![0u8; hash_len]` hash output buffers in TLS 1.3 handshake path
 - 3,484 total tests, 21 ignored, 0 clippy warnings
 
 ### Build Status (Post P34)
+- `cargo test --workspace --all-features`: 3,484 passed, 0 failed, 21 ignored
+- `RUSTFLAGS="-D warnings" cargo clippy`: 0 warnings
+- `cargo fmt --all -- --check`: clean
+
+## Phase P35 — RSA Padding Stack Arrays (2026-03-01)
+
+### Summary
+Eliminated unnecessary heap allocations in RSA padding operations: OAEP seed uses `[0u8; H_LEN]` stack array, PSS salt uses `[0u8; 64]` stack with Vec fallback for unusual salt lengths >64, and PKCS1v15 `fill_nonzero_random` replaced wasteful `vec![0u8; buf.len()]` with `[0u8; 1]` (only 1 byte was ever read from the buffer).
+
+### Changes
+| File | Change |
+|------|--------|
+| `crates/hitls-crypto/src/rsa/oaep.rs` | `seed`: `vec![0u8; H_LEN]` → `[0u8; H_LEN]` (H_LEN=32, const) |
+| `crates/hitls-crypto/src/rsa/pss.rs` | `salt`: `vec![0u8; salt_len]` → `[0u8; 64]` stack + slice (Vec fallback for salt_len>64) |
+| `crates/hitls-crypto/src/rsa/pkcs1v15.rs` | `fill_nonzero_random`: `vec![0u8; buf.len()]` → `[0u8; 1]` (only 1 byte used per iteration) |
+
+### Test Results
+- All 49 RSA tests pass (OAEP, PSS, PKCS1v15)
+- 3,484 total tests, 21 ignored, 0 clippy warnings
+
+### Build Status (Post P35)
 - `cargo test --workspace --all-features`: 3,484 passed, 0 failed, 21 ignored
 - `RUSTFLAGS="-D warnings" cargo clippy`: 0 warnings
 - `cargo fmt --all -- --check`: clean
