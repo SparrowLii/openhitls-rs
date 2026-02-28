@@ -1,202 +1,191 @@
 # openHiTLS Rust Migration — Development Log
 
-## Phase Index by Category
+## Phase Index (Chronological)
 
-### Implementation & Migration (Phase N)
+Category summary:
+- Implementation: I1–I80 (80 phases)
+- Testing: T1–T62 (62 phases)
+- Refactoring: R1–R12 (12 phases)
+- Performance: P1–P10 complete + P11–P12 pending
 
-| # | Phase | Title | Date |
-|---|-------|-------|------|
-| 1 | 0 | Project Scaffolding | 2026-02-06 |
-| 2 | 1 | Tooling + BigNum | 2026-02-06 |
-| 3 | 2 | Hash + HMAC | 2026-02-06 |
-| 4 | 3 | Symmetric Ciphers + Block Cipher Modes + KDF | 2026-02-06 |
-| 5 | 4 | RSA Asymmetric Cryptography | 2026-02-06 |
-| 6 | 5 | ECC + ECDSA + ECDH | 2026-02-06 |
-| 7 | 6 | Ed25519 + X25519 + DH | 2026-02-06 |
-| 8 | 7 | DSA + SM2 + HMAC-DRBG | 2026-02-06 |
-| 9 | 8 | SHA-3/SHAKE + ChaCha20-Poly1305 + Symmetric Suite Completion | 2026-02-06 |
-| 10 | 9 | ML-KEM (FIPS 203) + ML-DSA (FIPS 204) | 2026-02-07 |
-| 11 | 10 | HPKE + AES Key Wrap + HybridKEM + Paillier + ElGamal | 2026-02-06 |
-| 12 | 11 | X.509 Certificate Parsing + Signature Verification | — |
-| 13 | 12 | X.509 Verification + Chain Building | 2026-02-07 |
-| 14 | 13 | TLS 1.3 Key Schedule + Crypto Adapter | 2026-02-06 |
-| 15 | 14 | TLS Record Layer Encryption | 2026-02-08 |
-| 16 | 15 | TLS 1.3 Client Handshake | 2026-02-08 |
-| 17 | 16 | TLS 1.3 Server Handshake + Application Data | 2026-02-08 |
-| 18 | 17 | PKCS#12 + CMS + Auth Protocols | 2026-02-08 |
-| 19 | 18 | SLH-DSA (FIPS 205) + XMSS (RFC 8391) | 2026-02-08 |
-| 20 | 19 | FrodoKEM + SM9 + Classic McEliece + CLI Tool + Integration Tests | 2026-02-06 |
-| 21 | 20 | TLS 1.3 Completeness (PSK, 0-RTT, Post-HS Auth, Cert Compression) | — |
-| 22 | 21 | ECC Curve Additions | — |
-| 23 | 22 | CTR-DRBG + Hash-DRBG + PKCS#8 Key Parsing | 2026-02-08 |
-| 24 | 23 | CRL Parsing + Validation + Revocation Checking + OCSP | 2026-02-09 |
-| 25 | 24 | CSR Generation, X.509 Certificate Generation, TLS 1.2 PRF, CLI req | 2026-02-09 |
-| 26 | 25 | TLS 1.2 Handshake (ECDHE-GCM) | — |
-| 27 | 26 | DTLS 1.2 (RFC 6347) | — |
-| 28 | 27 | TLCP (GM/T 0024 / GB/T 38636-2020) | — |
-| 29 | 28 | TLS 1.2 CBC + ChaCha20-Poly1305 + ALPN + SNI | 2026-02-06 |
-| 30 | 29 | TLS 1.2 Session Resumption + Client Certificate Auth (mTLS) | 2026-02-10 |
-| 31 | 30 | s_client CLI + Network I/O | 2026-02-10 |
-| 32 | 31 | s_server CLI + Key Conversion | 2026-02-10 |
-| 33 | 32 | TCP Loopback Integration Tests | — |
-| 34 | 33 | TLS 1.2 Session Ticket (RFC 5077) | 2026-02-10 |
-| 35 | 34 | TLS 1.2 Extended Master Secret + Encrypt-Then-MAC + Renegotiation Indication | 2026-02-10 |
-| 36 | 35 | TLS 1.2 RSA + DHE Key Exchange — 13 New Cipher Suites | 2026-02-10 |
-| 37 | 36 | TLS 1.2 PSK Cipher Suites — 20 New Cipher Suites | 2026-02-11 |
-| 38 | 37 | TLS 1.3 Post-Quantum Hybrid KEM — X25519MLKEM768 | 2026-02-11 |
-| 39 | 38 | TLS Extensions Completeness — Record Size Limit, Fallback SCSV, OCSP Stapling... | 2026-02-11 |
-| 40 | 39 | Async I/O + Hardware AES + Benchmarks | 2026-02-10 |
-| 41 | 40 | DTLCP + Custom Extensions + Key Logging | 2026-02-11 |
-| 42 | 41 | Wycheproof + Fuzzing + Security Audit | 2026-02-11 |
-| 43 | 42 | Feature Completeness | 2026-02-11 |
-| 44 | 43 | Remaining Features + DH Groups + TLS FFDHE Expansion | 2026-02-11 |
-| 45 | 44 | FIPS/CMVP Compliance Framework | 2026-02-13 |
-| 46 | 45 | CLI Enhancements + CMS DigestedData | 2026-02-13 |
-| 47 | 46 | Entropy Health Testing — NIST SP 800-90B | 2026-02-13 |
-| 48 | 47 | Ed448 / X448 / Curve448 | 2026-02-14 |
-| 49 | 48 | Test Coverage + CMS Ed25519 + enc CLI + TLS 1.2 OCSP/SCT | 2026-02-14 |
-| 50 | 49 | C Test Vectors Porting + CMS Real File Tests + PKCS#12 Interop | 2026-02-14 |
-| 51 | 50 | X.509 Extension Parsing + EKU/SAN/AKI/SKI Enforcement + CMS SKI Lookup | — |
-| 52 | 51 | C Test Vectors Round 2 + CertificatePolicies + CMS Chain/NoAttr Tests | 2026-02-14 |
-| 53 | 52 | PKI Signature Coverage + OCSP/CRL Testing + CMS Error Paths | — |
-| 54 | 53 | TLS RFC 5705 Key Export + CMS Detached Sign + pkeyutl Completeness | 2026-02-14 |
-| 55 | 54 | Integration Test Expansion + TLCP Public API + Code Quality | 2026-02-14 |
-| 56 | 55 | Unit Test Coverage Expansion | 2026-02-14 |
-| 57 | 56 | Unit Test Coverage Expansion — Crypto RFC Vectors + ASN.1 Negative Tests + TL... | 2026-02-15 |
-| 58 | 57 | Unit Test Coverage Expansion — Cipher Modes, PQC Negative Tests, DRBG State, ... | 2026-02-15 |
-| 59 | 58 | Unit Test Coverage Expansion — CTR/CCM/GCM/KeyWrap, DSA, HPKE, HybridKEM, SM3... | 2026-02-15 |
-| 60 | 59 | Unit Test Coverage Expansion — RSA, ECDH, SM2, ElGamal, Paillier, ECC, Hash, ... | 2026-02-15 |
-| 61 | 60 | TLS 1.2 CCM Cipher Suites (RFC 6655 / RFC 7251) | 2026-02-16 |
-| 62 | 61 | CCM_8 (8-byte tag) + PSK+CCM Cipher Suites | 2026-02-16 |
-| 63 | 62 | PSK CBC-SHA256/SHA384 + ECDHE_PSK GCM Cipher Suites | 2026-02-16 |
-| 64 | 63 | PSK CCM Completion + CCM_8 Authentication Cipher Suites | 2026-02-16 |
-| 65 | 64 | DHE_DSS Cipher Suites (DSA Authentication for TLS 1.2) | 2026-02-16 |
-| 66 | 65 | DH_ANON + ECDH_ANON Cipher Suites (Anonymous Key Exchange for TLS 1.2) | 2026-02-16 |
-| 67 | 66 | TLS 1.2 Renegotiation (RFC 5746) | 2026-02-17 |
-| 68 | 67 | Connection Info APIs + Graceful Shutdown + ALPN Completion | 2026-02-17 |
-| 69 | 68 | Hostname Verification + Certificate Chain Validation + SNI Callback | 2026-02-17 |
-| 70 | 69 | Server-Side Session Cache + Session Expiration + Cipher Preference | 2026-02-17 |
-| 71 | 70 | Client-Side Session Cache + Write Record Fragmentation | 2026-02-17 |
-| 72 | 72 | KeyUpdate Loop Protection + Max Fragment Length (RFC 6066) + Signature Algori... | 2026-02-18 |
-| 73 | 74 | Certificate Authorities Extension (RFC 8446 §4.2.4) + Early Exporter Master S... | 2026-02-18 |
-| 74 | 77 | PADDING Extension (RFC 7685) + OID Filters (RFC 8446 §4.2.5) + DTLS 1.2 Abbre... | 2026-02-18 |
-| 75 | 79 | Async DTLS 1.2 + Heartbeat Extension (RFC 6520) + GREASE (RFC 8701) | 2026-02-18 |
-| 76 | 84 | TLS Callback Framework + Missing Alert Codes + CBC-MAC-SM4 | 2026-02-19 |
-| 77 | 85 | Trusted CA Keys (RFC 6066 §6) + USE_SRTP (RFC 5764) + STATUS_REQUEST_V2 (RFC ... | 2026-02-19 |
-| 78 | 86 | DTLS Config Enhancements + Integration Tests for Phase 84–85 Features | 2026-02-19 |
-| 79 | 93 | Encrypted PKCS#8 + Callbacks + SM4-CTR-DRBG + CMS ML-DSA | 2026-02-19 |
-| 80 | 135 | TLS 1.3 Middlebox Compatibility Mode (RFC 8446 §D.4) | — |
-
-### Testing (Phase TN)
-
-| # | Phase | Title | Date |
-|---|-------|-------|------|
-| 1 | T71 | CLI Command Unit Tests + Session Cache Concurrency | 2026-02-17 |
-| 2 | T73 | Async TLS 1.3 Unit Tests + Cipher Suite Integration | 2026-02-18 |
-| 3 | T75 | Fuzz Seed Corpus + Error Scenario Integration Tests | 2026-02-18 |
-| 4 | T76 | Phase 74 Feature Integration Tests + Async Export Unit Tests | 2026-02-18 |
-| 5 | T78 | cert_verify Unit Tests + Config Callbacks + Integration Tests | 2026-02-18 |
-| 6 | T95 | connection_info / handshake enums / lib.rs constants / codec error paths / as... | 2026-02-20 |
-| 7 | T96 | ECC Curve Params / DH Group Params / TLCP Public API / DTLCP Error Paths / DT... | — |
-| 8 | T97 | ECC Jacobian point/AES software S-box/SM9 Fp field/SM9 G1/McEliece bit vector | — |
-| 9 | T98 | 0-RTT early data + replay protection tests | — |
-| 10 | T109 | Async TLS 1.2 Deep Coverage | — |
-| 11 | T110 | Async TLCP + DTLCP Connection Types & Tests | — |
-| 12 | T111 | Extension Negotiation E2E Tests | — |
-| 13 | T112 | DTLS Loss Simulation & Resilience Tests | — |
-| 14 | T113 | TLCP Double Certificate Validation Tests | — |
-| 15 | T114 | SM9 Tower Field Unit Tests | — |
-| 16 | T115 | SLH-DSA Internal Module Unit Tests | — |
-| 17 | T116 | McEliece + FrodoKEM + XMSS Internal Module Tests | — |
-| 18 | T117 | Infrastructure — proptest Property-Based Tests + Coverage CI | — |
-| 19 | T118 | TLCP SM3 Cryptographic Path Coverage | — |
-| 20 | T119 | TLS 1.3 Key Schedule & HKDF Robustness Tests | — |
-| 21 | T120 | Record Layer Encryption Edge Cases & AEAD Failure Modes | — |
-| 22 | T121 | TLS 1.2 CBC Padding Security + DTLS Parsing + TLS 1.3 Inner Plaintext Edge Cases | — |
-| 23 | T122 | DTLS Fragmentation/Retransmission + CertificateVerify Edge Cases | — |
-| 24 | T123 | DTLS Codec Edge Cases + Anti-Replay Window Boundaries + Entropy Conditioning | — |
-| 25 | T124 | X.509 Extension Parsing + SLH-DSA WOTS+ Base Conversion + ASN.1 Tag Edge Cases | — |
-| 26 | T125 | PKI Encoding Helpers + X.509 Signing Dispatch + Certificate Builder Encoding | — |
-| 27 | T126 | X.509 Certificate Parsing + SM9 G2 Point Arithmetic + SM9 Pairing Helpers | — |
-| 28 | T127 | SM9 Hash Functions + SM9 Algorithm Helpers + SM9 Curve Parameters | — |
-| 29 | T128 | McEliece Keygen Helpers + McEliece Encoding + McEliece Decoding | — |
-| 30 | T129 | XMSS Tree Operations + XMSS WOTS+ Deepening + SLH-DSA FORS Deepening | — |
-| 31 | T130 | McEliece GF(2^13) + Benes Network + Binary Matrix Deepening | — |
-| 32 | T131 | FrodoKEM Matrix Ops + SLH-DSA Hypertree + McEliece Polynomial Deepening | — |
-| 33 | T132 | McEliece + FrodoKEM + XMSS Parameter Set Validation Deepening | — |
-| 34 | T133 | XMSS Hash Abstraction + XMSS Address Scheme + ML-KEM NTT Deepening | — |
-| 35 | T134 | BigNum Constant-Time + Primality Testing + Core Type Deepening | — |
-| 36 | T140 | SLH-DSA Params + Hash Abstraction + Address Scheme Deepening | — |
-| 37 | T142 | FrodoKEM PKE + SM9 G1 Point + SM9 Fp Field Deepening | — |
-| 38 | T143 | ML-DSA NTT + SM4-CTR-DRBG + BigNum Random Deepening | — |
-| 39 | T144 | DH Group Params + Entropy Pool + SHA-1 Deepening | — |
-| 40 | T146 | ML-KEM Poly + SM9 Fp12 + Encrypted PKCS#8 Deepening | — |
-| 41 | T147 | ML-DSA Poly + X.509 Extensions + X.509 Text Deepening | 2026-02-24 |
-| 42 | T148 | XTS Mode + Edwards Curve + GMAC Deepening | — |
-| 43 | T149 | scrypt + CFB Mode + X448 Deepening | — |
-| 44 | T150 | Semantic Fuzz Target Expansion | — |
-| 45 | T157 | TLS Connection Unit Tests | — |
-| 46 | T158 | TLS 1.2 Handshake Edge Cases | — |
-| 47 | T159 | HW<->SW Cross-Validation | — |
-| 48 | T160 | Proptest Expansion | — |
-| 49 | T161 | Side-Channel Timing Tests | — |
-| 50 | T162 | Concurrency Stress Tests | — |
-| 51 | T163 | Feature Flag Smoke Tests | — |
-| 52 | T164 | Zeroize Runtime Verification | — |
-| 53 | T165 | DTLS State Machine Fuzz + OpenSSL Interop | — |
-| 54 | T166 | Async Integration | — |
-| 55 | T167 | TLS 1.2 State Machine Unit Isolation | — |
-| 56 | T168 | SM9 G2 Point Arithmetic | — |
-| 57 | T169 | TLS Extension E2E | — |
-| 58 | T170 | ECDHE-RSA CBC + Async Stress | — |
-| 59 | T171 | RSA Constant-Time Fix + Buffer Zeroize + Timing Tests | 2026-02-27 |
-| 60 | T172 | Crypto Semantic Fuzz Targets | 2026-02-27 |
-| 61 | T173 | TLS State Machine Fuzz + Corpus Enrichment | 2026-02-27 |
-| 62 | T174 | Infrastructure Hardening (CI/Deps/Docs) | 2026-02-27 |
-
-### Refactoring (Phase RN)
-
-| # | Phase | Title | Date |
-|---|-------|-------|------|
-| 1 | R99 | PKI Encoding Consolidation | 2026-02-21 |
-| 2 | R100 | Record Layer Enum Dispatch | 2026-02-22 |
-| 3 | R101 | Connection File Decomposition | 2026-02-22 |
-| 4 | R102 | Hash Digest Enum Dispatch | 2026-02-22 |
-| 5 | R103 | Sync/Async Unification via Body Macros | 2026-02-22 |
-| 6 | R104 | X.509 Module Decomposition | 2026-02-22 |
-| 7 | R105 | Integration Test Modularization | 2026-02-23 |
-| 8 | R106 | Test Helper Consolidation | 2026-02-23 |
-| 9 | R107 | Parameter Struct Refactoring | 2026-02-23 |
-| 10 | R108 | DRBG State Machine Unification | 2026-02-23 |
-| 11 | R141 | Dev Profile Optimization: Accelerate Ignored Tests | — |
-| 12 | R145 | Dev Profile opt-level=2 Upgrade + Un-ignore 15 Tests | — |
-
-### Performance Optimization (Phase PN)
-
-| # | Phase | Title | Date |
-|---|-------|-------|------|
-| 1 | P136 | SHA-2 Hardware Acceleration — ARMv8 SHA-NI / x86-64 SHA-NI | — |
-| 2 | P137 | GHASH/CLMUL Hardware Acceleration — ARMv8 PMULL / x86-64 PCLMULQDQ | — |
-| 3 | P138 | P-256 Specialized Field Arithmetic and Fast ECC Path | — |
-| 4 | P139 | ChaCha20 SIMD Optimization — ARMv8 NEON / x86-64 SSE2 | — |
-| 5 | P151 | P-256 Deep Optimization | — |
-| 6 | P152 | ML-KEM NEON NTT Optimization | — |
-| 7 | P153 | BigNum CIOS Montgomery + Pre-allocated Exponentiation | — |
-| 8 | P154 | SM4 T-table Lookup Optimization | 2026-02-27 |
-| 9 | P155 | ML-DSA NEON NTT Vectorization | 2026-02-27 |
-| 10 | P156 | SM2 Specialized Field Arithmetic | 2026-02-27 |
-| 11 | P166 | SHA-512 ARMv8.2 Hardware Acceleration | 2026-02-27 |
-| 12 | P167 | Ed25519 Precomputed Base Table | 2026-02-27 |
+| # | Phase | Type | Title | Date |
+|---|-------|------|-------|------|
+| 1 | I1 | Impl | Project Scaffolding | 2026-02-06 |
+| 2 | I2 | Impl | Tooling + BigNum | 2026-02-06 |
+| 3 | I3 | Impl | Hash + HMAC | 2026-02-06 |
+| 4 | I4 | Impl | Symmetric Ciphers + Block Cipher Modes + KDF | 2026-02-06 |
+| 5 | I5 | Impl | RSA Asymmetric Cryptography | 2026-02-06 |
+| 6 | I6 | Impl | ECC + ECDSA + ECDH | 2026-02-06 |
+| 7 | I7 | Impl | Ed25519 + X25519 + DH | 2026-02-06 |
+| 8 | I8 | Impl | DSA + SM2 + HMAC-DRBG | 2026-02-06 |
+| 9 | I9 | Impl | SHA-3/SHAKE + ChaCha20-Poly1305 + Symmetric Suite Completion | 2026-02-06 |
+| 10 | I10 | Impl | ML-KEM (FIPS 203) + ML-DSA (FIPS 204) | 2026-02-07 |
+| 11 | I11 | Impl | HPKE + AES Key Wrap + HybridKEM + Paillier + ElGamal | 2026-02-06 |
+| 12 | I12 | Impl | X.509 Certificate Parsing + Signature Verification | — |
+| 13 | I13 | Impl | X.509 Verification + Chain Building | 2026-02-07 |
+| 14 | I14 | Impl | TLS 1.3 Key Schedule + Crypto Adapter | 2026-02-06 |
+| 15 | I15 | Impl | TLS Record Layer Encryption | 2026-02-08 |
+| 16 | I16 | Impl | TLS 1.3 Client Handshake | 2026-02-08 |
+| 17 | I17 | Impl | TLS 1.3 Server Handshake + Application Data | 2026-02-08 |
+| 18 | I18 | Impl | PKCS#12 + CMS + Auth Protocols | 2026-02-08 |
+| 19 | I19 | Impl | SLH-DSA (FIPS 205) + XMSS (RFC 8391) | 2026-02-08 |
+| 20 | I20 | Impl | FrodoKEM + SM9 + Classic McEliece + CLI Tool + Integration Tests | 2026-02-06 |
+| 21 | I21 | Impl | TLS 1.3 Completeness (PSK, 0-RTT, Post-HS Auth, Cert Compression) | — |
+| 22 | I22 | Impl | ECC Curve Additions | — |
+| 23 | I23 | Impl | CTR-DRBG + Hash-DRBG + PKCS#8 Key Parsing | 2026-02-08 |
+| 24 | I24 | Impl | CRL Parsing + Validation + Revocation Checking + OCSP | 2026-02-09 |
+| 25 | I25 | Impl | CSR Generation, X.509 Certificate Generation, TLS 1.2 PRF, CLI req | 2026-02-09 |
+| 26 | I26 | Impl | TLS 1.2 Handshake (ECDHE-GCM) | — |
+| 27 | I27 | Impl | DTLS 1.2 (RFC 6347) | — |
+| 28 | I28 | Impl | TLCP (GM/T 0024 / GB/T 38636-2020) | — |
+| 29 | I29 | Impl | TLS 1.2 CBC + ChaCha20-Poly1305 + ALPN + SNI | 2026-02-06 |
+| 30 | I30 | Impl | TLS 1.2 Session Resumption + Client Certificate Auth (mTLS) | 2026-02-10 |
+| 31 | I31 | Impl | s_client CLI + Network I/O | 2026-02-10 |
+| 32 | I32 | Impl | s_server CLI + Key Conversion | 2026-02-10 |
+| 33 | I33 | Impl | TCP Loopback Integration Tests | — |
+| 34 | I34 | Impl | TLS 1.2 Session Ticket (RFC 5077) | 2026-02-10 |
+| 35 | I35 | Impl | TLS 1.2 Extended Master Secret + Encrypt-Then-MAC + Renegotiation Indication | 2026-02-10 |
+| 36 | I36 | Impl | TLS 1.2 RSA + DHE Key Exchange — 13 New Cipher Suites | 2026-02-10 |
+| 37 | I37 | Impl | TLS 1.2 PSK Cipher Suites — 20 New Cipher Suites | 2026-02-11 |
+| 38 | I38 | Impl | TLS 1.3 Post-Quantum Hybrid KEM — X25519MLKEM768 | 2026-02-11 |
+| 39 | I39 | Impl | TLS Extensions Completeness — Record Size Limit, Fallback SCSV, OCSP Stapling... | 2026-02-11 |
+| 40 | I40 | Impl | Async I/O + Hardware AES + Benchmarks | 2026-02-10 |
+| 41 | I41 | Impl | DTLCP + Custom Extensions + Key Logging | 2026-02-11 |
+| 42 | I42 | Impl | Wycheproof + Fuzzing + Security Audit | 2026-02-11 |
+| 43 | I43 | Impl | Feature Completeness | 2026-02-11 |
+| 44 | I44 | Impl | Remaining Features + DH Groups + TLS FFDHE Expansion | 2026-02-11 |
+| 45 | I45 | Impl | FIPS/CMVP Compliance Framework | 2026-02-13 |
+| 46 | I46 | Impl | CLI Enhancements + CMS DigestedData | 2026-02-13 |
+| 47 | I47 | Impl | Entropy Health Testing — NIST SP 800-90B | 2026-02-13 |
+| 48 | I48 | Impl | Ed448 / X448 / Curve448 | 2026-02-14 |
+| 49 | I49 | Impl | Test Coverage + CMS Ed25519 + enc CLI + TLS 1.2 OCSP/SCT | 2026-02-14 |
+| 50 | I50 | Impl | C Test Vectors Porting + CMS Real File Tests + PKCS#12 Interop | 2026-02-14 |
+| 51 | I51 | Impl | X.509 Extension Parsing + EKU/SAN/AKI/SKI Enforcement + CMS SKI Lookup | — |
+| 52 | I52 | Impl | C Test Vectors Round 2 + CertificatePolicies + CMS Chain/NoAttr Tests | 2026-02-14 |
+| 53 | I53 | Impl | PKI Signature Coverage + OCSP/CRL Testing + CMS Error Paths | — |
+| 54 | I54 | Impl | TLS RFC 5705 Key Export + CMS Detached Sign + pkeyutl Completeness | 2026-02-14 |
+| 55 | I55 | Impl | Integration Test Expansion + TLCP Public API + Code Quality | 2026-02-14 |
+| 56 | I56 | Impl | Unit Test Coverage Expansion | 2026-02-14 |
+| 57 | I57 | Impl | Unit Test Coverage Expansion — Crypto RFC Vectors + ASN.1 Negative Tests + TLS... | 2026-02-15 |
+| 58 | I58 | Impl | Unit Test Coverage Expansion — Cipher Modes, PQC Negative Tests, DRBG State... | 2026-02-15 |
+| 59 | I59 | Impl | Unit Test Coverage Expansion — CTR/CCM/GCM/KeyWrap, DSA, HPKE, HybridKEM... | 2026-02-15 |
+| 60 | I60 | Impl | Unit Test Coverage Expansion — RSA, ECDH, SM2, ElGamal, Paillier, ECC, Hash... | 2026-02-15 |
+| 61 | I61 | Impl | TLS 1.2 CCM Cipher Suites (RFC 6655 / RFC 7251) | 2026-02-16 |
+| 62 | I62 | Impl | CCM_8 (8-byte tag) + PSK+CCM Cipher Suites | 2026-02-16 |
+| 63 | I63 | Impl | PSK CBC-SHA256/SHA384 + ECDHE_PSK GCM Cipher Suites | 2026-02-16 |
+| 64 | I64 | Impl | PSK CCM Completion + CCM_8 Authentication Cipher Suites | 2026-02-16 |
+| 65 | I65 | Impl | DHE_DSS Cipher Suites (DSA Authentication for TLS 1.2) | 2026-02-16 |
+| 66 | I66 | Impl | DH_ANON + ECDH_ANON Cipher Suites (Anonymous Key Exchange for TLS 1.2) | 2026-02-16 |
+| 67 | I67 | Impl | TLS 1.2 Renegotiation (RFC 5746) | 2026-02-17 |
+| 68 | I68 | Impl | Connection Info APIs + Graceful Shutdown + ALPN Completion | 2026-02-17 |
+| 69 | I69 | Impl | Hostname Verification + Certificate Chain Validation + SNI Callback | 2026-02-17 |
+| 70 | I70 | Impl | Server-Side Session Cache + Session Expiration + Cipher Preference | 2026-02-17 |
+| 71 | I71 | Impl | Client-Side Session Cache + Write Record Fragmentation | 2026-02-17 |
+| 72 | I72 | Impl | KeyUpdate Loop Protection + Max Fragment Length (RFC 6066) + Signature Algorithms Cert | 2026-02-18 |
+| 73 | I73 | Impl | Certificate Authorities Extension (RFC 8446 §4.2.4) + Early Exporter Master Secret | 2026-02-18 |
+| 74 | I74 | Impl | PADDING Extension (RFC 7685) + OID Filters (RFC 8446 §4.2.5) + DTLS 1.2 Abbreviated | 2026-02-18 |
+| 75 | I75 | Impl | Async DTLS 1.2 + Heartbeat Extension (RFC 6520) + GREASE (RFC 8701) | 2026-02-18 |
+| 76 | I76 | Impl | TLS Callback Framework + Missing Alert Codes + CBC-MAC-SM4 | 2026-02-19 |
+| 77 | I77 | Impl | Trusted CA Keys (RFC 6066 §6) + USE_SRTP (RFC 5764) + STATUS_REQUEST_V2 (RFC 6961) | 2026-02-19 |
+| 78 | I78 | Impl | DTLS Config Enhancements + Integration Tests for Phase I76–I77 Features | 2026-02-19 |
+| 79 | I79 | Impl | Encrypted PKCS#8 + Callbacks + SM4-CTR-DRBG + CMS ML-DSA | 2026-02-19 |
+| 80 | I80 | Impl | TLS 1.3 Middlebox Compatibility Mode (RFC 8446 §D.4) | — |
+| 81 | T1 | Test | CLI Command Unit Tests + Session Cache Concurrency | 2026-02-17 |
+| 82 | T2 | Test | Async TLS 1.3 Unit Tests + Cipher Suite Integration | 2026-02-18 |
+| 83 | T3 | Test | Fuzz Seed Corpus + Error Scenario Integration Tests | 2026-02-18 |
+| 84 | T4 | Test | Phase I73 Feature Integration Tests + Async Export Unit Tests | 2026-02-18 |
+| 85 | T5 | Test | cert_verify Unit Tests + Config Callbacks + Integration Tests | 2026-02-18 |
+| 86 | T6 | Test | connection_info / handshake enums / lib.rs constants / codec error paths | 2026-02-20 |
+| 87 | T7 | Test | ECC Curve Params / DH Group Params / TLCP Public API / DTLCP Error Paths | — |
+| 88 | T8 | Test | ECC Jacobian point / AES software S-box / SM9 Fp field / SM9 G1 / McEliece bit vector | — |
+| 89 | T9 | Test | 0-RTT early data + replay protection tests | — |
+| 90 | T10 | Test | Async TLS 1.2 Deep Coverage | — |
+| 91 | T11 | Test | Async TLCP + DTLCP Connection Types & Tests | — |
+| 92 | T12 | Test | Extension Negotiation E2E Tests | — |
+| 93 | T13 | Test | DTLS Loss Simulation & Resilience Tests | — |
+| 94 | T14 | Test | TLCP Double Certificate Validation Tests | — |
+| 95 | T15 | Test | SM9 Tower Field Unit Tests | — |
+| 96 | T16 | Test | SLH-DSA Internal Module Unit Tests | — |
+| 97 | T17 | Test | McEliece + FrodoKEM + XMSS Internal Module Tests | — |
+| 98 | T18 | Test | Infrastructure — proptest Property-Based Tests + Coverage CI | — |
+| 99 | T19 | Test | TLCP SM3 Cryptographic Path Coverage | — |
+| 100 | T20 | Test | TLS 1.3 Key Schedule & HKDF Robustness Tests | — |
+| 101 | T21 | Test | Record Layer Encryption Edge Cases & AEAD Failure Modes | — |
+| 102 | T22 | Test | TLS 1.2 CBC Padding Security + DTLS Parsing + TLS 1.3 Inner Plaintext Edge Cases | — |
+| 103 | T23 | Test | DTLS Fragmentation/Retransmission + CertificateVerify Edge Cases | — |
+| 104 | T24 | Test | DTLS Codec Edge Cases + Anti-Replay Window Boundaries + Entropy Conditioning | — |
+| 105 | T25 | Test | X.509 Extension Parsing + SLH-DSA WOTS+ Base Conversion + ASN.1 Tag Edge Cases | — |
+| 106 | T26 | Test | PKI Encoding Helpers + X.509 Signing Dispatch + Certificate Builder Encoding | — |
+| 107 | T27 | Test | X.509 Certificate Parsing + SM9 G2 Point Arithmetic + SM9 Pairing Helpers | — |
+| 108 | T28 | Test | SM9 Hash Functions + SM9 Algorithm Helpers + SM9 Curve Parameters | — |
+| 109 | T29 | Test | McEliece Keygen Helpers + McEliece Encoding + McEliece Decoding | — |
+| 110 | T30 | Test | XMSS Tree Operations + XMSS WOTS+ Deepening + SLH-DSA FORS Deepening | — |
+| 111 | T31 | Test | McEliece GF(2^13) + Benes Network + Binary Matrix Deepening | — |
+| 112 | T32 | Test | FrodoKEM Matrix Ops + SLH-DSA Hypertree + McEliece Polynomial Deepening | — |
+| 113 | T33 | Test | McEliece + FrodoKEM + XMSS Parameter Set Validation Deepening | — |
+| 114 | T34 | Test | XMSS Hash Abstraction + XMSS Address Scheme + ML-KEM NTT Deepening | — |
+| 115 | T35 | Test | BigNum Constant-Time + Primality Testing + Core Type Deepening | — |
+| 116 | T36 | Test | SLH-DSA Params + Hash Abstraction + Address Scheme Deepening | — |
+| 117 | T37 | Test | FrodoKEM PKE + SM9 G1 Point + SM9 Fp Field Deepening | — |
+| 118 | T38 | Test | ML-DSA NTT + SM4-CTR-DRBG + BigNum Random Deepening | — |
+| 119 | T39 | Test | DH Group Params + Entropy Pool + SHA-1 Deepening | — |
+| 120 | T40 | Test | ML-KEM Poly + SM9 Fp12 + Encrypted PKCS#8 Deepening | — |
+| 121 | T41 | Test | ML-DSA Poly + X.509 Extensions + X.509 Text Deepening | 2026-02-24 |
+| 122 | T42 | Test | XTS Mode + Edwards Curve + GMAC Deepening | — |
+| 123 | T43 | Test | scrypt + CFB Mode + X448 Deepening | — |
+| 124 | T44 | Test | Semantic Fuzz Target Expansion | — |
+| 125 | T45 | Test | TLS Connection Unit Tests | — |
+| 126 | T46 | Test | TLS 1.2 Handshake Edge Cases | — |
+| 127 | T47 | Test | HW↔SW Cross-Validation | — |
+| 128 | T48 | Test | Proptest Expansion | — |
+| 129 | T49 | Test | Side-Channel Timing Tests | — |
+| 130 | T50 | Test | Concurrency Stress Tests | — |
+| 131 | T51 | Test | Feature Flag Smoke Tests | — |
+| 132 | T52 | Test | Zeroize Runtime Verification | — |
+| 133 | T53 | Test | DTLS State Machine Fuzz + OpenSSL Interop | — |
+| 134 | T54 | Test | Async Integration | — |
+| 135 | T55 | Test | TLS 1.2 State Machine Unit Isolation | — |
+| 136 | T56 | Test | SM9 G2 Point Arithmetic | — |
+| 137 | T57 | Test | TLS Extension E2E | — |
+| 138 | T58 | Test | ECDHE-RSA CBC + Async Stress | — |
+| 139 | T59 | Test | RSA Constant-Time Fix + Buffer Zeroize + Timing Tests | 2026-02-27 |
+| 140 | T60 | Test | Crypto Semantic Fuzz Targets | 2026-02-27 |
+| 141 | T61 | Test | TLS State Machine Fuzz + Corpus Enrichment | 2026-02-27 |
+| 142 | T62 | Test | Infrastructure Hardening (CI/Deps/Docs) | 2026-02-27 |
+| 143 | R1 | Refactor | PKI Encoding Consolidation | 2026-02-21 |
+| 144 | R2 | Refactor | Record Layer Enum Dispatch | 2026-02-22 |
+| 145 | R3 | Refactor | Connection File Decomposition | 2026-02-22 |
+| 146 | R4 | Refactor | Hash Digest Enum Dispatch | 2026-02-22 |
+| 147 | R5 | Refactor | Sync/Async Unification via Body Macros | 2026-02-22 |
+| 148 | R6 | Refactor | X.509 Module Decomposition | 2026-02-22 |
+| 149 | R7 | Refactor | Integration Test Modularization | 2026-02-23 |
+| 150 | R8 | Refactor | Test Helper Consolidation | 2026-02-23 |
+| 151 | R9 | Refactor | Parameter Struct Refactoring | 2026-02-23 |
+| 152 | R10 | Refactor | DRBG State Machine Unification | 2026-02-23 |
+| 153 | R11 | Refactor | Dev Profile Optimization: Accelerate Ignored Tests | — |
+| 154 | R12 | Refactor | Dev Profile opt-level=2 Upgrade + Un-ignore 15 Tests | — |
+| 155 | P1 | Perf | SHA-2 Hardware Acceleration — ARMv8 SHA-NI / x86-64 SHA-NI | — |
+| 156 | P2 | Perf | GHASH/CLMUL Hardware Acceleration — ARMv8 PMULL / x86-64 PCLMULQDQ | — |
+| 157 | P3 | Perf | P-256 Specialized Field Arithmetic and Fast ECC Path | — |
+| 158 | P4 | Perf | ChaCha20 SIMD Optimization — ARMv8 NEON / x86-64 SSE2 | — |
+| 159 | P5 | Perf | P-256 Deep Optimization | — |
+| 160 | P6 | Perf | ML-KEM NEON NTT Optimization | — |
+| 161 | P7 | Perf | BigNum CIOS Montgomery + Pre-allocated Exponentiation | — |
+| 162 | P8 | Perf | SM4 T-table Lookup Optimization | 2026-02-27 |
+| 163 | P9 | Perf | ML-DSA NEON NTT Vectorization | 2026-02-27 |
+| 164 | P10 | Perf | SM2 Specialized Field Arithmetic | 2026-02-27 |
+| 165 | P11 | Perf | SHA-512 ARMv8.2 Hardware Acceleration | — |
+| 166 | P12 | Perf | Ed25519 Precomputed Base Table | — |
 
 ---
 
 ## Part I: Migration Roadmap Archive
 
-> The following phase tables document the complete C→Rust migration history (Phase 20–93).
+> The following phase tables document the complete C→Rust migration history (Phase I21–I79).
 > They were moved here from README.md to keep the README focused on feature showcase.
 > For the current feature summary, see [README.md](README.md).
 
-### Phase 20: TLS 1.3 Completeness
+### Phase I21: TLS 1.3 Completeness
 
 | Feature | RFC | Status |
 |---------|-----|--------|
@@ -207,7 +196,7 @@
 | KeyUpdate | RFC 8446 §4.6.3 | **Done** |
 | Certificate Compression | RFC 8879 | **Done** (zlib, feature-gated) |
 
-### Phase 21: ECC Curve Additions
+### Phase I22: ECC Curve Additions
 
 | Curve | Standard | Status |
 |-------|----------|--------|
@@ -217,7 +206,7 @@
 | Brainpool P-512r1 | RFC 5639 | **Done** |
 | P-224 (secp224r1) | FIPS 186-4 | **Done** |
 
-### Phase 22: DRBG Variants & PKCS#8
+### Phase I23: DRBG Variants & PKCS#8
 
 | Component | Standard | Status |
 |-----------|----------|--------|
@@ -225,7 +214,7 @@
 | Hash-DRBG (SHA-256/384/512) | NIST SP 800-90A §10.1.1 | **Done** |
 | PKCS#8 Key Parsing | RFC 5958 | **Done** (RSA, EC, Ed25519, X25519, DSA) |
 
-### Phase 23: CRL & OCSP
+### Phase I24: CRL & OCSP
 
 | Feature | Standard | Status |
 |---------|----------|--------|
@@ -234,7 +223,7 @@
 | Revocation Checking | RFC 5280 | **Done** |
 | OCSP (basic) | RFC 6960 | **Done** |
 
-### Phase 24: CSR Generation, Certificate Generation, TLS 1.2 PRF
+### Phase I25: CSR Generation, Certificate Generation, TLS 1.2 PRF
 
 | Feature | Standard | Status |
 |---------|----------|--------|
@@ -246,7 +235,7 @@
 | TLS 1.2 PRF | RFC 5246 §5 | **Done** |
 | CLI `req` Command | — | **Done** |
 
-### Phase 25: TLS 1.2
+### Phase I26: TLS 1.2
 
 | Feature | Standard | Status |
 |---------|----------|--------|
@@ -254,10 +243,10 @@
 | TLS 1.2 Cipher Suites (50+) | RFC 5246 | **Done** (91 suites) |
 | Session Resumption (ID-based) | RFC 5246 §7.4.1.2 | **Done** |
 | Client Certificate Auth (mTLS) | RFC 5246 §7.4.4 | **Done** |
-| Renegotiation Indication | RFC 5746 | **Done** (Phase 66: full renegotiation) |
+| Renegotiation Indication | RFC 5746 | **Done** (Phase I67: full renegotiation) |
 | TLS 1.2 Record Protocol | RFC 5246 §6 | **Done** |
 
-### Phase 26: DTLS 1.2
+### Phase I27: DTLS 1.2
 
 | Feature | Standard | Status |
 |---------|----------|--------|
@@ -272,7 +261,7 @@
 | DTLS Server Handshake State Machine | RFC 6347 | **Done** |
 | DTLS Connection Types + In-Memory Transport | RFC 6347 | **Done** |
 
-### Phase 27: TLCP (GM/T 0024)
+### Phase I28: TLCP (GM/T 0024)
 
 | Feature | Standard | Status |
 |---------|----------|--------|
@@ -283,7 +272,7 @@
 | GCM AEAD (SM4-GCM) | GM/T 0024 | **Done** |
 | SM3-based PRF | GM/T 0024 | **Done** |
 
-### Phase 28: TLS 1.2 CBC + ChaCha20-Poly1305 + ALPN + SNI
+### Phase I29: TLS 1.2 CBC + ChaCha20-Poly1305 + ALPN + SNI
 
 | Feature | Standard | Status |
 |---------|----------|--------|
@@ -294,7 +283,7 @@
 | ALPN extension (Application-Layer Protocol Negotiation) | RFC 7301 | **Done** |
 | SNI server-side parsing (Server Name Indication) | RFC 6066 | **Done** |
 
-### Phase 29: TLS 1.2 Session Resumption + Client Certificate Auth (mTLS)
+### Phase I30: TLS 1.2 Session Resumption + Client Certificate Auth (mTLS)
 
 | Feature | Standard | Status |
 |---------|----------|--------|
@@ -306,7 +295,7 @@
 | Client-side session resumption (cached session_id) | RFC 5246 | **Done** |
 | Abbreviated handshake (1-RTT, server CCS+Finished first) | RFC 5246 | **Done** |
 
-### Phase 30: s_client CLI + Network I/O
+### Phase I31: s_client CLI + Network I/O
 
 | Feature | Description | Status |
 |---------|-------------|--------|
@@ -317,7 +306,7 @@
 | HTTP GET mode | --http flag sends GET / and prints response | **Done** |
 | CA file loading | --CAfile loads PEM CA cert for verification | **Done** |
 
-### Phase 31: s_server CLI + Key Conversion
+### Phase I32: s_server CLI + Key Conversion
 
 | Feature | Description | Status |
 |---------|-------------|--------|
@@ -327,7 +316,7 @@
 | TLS 1.2 echo server | Tls12ServerConnection over TcpStream | **Done** |
 | RsaPrivateKey byte getters | d_bytes(), p_bytes(), q_bytes() | **Done** |
 
-### Phase 32: TCP Loopback Integration Tests
+### Phase I33: TCP Loopback Integration Tests
 
 | Feature | Description | Status |
 |---------|-------------|--------|
@@ -337,7 +326,7 @@
 | TLS 1.2 RSA TCP loopback | ECDHE_RSA_WITH_AES_256_GCM_SHA384 (ignored — slow keygen) | **Done** |
 | TLS 1.3 multi-message echo | 5 round trips over TCP | **Done** |
 
-### Phase 33: TLS 1.2 Session Ticket (RFC 5077)
+### Phase I34: TLS 1.2 Session Ticket (RFC 5077)
 
 | Feature | Standard | Status |
 |---------|----------|--------|
@@ -348,17 +337,17 @@
 | Client ticket sending + NewSessionTicket processing | RFC 5077 §3.4 | **Done** |
 | Connection-level ticket flow + take_session() | RFC 5077 | **Done** |
 
-### Phase 34: TLS 1.2 Extended Master Secret + Encrypt-Then-MAC + Renegotiation Indication
+### Phase I35: TLS 1.2 Extended Master Secret + Encrypt-Then-MAC + Renegotiation Indication
 
 | Feature | Standard | Status |
 |---------|----------|--------|
 | Extended Master Secret (EMS) | RFC 7627 | **Done** |
 | Encrypt-Then-MAC (ETM) | RFC 7366 | **Done** |
-| Secure Renegotiation Indication | RFC 5746 | **Done** (Phase 66: full renegotiation) |
+| Secure Renegotiation Indication | RFC 5746 | **Done** (Phase I67: full renegotiation) |
 | Config flags (enable_extended_master_secret, enable_encrypt_then_mac) | — | **Done** |
 | TCP loopback EMS+ETM over CBC integration test | — | **Done** |
 
-### Phase 35: TLS 1.2 RSA + DHE Key Exchange (13 New Cipher Suites)
+### Phase I36: TLS 1.2 RSA + DHE Key Exchange (13 New Cipher Suites)
 
 | Feature | Standard | Status |
 |---------|----------|--------|
@@ -369,7 +358,7 @@
 | 7 DHE_RSA suites (AES-128/256 GCM + CBC + ChaCha20) | RFC 5246/7905 | **Done** |
 | ECDHE_RSA suites tested with real RSA certificates | RFC 5246 | **Done** |
 
-### Phase 36: TLS 1.2 PSK Cipher Suites (RFC 4279/5489)
+### Phase I37: TLS 1.2 PSK Cipher Suites (RFC 4279/5489)
 
 | Feature | Standard | Status |
 |---------|----------|--------|
@@ -382,7 +371,7 @@
 | `KeyExchangeAlg::Psk`, `DhePsk`, `RsaPsk`, `EcdhePsk` variants | — | **Done** |
 | Conditional Certificate/CertificateRequest for PSK modes | RFC 4279 | **Done** |
 
-### Phase 37: TLS 1.3 Post-Quantum Hybrid KEM (X25519MLKEM768)
+### Phase I38: TLS 1.3 Post-Quantum Hybrid KEM (X25519MLKEM768)
 
 | Feature | Standard | Status |
 |---------|----------|--------|
@@ -397,7 +386,7 @@
 | `NamedGroup::is_kem()` helper | — | **Done** |
 | E2E hybrid handshake + HRR fallback tests | — | **Done** |
 
-### Phase 38: TLS Extensions Completeness (Record Size Limit, Fallback SCSV, OCSP Stapling, SCT)
+### Phase I39: TLS Extensions Completeness (Record Size Limit, Fallback SCSV, OCSP Stapling, SCT)
 
 | Feature | Standard | Status |
 |---------|----------|--------|
@@ -410,7 +399,7 @@
 | SCT (TLS 1.2) | RFC 6962 | **Done** — CH offering |
 | Record layer integration | RFC 8449 | **Done** — RSL applied via existing max_fragment_size |
 
-### Phase 39: Async I/O + Performance Optimization
+### Phase I40: Async I/O + Performance Optimization
 
 | Feature | Platform | Status |
 |---------|----------|--------|
@@ -419,7 +408,7 @@
 | ARM NEON acceleration | AArch64 | **Done** |
 | Criterion benchmarks | All | **Done** |
 
-### Phase 40: DTLCP + Custom Extensions + Key Logging
+### Phase I41: DTLCP + Custom Extensions + Key Logging
 
 | Feature | Standard | Status |
 |---------|----------|--------|
@@ -427,7 +416,7 @@
 | Custom Extensions Framework | — | **Done** — Callback-based, CH/SH/EE contexts |
 | Key Log callback (SSLKEYLOGFILE) | — | **Done** — NSS format, TLS 1.3/1.2/DTLS/TLCP/DTLCP |
 
-### Phase 41: Testing & Quality Assurance
+### Phase I42: Testing & Quality Assurance
 
 | Feature | Description | Status |
 |---------|-------------|--------|
@@ -437,7 +426,7 @@
 | SECURITY.md | Security policy, algorithm status, known limitations | **Done** |
 | CI enhancements | Fuzz build check (nightly) + Miri + Benchmark check | **Done** |
 
-### Phase 42: Feature Completeness
+### Phase I43: Feature Completeness
 
 | Feature | Description | Status |
 |---------|-------------|--------|
@@ -448,7 +437,7 @@
 | Privacy Pass | RFC 9578 Type 2: RSA blind signatures | **Done** |
 | CLI: list, rand, pkeyutl, speed | 4 new subcommands (14 total CLI commands) | **Done** |
 
-### Phase 43: Remaining Features + DH Groups + TLS FFDHE Expansion
+### Phase I44: Remaining Features + DH Groups + TLS FFDHE Expansion
 
 Completed P-192, HCTR mode, CMS EncryptedData, plus all 13 DH group primes and TLS FFDHE expansion.
 
@@ -459,7 +448,7 @@ Completed P-192, HCTR mode, CMS EncryptedData, plus all 13 DH group primes and T
 | RFC 7919 FFDHE groups (4096/6144/8192-bit) | RFC 7919 §3 | **Done** |
 | TLS NamedGroup FFDHE6144/8192 | RFC 7919 | **Done** |
 
-### Phase 44: FIPS/CMVP Compliance Framework
+### Phase I45: FIPS/CMVP Compliance Framework
 
 | Feature | Standard | Status |
 |---------|----------|--------|
@@ -468,7 +457,7 @@ Completed P-192, HCTR mode, CMS EncryptedData, plus all 13 DH group primes and T
 | Integrity check | FIPS 140-3 §10.3.1 | **Done** |
 | PCT: ECDSA P-256, Ed25519, RSA-2048 PSS | FIPS 140-3 §10.3.5 | **Done** |
 
-### Phase 45: CLI Enhancements + CMS DigestedData
+### Phase I46: CLI Enhancements + CMS DigestedData
 
 | Feature | Standard | Status |
 |---------|----------|--------|
@@ -476,7 +465,7 @@ Completed P-192, HCTR mode, CMS EncryptedData, plus all 13 DH group primes and T
 | CLI `mac` subcommand | — | **Done** |
 | CMS DigestedData | RFC 5652 §5 | **Done** |
 
-### Phase 46: Entropy Health Testing (NIST SP 800-90B)
+### Phase I47: Entropy Health Testing (NIST SP 800-90B)
 
 | Feature | Standard | Status |
 |---------|----------|--------|
@@ -485,7 +474,7 @@ Completed P-192, HCTR mode, CMS EncryptedData, plus all 13 DH group primes and T
 | Entropy Pool + Hash Conditioning | NIST SP 800-90B §3.1.5 | **Done** |
 | Noise Source Trait + DRBG Integration | — | **Done** |
 
-### Phase 47: Ed448 / X448 / Curve448
+### Phase I48: Ed448 / X448 / Curve448
 
 | Feature | Standard | Status |
 |---------|----------|--------|
@@ -494,7 +483,7 @@ Completed P-192, HCTR mode, CMS EncryptedData, plus all 13 DH group primes and T
 | X448 key exchange | RFC 7748 §5 | **Done** |
 | TLS integration (Ed448 signing, X448 key exchange) | RFC 8446 | **Done** |
 
-### Phase 48: Test Coverage + CMS Ed25519/Ed448 + enc CLI + TLS 1.2 OCSP/SCT
+### Phase I49: Test Coverage + CMS Ed25519/Ed448 + enc CLI + TLS 1.2 OCSP/SCT
 
 | Feature | Description | Status |
 |---------|-------------|--------|
@@ -503,34 +492,34 @@ Completed P-192, HCTR mode, CMS EncryptedData, plus all 13 DH group primes and T
 | enc CLI expansion | 4 ciphers: aes-256-gcm, aes-128-gcm, chacha20-poly1305, sm4-gcm | **Done** |
 | TLS 1.2 CertificateStatus | RFC 6066 §8: OCSP stapling in TLS 1.2 | **Done** |
 
-### Phase 49–52: PKI Test Coverage
+### Phase I50–I53: PKI Test Coverage
 
-- **Phase 49**: C Test Vectors Porting + CMS Real File Tests + PKCS#12 Interop (52 new PKI tests)
-- **Phase 50**: X.509 Extension Parsing + EKU/SAN/AKI/SKI Enforcement + CMS SKI Lookup (39 new PKI tests)
-- **Phase 51**: C Test Vectors Round 2 + CertificatePolicies + CMS Chain/NoAttr Tests (56 new PKI tests)
-- **Phase 52**: PKI Signature Coverage + OCSP/CRL Testing + CMS Error Paths (41 new PKI tests)
+- **Phase I50**: C Test Vectors Porting + CMS Real File Tests + PKCS#12 Interop (52 new PKI tests)
+- **Phase I51**: X.509 Extension Parsing + EKU/SAN/AKI/SKI Enforcement + CMS SKI Lookup (39 new PKI tests)
+- **Phase I52**: C Test Vectors Round 2 + CertificatePolicies + CMS Chain/NoAttr Tests (56 new PKI tests)
+- **Phase I53**: PKI Signature Coverage + OCSP/CRL Testing + CMS Error Paths (41 new PKI tests)
 
-### Phase 53: TLS RFC 5705 Key Export + CMS Detached Sign + pkeyutl Completeness
+### Phase I54: TLS RFC 5705 Key Export + CMS Detached Sign + pkeyutl Completeness
 
 24 new tests: TLS 1.3/1.2 export_keying_material (RFC 5705/8446 §7.5), CMS detached SignedData, PKCS#8 Ed448/X448, SPKI parsing, pkeyutl derive/sign/verify.
 
-### Phase 54: Integration Test Expansion + TLCP Public API + Code Quality
+### Phase I55: Integration Test Expansion + TLCP Public API + Code Quality
 
 30 new tests: ML-KEM panic→Result fix, TLCP public handshake-in-memory API, 5 DTLS 1.2 + 4 TLCP + 3 DTLCP + 4 mTLS integration tests, 12 TLS 1.3 server unit tests.
 
-### Phase 55–59: Unit Test Coverage Expansion
+### Phase I56–I60: Unit Test Coverage Expansion
 
-175 new tests across Phase 55–59:
+175 new tests across Phase I56–I60:
 
 | Phase | Tests | Key Coverage Areas |
 |-------|-------|--------------------|
-| Phase 55 | +40 | X25519 RFC 7748 iterated vectors, HKDF error paths, SM3/SM4, Base64/PEM, anti-replay, TLS 1.2 client/DTLS state machines |
-| Phase 56 | +36 | Ed25519 RFC 8032 vectors, ECDSA, ASN.1, HMAC, ChaCha20-Poly1305, TLS 1.3/1.2 wrong-state |
-| Phase 57 | +35 | CFB/OFB/ECB/XTS, ML-KEM/ML-DSA, DRBG, GMAC/CMAC, SHA-1, scrypt/PBKDF2, TLS transcript |
-| Phase 58 | +36 | CTR/CCM/GCM/KeyWrap, DSA, HPKE, HybridKEM, SM3, Entropy, Privacy Pass |
-| Phase 59 | +34 | RSA, ECDH, SM2, ElGamal/Paillier, ECC, MD5/SM4/SHA-2/SHA-3/AES, BigNum, OTP/SPAKE2+ |
+| Phase I56 | +40 | X25519 RFC 7748 iterated vectors, HKDF error paths, SM3/SM4, Base64/PEM, anti-replay, TLS 1.2 client/DTLS state machines |
+| Phase I57 | +36 | Ed25519 RFC 8032 vectors, ECDSA, ASN.1, HMAC, ChaCha20-Poly1305, TLS 1.3/1.2 wrong-state |
+| Phase I58 | +35 | CFB/OFB/ECB/XTS, ML-KEM/ML-DSA, DRBG, GMAC/CMAC, SHA-1, scrypt/PBKDF2, TLS transcript |
+| Phase I59 | +36 | CTR/CCM/GCM/KeyWrap, DSA, HPKE, HybridKEM, SM3, Entropy, Privacy Pass |
+| Phase I60 | +34 | RSA, ECDH, SM2, ElGamal/Paillier, ECC, MD5/SM4/SHA-2/SHA-3/AES, BigNum, OTP/SPAKE2+ |
 
-### Phase 60: TLS 1.2 CCM Cipher Suites (RFC 6655 / RFC 7251)
+### Phase I61: TLS 1.2 CCM Cipher Suites (RFC 6655 / RFC 7251)
 
 | Feature | Standard | Status |
 |---------|----------|--------|
@@ -541,7 +530,7 @@ Completed P-192, HCTR mode, CMS EncryptedData, plus all 13 DH group primes and T
 | TLS_ECDHE_ECDSA_WITH_AES_128_CCM (0xC0AC) | RFC 7251 | **Done** |
 | TLS_ECDHE_ECDSA_WITH_AES_256_CCM (0xC0AD) | RFC 7251 | **Done** |
 
-### Phase 61: CCM_8 + PSK+CCM Cipher Suites
+### Phase I62: CCM_8 + PSK+CCM Cipher Suites
 
 | Feature | Standard | Status |
 |---------|----------|--------|
@@ -553,7 +542,7 @@ Completed P-192, HCTR mode, CMS EncryptedData, plus all 13 DH group primes and T
 | TLS_DHE_PSK_WITH_AES_256_CCM (0xC0A7) | RFC 6655 | **Done** |
 | TLS_ECDHE_PSK_WITH_AES_128_CCM_SHA256 (0xD005) | RFC 7251 | **Done** |
 
-### Phase 62: PSK CBC-SHA256/SHA384 + ECDHE_PSK GCM Cipher Suites
+### Phase I63: PSK CBC-SHA256/SHA384 + ECDHE_PSK GCM Cipher Suites
 
 | Feature | Standard | Status |
 |---------|----------|--------|
@@ -566,7 +555,7 @@ Completed P-192, HCTR mode, CMS EncryptedData, plus all 13 DH group primes and T
 | TLS_ECDHE_PSK_WITH_AES_128_GCM_SHA256 (0xD001) | draft-ietf-tls-ecdhe-psk-aead | **Done** |
 | TLS_ECDHE_PSK_WITH_AES_256_GCM_SHA384 (0xD002) | draft-ietf-tls-ecdhe-psk-aead | **Done** |
 
-### Phase 63: PSK CCM Completion + CCM_8 Authentication Cipher Suites
+### Phase I64: PSK CCM Completion + CCM_8 Authentication Cipher Suites
 
 | Feature | Standard | Status |
 |---------|----------|--------|
@@ -581,7 +570,7 @@ Completed P-192, HCTR mode, CMS EncryptedData, plus all 13 DH group primes and T
 | TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8 (0xC0AE) | RFC 7251 | **Done** |
 | TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8 (0xC0AF) | RFC 7251 | **Done** |
 
-### Phase 64: DHE_DSS Cipher Suites (DSA Authentication)
+### Phase I65: DHE_DSS Cipher Suites (DSA Authentication)
 
 | Feature | Standard | Status |
 |---------|----------|--------|
@@ -592,7 +581,7 @@ Completed P-192, HCTR mode, CMS EncryptedData, plus all 13 DH group primes and T
 | TLS_DHE_DSS_WITH_AES_128_GCM_SHA256 (0x00A2) | RFC 5246 | **Done** |
 | TLS_DHE_DSS_WITH_AES_256_GCM_SHA384 (0x00A3) | RFC 5246 | **Done** |
 
-### Phase 65: DH_ANON + ECDH_ANON Cipher Suites
+### Phase I66: DH_ANON + ECDH_ANON Cipher Suites
 
 | Feature | Standard | Status |
 |---------|----------|--------|
@@ -605,7 +594,7 @@ Completed P-192, HCTR mode, CMS EncryptedData, plus all 13 DH group primes and T
 | TLS_ECDH_ANON_WITH_AES_128_CBC_SHA (0xC018) | RFC 4492 | **Done** |
 | TLS_ECDH_ANON_WITH_AES_256_CBC_SHA (0xC019) | RFC 4492 | **Done** |
 
-### Phase 66: TLS 1.2 Renegotiation (RFC 5746)
+### Phase I67: TLS 1.2 Renegotiation (RFC 5746)
 
 | Feature | Standard | Status |
 |---------|----------|--------|
@@ -615,7 +604,7 @@ Completed P-192, HCTR mode, CMS EncryptedData, plus all 13 DH group primes and T
 | Client + Server renegotiation (verify_data validation) | RFC 5746 | **Done** |
 | Renegotiating connection state + async renegotiation | RFC 5246 | **Done** |
 
-### Phase 67: Connection Info APIs + Graceful Shutdown + ALPN Completion
+### Phase I68: Connection Info APIs + Graceful Shutdown + ALPN Completion
 
 | Feature | Standard | Status |
 |---------|----------|--------|
@@ -623,7 +612,7 @@ Completed P-192, HCTR mode, CMS EncryptedData, plus all 13 DH group primes and T
 | TLS 1.3 ALPN (client + server) | RFC 7301 | **Done** |
 | Graceful shutdown (close_notify tracking) | RFC 5246/8446 | **Done** |
 
-### Phase 68: Hostname Verification + Certificate Chain Validation + SNI Callback
+### Phase I69: Hostname Verification + Certificate Chain Validation + SNI Callback
 
 | Feature | Standard | Status |
 |---------|----------|--------|
@@ -632,7 +621,7 @@ Completed P-192, HCTR mode, CMS EncryptedData, plus all 13 DH group primes and T
 | CertVerifyCallback + SniCallback | — | **Done** |
 | Wired into TLS 1.3/1.2/DTLS 1.2/TLCP/DTLCP | — | **Done** |
 
-### Phase 69: Server-Side Session Cache + Session Expiration + Cipher Preference
+### Phase I70: Server-Side Session Cache + Session Expiration + Cipher Preference
 
 | Feature | Status |
 |---------|--------|
@@ -640,7 +629,7 @@ Completed P-192, HCTR mode, CMS EncryptedData, plus all 13 DH group primes and T
 | Auto-store / auto-lookup / TTL expiration (default 2h) | **Done** |
 | `cipher_server_preference` config (default: true) | **Done** |
 
-### Phase 70: Client-Side Session Cache + Write Record Fragmentation
+### Phase I71: Client-Side Session Cache + Write Record Fragmentation
 
 | Feature | Status |
 |---------|--------|
@@ -648,7 +637,7 @@ Completed P-192, HCTR mode, CMS EncryptedData, plus all 13 DH group primes and T
 | Write record fragmentation (auto-split by max_fragment_size) | **Done** |
 | All 8 connection types (4 sync + 4 async) | **Done** |
 
-### Phase 72: KeyUpdate Loop Protection + Max Fragment Length + Signature Algorithms Cert
+### Phase I72: KeyUpdate Loop Protection + Max Fragment Length + Signature Algorithms Cert
 
 | Feature | Standard | Status |
 |---------|----------|--------|
@@ -656,7 +645,7 @@ Completed P-192, HCTR mode, CMS EncryptedData, plus all 13 DH group primes and T
 | Max Fragment Length (512/1024/2048/4096) | RFC 6066 | **Done** |
 | Signature Algorithms Cert extension | RFC 8446 §4.2.3 | **Done** |
 
-### Phase 74: Certificate Authorities + Early Exporter + DTLS 1.2 Session Cache
+### Phase I73: Certificate Authorities + Early Exporter + DTLS 1.2 Session Cache
 
 | Feature | Standard | Status |
 |---------|----------|--------|
@@ -664,7 +653,7 @@ Completed P-192, HCTR mode, CMS EncryptedData, plus all 13 DH group primes and T
 | Early exporter master secret + API | RFC 8446 §7.5 | **Done** |
 | DTLS 1.2 session cache auto-store | RFC 6347 | **Done** |
 
-### Phase 77: PADDING + OID Filters + DTLS 1.2 Abbreviated Handshake
+### Phase I74: PADDING + OID Filters + DTLS 1.2 Abbreviated Handshake
 
 | Feature | Standard | Status |
 |---------|----------|--------|
@@ -672,7 +661,7 @@ Completed P-192, HCTR mode, CMS EncryptedData, plus all 13 DH group primes and T
 | OID Filters extension (type 48) | RFC 8446 §4.2.5 | **Done** |
 | DTLS 1.2 abbreviated handshake (session resumption) | RFC 6347 | **Done** |
 
-### Phase 79: Async DTLS 1.2 + Heartbeat + GREASE
+### Phase I75: Async DTLS 1.2 + Heartbeat + GREASE
 
 | Feature | Standard | Status |
 |---------|----------|--------|
@@ -680,7 +669,7 @@ Completed P-192, HCTR mode, CMS EncryptedData, plus all 13 DH group primes and T
 | Heartbeat extension (type 15) | RFC 6520 | **Done** |
 | GREASE injection (cipher suites/extensions/groups/sig_algs/key_share) | RFC 8701 | **Done** |
 
-### Phase 84: TLS Callback Framework + Missing Alert Codes + CBC-MAC-SM4
+### Phase I76: TLS Callback Framework + Missing Alert Codes + CBC-MAC-SM4
 
 | Feature | Description |
 |---------|-------------|
@@ -688,7 +677,7 @@ Completed P-192, HCTR mode, CMS EncryptedData, plus all 13 DH group primes and T
 | Missing Alert Codes | 6 legacy codes added |
 | CBC-MAC-SM4 | SM4 CBC-MAC with zero-padding, feature-gated `cbc-mac` |
 
-### Phase 85: Trusted CA Keys + USE_SRTP + STATUS_REQUEST_V2 + CMS AuthenticatedData
+### Phase I77: Trusted CA Keys + USE_SRTP + STATUS_REQUEST_V2 + CMS AuthenticatedData
 
 | Feature | Standard | Status |
 |---------|----------|--------|
@@ -697,7 +686,7 @@ Completed P-192, HCTR mode, CMS EncryptedData, plus all 13 DH group primes and T
 | STATUS_REQUEST_V2 (type 17) | RFC 6961 | **Done** |
 | CMS AuthenticatedData (HMAC-SHA-256/384/512) | RFC 5652 §9 | **Done** |
 
-### Phase 86: DTLS Config Enhancements + Integration Tests
+### Phase I78: DTLS Config Enhancements + Integration Tests
 
 | Feature | Description |
 |---------|-------------|
@@ -705,7 +694,7 @@ Completed P-192, HCTR mode, CMS EncryptedData, plus all 13 DH group primes and T
 | empty_records_limit | Consecutive empty record DoS protection (default: 32) |
 | Integration tests | MsgCallback, InfoCallback, ClientHelloCallback, CBC-MAC-SM4, CMS AuthenticatedData |
 
-### Phase 93: Encrypted PKCS#8 + Callbacks + SM4-CTR-DRBG + CMS ML-DSA
+### Phase I79: Encrypted PKCS#8 + Callbacks + SM4-CTR-DRBG + CMS ML-DSA
 
 | Feature | Description | Status |
 |---------|-------------|--------|
@@ -755,15 +744,15 @@ Completed P-192, HCTR mode, CMS EncryptedData, plus all 13 DH group primes and T
 Phase       Tests   Delta   Period
 ─────────   ─────   ─────   ──────────────────
 Baseline    1,104           Pre-testing effort
-Phase 47  1,291    +187   Foundation (core crypto + TLS + PKI)
-Phase 48–59 1,782    +491   Unit test expansion (crypto + TLS edge cases)
-Phase 60–67 1,846     +64   Cipher suite feature tests (CCM/PSK/DSS/ANON/renego)
-Phase 68–93 2,026    +180   Feature-driven tests (hostname/session/callbacks/PQC)
-Phase T71  1,964     +72   CLI + session cache concurrency (*)
-Phase T73  2,021     +33   Async TLS 1.3 + cipher suite integration (*)
-Phase T75  2,054     +18   Fuzz corpus + error scenario integration (*)
-Phase T76  2,070     +16   Key export + async export unit tests (*)
-Phase T78  2,131     +26   cert_verify + config callbacks + integration (*)
+Phase I48  1,291    +187   Foundation (core crypto + TLS + PKI)
+Phase I49–I60 1,782    +491   Unit test expansion (crypto + TLS edge cases)
+Phase I61–I68 1,846     +64   Cipher suite feature tests (CCM/PSK/DSS/ANON/renego)
+Phase I69–I79 2,026    +180   Feature-driven tests (hostname/session/callbacks/PQC)
+Phase T1  1,964     +72   CLI + session cache concurrency (*)
+Phase T2  2,021     +33   Async TLS 1.3 + cipher suite integration (*)
+Phase T3  2,054     +18   Fuzz corpus + error scenario integration (*)
+Phase T4  2,070     +16   Key export + async export unit tests (*)
+Phase T5  2,131     +26   cert_verify + config callbacks + integration (*)
 Phase T80  2,144     +13   SniCallback + DTLS abbreviated + extensions (*)
 Phase T81  2,166     +22   GREASE + Heartbeat + async DTLS edge cases (*)
 Phase T82  2,194     +28   DTLS handshake + TLS 1.3 server + record + PRF (*)
@@ -775,47 +764,47 @@ Phase T90  2,372     +24   Record + extensions + export + codec + connection (*)
 Phase T91  2,397     +25   AEAD + crypt + alert + signing + config (*)
 Phase T92  2,420     +23   Retransmit + keylog + fragment + anti_replay (*)
 Phase T94  2,445     +25   Async TLS 1.2 + DTLCP + encryption + lib.rs (*)
-Phase T95  2,519     +40   ConnectionInfo + handshake enums + codec errors (*)
-Phase T96  2,544     +25   ECC/DH params + TLCP API + DTLCP encryption (*)
-Phase T97  2,577     +33   ECC point + AES soft + SM9 + McEliece vector (*)
-Phase T98  2,585      +8   0-RTT early data + replay protection (*)
-Phase T109  2,595     +10   Async TLS 1.2 deep coverage + session resumption fix (*)
-Phase T110  2,610     +15   Async TLCP + DTLCP connection types & tests (*)
-Phase T111  2,624     +14   Extension negotiation E2E tests (*)
-Phase T112  2,634     +10   DTLS loss simulation & resilience tests (*)
-Phase T113  2,644     +10   TLCP double certificate validation tests (*)
-Phase T114  2,659     +15   SM9 tower field (Fp2/Fp4/Fp12) unit tests (*)
-Phase T115  2,674     +15   SLH-DSA internal module unit tests (*)
-Phase T116  2,689     +15   McEliece + FrodoKEM + XMSS internal tests (*)
-Phase T117  2,709     +20   proptest property-based + coverage CI (*)
-Phase T118  2,724     +15   TLCP SM3 cryptographic path coverage (*)
-Phase T119  2,739     +15   TLS 1.3 key schedule & HKDF robustness (*)
-Phase T120  2,754     +15   Record layer encryption edge cases & AEAD failure modes (*)
-Phase T121  2,769     +15   TLS 1.2 CBC padding + DTLS parsing + TLS 1.3 inner plaintext (*)
-Phase T122  2,784     +15   DTLS fragmentation/retransmission + CertificateVerify (*)
-Phase T123  2,799     +15   DTLS codec edge cases + anti-replay boundaries + entropy (*)
-Phase T124  2,814     +15   X.509 extension parsing + WOTS+ base conversion + ASN.1 tag (*)
-Phase T125  2,829     +15   PKI encoding helpers + X.509 signing dispatch + builder encoding (*)
-Phase T126  2,844     +15   X.509 certificate parsing + SM9 G2 + SM9 pairing (*)
-Phase T127  2,857     +13   SM9 hash functions + algorithm helpers + curve params (*)
-Phase T128  2,872     +15   McEliece keygen helpers + encoding + decoding (*)
-Phase T129  2,882     +10   XMSS tree ops + WOTS+ deepening + FORS deepening (*)
-Phase T130  2,897     +15   McEliece GF(2^13) + Benes network + matrix deepening (*)
-Phase T131  2,909     +12   FrodoKEM matrix ops + SLH-DSA hypertree + McEliece poly (*)
-Phase T132  2,924     +15   McEliece + FrodoKEM + XMSS parameter set validation (*)
-Phase T133  2,939     +15   XMSS hash + address + ML-KEM NTT deepening (*)
-Phase T134  2,954     +15   BigNum CT + primality + core type deepening (*)
-Phase T140  2,969     +15   SLH-DSA params + hash abstraction + address deepening (*)
-Phase T142  3,079     +15   FrodoKEM PKE + SM9 G1 point + SM9 Fp field (*)
-Phase T143  3,094     +15   ML-DSA NTT + SM4-CTR-DRBG + BigNum random (*)
-Phase T144  3,109     +15   DH group params + entropy pool + SHA-1 (*)
-Phase T146  3,124     +15   ML-KEM poly + SM9 Fp12 + encrypted PKCS#8 (*)
-Phase T147  3,154     +15   ML-DSA poly + X.509 extensions + X.509 text (*)
-Phase T148  3,169     +15   XTS mode + Edwards curve + GMAC deepening (*)
-Phase T149  3,184     +15   scrypt + CFB mode + X448 deepening (*)
-Phase T150  3,184      —    Semantic fuzz target expansion (10→13 targets, no new tests) (*)
-T157–T165   3,280     +96   Quality improvement phase 1 (connection/HW/proptest/timing/fuzz) (*)
-T161–T170   3,401    +121   Quality improvement phase 2 (cipher suites/attacks/async/SM9/ext) (*)
+Phase T6  2,519     +40   ConnectionInfo + handshake enums + codec errors (*)
+Phase T7  2,544     +25   ECC/DH params + TLCP API + DTLCP encryption (*)
+Phase T8  2,577     +33   ECC point + AES soft + SM9 + McEliece vector (*)
+Phase T9  2,585      +8   0-RTT early data + replay protection (*)
+Phase T10  2,595     +10   Async TLS 1.2 deep coverage + session resumption fix (*)
+Phase T11  2,610     +15   Async TLCP + DTLCP connection types & tests (*)
+Phase T12  2,624     +14   Extension negotiation E2E tests (*)
+Phase T13  2,634     +10   DTLS loss simulation & resilience tests (*)
+Phase T14  2,644     +10   TLCP double certificate validation tests (*)
+Phase T15  2,659     +15   SM9 tower field (Fp2/Fp4/Fp12) unit tests (*)
+Phase T16  2,674     +15   SLH-DSA internal module unit tests (*)
+Phase T17  2,689     +15   McEliece + FrodoKEM + XMSS internal tests (*)
+Phase T18  2,709     +20   proptest property-based + coverage CI (*)
+Phase T19  2,724     +15   TLCP SM3 cryptographic path coverage (*)
+Phase T20  2,739     +15   TLS 1.3 key schedule & HKDF robustness (*)
+Phase T21  2,754     +15   Record layer encryption edge cases & AEAD failure modes (*)
+Phase T22  2,769     +15   TLS 1.2 CBC padding + DTLS parsing + TLS 1.3 inner plaintext (*)
+Phase T23  2,784     +15   DTLS fragmentation/retransmission + CertificateVerify (*)
+Phase T24  2,799     +15   DTLS codec edge cases + anti-replay boundaries + entropy (*)
+Phase T25  2,814     +15   X.509 extension parsing + WOTS+ base conversion + ASN.1 tag (*)
+Phase T26  2,829     +15   PKI encoding helpers + X.509 signing dispatch + builder encoding (*)
+Phase T27  2,844     +15   X.509 certificate parsing + SM9 G2 + SM9 pairing (*)
+Phase T28  2,857     +13   SM9 hash functions + algorithm helpers + curve params (*)
+Phase T29  2,872     +15   McEliece keygen helpers + encoding + decoding (*)
+Phase T30  2,882     +10   XMSS tree ops + WOTS+ deepening + FORS deepening (*)
+Phase T31  2,897     +15   McEliece GF(2^13) + Benes network + matrix deepening (*)
+Phase T32  2,909     +12   FrodoKEM matrix ops + SLH-DSA hypertree + McEliece poly (*)
+Phase T33  2,924     +15   McEliece + FrodoKEM + XMSS parameter set validation (*)
+Phase T34  2,939     +15   XMSS hash + address + ML-KEM NTT deepening (*)
+Phase T35  2,954     +15   BigNum CT + primality + core type deepening (*)
+Phase T36  2,969     +15   SLH-DSA params + hash abstraction + address deepening (*)
+Phase T37  3,079     +15   FrodoKEM PKE + SM9 G1 point + SM9 Fp field (*)
+Phase T38  3,094     +15   ML-DSA NTT + SM4-CTR-DRBG + BigNum random (*)
+Phase T39  3,109     +15   DH group params + entropy pool + SHA-1 (*)
+Phase T40  3,124     +15   ML-KEM poly + SM9 Fp12 + encrypted PKCS#8 (*)
+Phase T41  3,154     +15   ML-DSA poly + X.509 extensions + X.509 text (*)
+Phase T42  3,169     +15   XTS mode + Edwards curve + GMAC deepening (*)
+Phase T43  3,184     +15   scrypt + CFB mode + X448 deepening (*)
+Phase T44  3,184      —    Semantic fuzz target expansion (10→13 targets, no new tests) (*)
+T45–T53   3,280     +96   Quality improvement phase 1 (connection/HW/proptest/timing/fuzz) (*)
+T49–T58   3,401    +121   Quality improvement phase 2 (cipher suites/attacks/async/SM9/ext) (*)
 ```
 
 (*) Testing-only phases (no new features, pure test coverage)
@@ -872,20 +861,20 @@ T161–T170   3,401    +121   Quality improvement phase 2 (cipher suites/attacks
 
 | Severity | ID | Description | Status |
 |:--------:|:--:|-------------|:------:|
-| Critical | D1 | 0-RTT replay protection: zero tests | **Closed** (Phase T98: +8 tests) |
-| Critical | D2 | Async TLS 1.2/TLCP/DTLCP: zero tests | **Closed** (Phase T109/T110/T166) |
-| High | D3 | Extension negotiation: no e2e tests | **Closed** (Phase T111/T169) |
-| High | D4 | DTLS loss/retransmission: no tests | **Closed** (Phase T112) |
-| High | D5 | TLCP double certificate: untested | **Closed** (Phase T113) |
-| Medium | D6 | No property-based testing framework | **Closed** (Phase T117/T160) |
+| Critical | D1 | 0-RTT replay protection: zero tests | **Closed** (Phase T9: +8 tests) |
+| Critical | D2 | Async TLS 1.2/TLCP/DTLCP: zero tests | **Closed** (Phase T10/T11/T54) |
+| High | D3 | Extension negotiation: no e2e tests | **Closed** (Phase T12/T57) |
+| High | D4 | DTLS loss/retransmission: no tests | **Closed** (Phase T13) |
+| High | D5 | TLCP double certificate: untested | **Closed** (Phase T14) |
+| Medium | D6 | No property-based testing framework | **Closed** (Phase T18/T48) |
 | Medium | D7 | No code coverage metrics in CI | Open |
-| Medium | D8 | No cross-implementation interop | **Partial** (Phase T165: OpenSSL interop) |
-| Low-Med | D9 | Fuzz targets: parse-only | **Closed** (Phase T150/T164: 18 targets) |
-| Low | D10 | 30 crypto files without unit tests | **Closed** (Phase T114–T149) |
+| Medium | D8 | No cross-implementation interop | **Partial** (Phase T53: OpenSSL interop) |
+| Low-Med | D9 | Fuzz targets: parse-only | **Closed** (Phase T44/T52: 18 targets) |
+| Low | D10 | 30 crypto files without unit tests | **Closed** (Phase T15–T43) |
 
-#### Coverage Status (Post T170)
+#### Coverage Status (Post T58)
 
-All 30 previously-untested crypto files now have unit tests (Phase T114–T149). All 10 original deficiencies are closed or partially closed (8/10 fully closed, 1 partial, 1 remaining).
+All 30 previously-untested crypto files now have unit tests (Phase T15–T43). All 10 original deficiencies are closed or partially closed (8/10 fully closed, 1 partial, 1 remaining).
 
 | Metric | Value |
 |--------|:-----:|
@@ -926,16 +915,16 @@ The following phases are defined in [ARCH_REPORT.md](ARCH_REPORT.md) §7 and hav
 
 | Phase | Title | Priority | Status |
 |-------|-------|----------|--------|
-| Phase R99 | PKI Encoding Consolidation | Critical | **Done** |
-| Phase R100 | Record Layer Enum Dispatch | High | **Done** |
-| Phase R101 | Connection File Decomposition | High | **Done** |
-| Phase R102 | Hash Digest Enum Dispatch | Medium | **Done** |
-| Phase R103 | Sync/Async Unification via Macros | Medium | **Done** |
-| Phase R104 | X.509 Module Decomposition | Medium | **Done** |
-| Phase R105 | Integration Test Modularization | Medium | **Done** |
-| Phase R106 | Test Helper Consolidation | Low | **Done** |
-| Phase R107 | Parameter Struct Refactoring | Low | **Done** |
-| Phase R108 | DRBG State Machine Unification | Low | **Done** |
+| Phase R1 | PKI Encoding Consolidation | Critical | **Done** |
+| Phase R2 | Record Layer Enum Dispatch | High | **Done** |
+| Phase R3 | Connection File Decomposition | High | **Done** |
+| Phase R4 | Hash Digest Enum Dispatch | Medium | **Done** |
+| Phase R5 | Sync/Async Unification via Macros | Medium | **Done** |
+| Phase R6 | X.509 Module Decomposition | Medium | **Done** |
+| Phase R7 | Integration Test Modularization | Medium | **Done** |
+| Phase R8 | Test Helper Consolidation | Low | **Done** |
+| Phase R9 | Parameter Struct Refactoring | Low | **Done** |
+| Phase R10 | DRBG State Machine Unification | Low | **Done** |
 
 All 10 refactoring phases complete.
 
@@ -943,7 +932,7 @@ All 10 refactoring phases complete.
 
 ## Part III: Detailed Phase Entries
 
-## Phase 0: Project Scaffolding (Session 2026-02-06)
+## Phase I1: Project Scaffolding (Session 2026-02-06)
 
 ### Goals
 - Initialize Rust workspace with all crate skeletons
@@ -1085,10 +1074,10 @@ openhitls-rs/
 
 ---
 
-## Phase 1: Tooling + BigNum (Session 2026-02-06)
+## Phase I2: Tooling + BigNum (Session 2026-02-06)
 
 ### Goals
-- Fix compilation issues from Phase 0 scaffolding
+- Fix compilation issues from Phase I1 scaffolding
 - Improve BigNum: Montgomery multiplication, modular exponentiation, prime generation
 - Add constant-time operations for side-channel safety
 
@@ -1109,7 +1098,7 @@ openhitls-rs/
 
 ---
 
-## Phase 2: Hash + HMAC (Session 2026-02-06)
+## Phase I3: Hash + HMAC (Session 2026-02-06)
 
 ### Goals
 - Implement complete SHA-2 family (SHA-256/224/512/384)
@@ -1162,7 +1151,7 @@ openhitls-rs/
 
 ---
 
-## Phase 3: Symmetric Ciphers + Block Cipher Modes + KDF (Session 2026-02-06)
+## Phase I4: Symmetric Ciphers + Block Cipher Modes + KDF (Session 2026-02-06)
 
 ### Goals
 - Implement AES-128/192/256 and SM4 block ciphers
@@ -1256,7 +1245,7 @@ openhitls-rs/
 
 ---
 
-## Phase 4: RSA Asymmetric Cryptography (Session 2026-02-06)
+## Phase I5: RSA Asymmetric Cryptography (Session 2026-02-06)
 
 ### Goals
 - Implement RSA key generation (2048/3072/4096-bit)
@@ -1377,14 +1366,14 @@ RSA tests (8 pass, 1 ignored):
 - Formatting: clean (`cargo fmt --check`)
 - 119 workspace tests passing
 
-### Next Steps (Phase 5)
+### Next Steps (Phase I6)
 - Implement ECC (elliptic curve arithmetic over P-256, P-384)
 - Implement ECDSA (signing / verification)
 - Implement ECDH (key agreement)
 
 ---
 
-## Phase 5: ECC + ECDSA + ECDH (Session 2026-02-06)
+## Phase I6: ECC + ECDSA + ECDH (Session 2026-02-06)
 
 ### Goals
 - Implement elliptic curve arithmetic over NIST P-256 and P-384 (Weierstrass curves)
@@ -1482,13 +1471,13 @@ New tests (17):
 - Formatting: clean (`cargo fmt --check`)
 - 136 workspace tests passing
 
-### Next Steps (Phase 6)
+### Next Steps (Phase I7)
 - Implement Ed25519 / X25519 (Montgomery/Edwards curves)
 - Implement DH (finite field Diffie-Hellman)
 
 ---
 
-## Phase 6: Ed25519 + X25519 + DH (Session 2026-02-06)
+## Phase I7: Ed25519 + X25519 + DH (Session 2026-02-06)
 
 ### Goals
 - Implement Curve25519 field arithmetic (GF(2^255-19), Fp51 representation)
@@ -1599,14 +1588,14 @@ New tests (24):
 - Formatting: clean (`cargo fmt --check`)
 - 171 workspace tests passing
 
-### Next Steps (Phase 7)
+### Next Steps (Phase I8)
 - Implement DSA (digital signature algorithm)
 - Implement SM2 (signature + encryption + key exchange)
 - Implement DRBG (deterministic random bit generator)
 
 ---
 
-## Phase 7: DSA + SM2 + HMAC-DRBG (Session 2026-02-06)
+## Phase I8: DSA + SM2 + HMAC-DRBG (Session 2026-02-06)
 
 ### Goals
 - Implement DSA signing and verification (FIPS 186-4)
@@ -1700,7 +1689,7 @@ New tests (18):
 
 ---
 
-## Phase 8: SHA-3/SHAKE + ChaCha20-Poly1305 + Symmetric Suite Completion (Session 2026-02-06)
+## Phase I9: SHA-3/SHAKE + ChaCha20-Poly1305 + Symmetric Suite Completion (Session 2026-02-06)
 
 ### Goals
 - Implement SHA-3/SHAKE (Keccak sponge construction, FIPS 202)
@@ -1897,7 +1886,7 @@ New tests (43):
 
 ### Symmetric Subsystem Completion
 
-With Phase 8, all symmetric/hash/MAC/KDF primitives are fully implemented:
+With Phase I9, all symmetric/hash/MAC/KDF primitives are fully implemented:
 
 | Category | Algorithms |
 |----------|-----------|
@@ -1913,7 +1902,7 @@ Remaining work: post-quantum cryptography (SLH-DSA, etc.), TLS protocol, PKI, au
 
 ---
 
-## Phase 9: ML-KEM (FIPS 203) + ML-DSA (FIPS 204) (Session 2026-02-07)
+## Phase I10: ML-KEM (FIPS 203) + ML-DSA (FIPS 204) (Session 2026-02-07)
 
 ### Goals
 - Implement ML-KEM (Module-Lattice Key Encapsulation Mechanism, FIPS 203)
@@ -2079,7 +2068,7 @@ New tests (30):
 
 ---
 
-## Phase 10: HPKE + AES Key Wrap + HybridKEM + Paillier + ElGamal (Session 2026-02-06)
+## Phase I11: HPKE + AES Key Wrap + HybridKEM + Paillier + ElGamal (Session 2026-02-06)
 
 ### Goals
 - Implement 5 remaining crypto utility modules
@@ -2138,13 +2127,13 @@ hybridkem = ["x25519", "mlkem", "sha2"]
 - All clippy warnings resolved, formatting clean
 
 ### Next Steps
-- Phase 11: X.509 Certificate Parsing + Basic PKI (critical path)
-- Phase 12: X.509 Verification + Chain Building
-- Phase 13: TLS 1.3 Key Schedule + Crypto Adapter
+- Phase I12: X.509 Certificate Parsing + Basic PKI (critical path)
+- Phase I13: X.509 Verification + Chain Building
+- Phase I14: TLS 1.3 Key Schedule + Crypto Adapter
 
 ---
 
-## Phase 11: X.509 Certificate Parsing + Signature Verification
+## Phase I12: X.509 Certificate Parsing + Signature Verification
 
 **Date**: 2026-02-07
 
@@ -2218,12 +2207,12 @@ Generated with OpenSSL, embedded as hex constants:
 - All clippy warnings resolved, formatting clean
 
 ### Next Steps
-- Phase 12: X.509 Verification + Chain Building
-- Phase 13: TLS 1.3 Key Schedule + Crypto Adapter
+- Phase I13: X.509 Verification + Chain Building
+- Phase I14: TLS 1.3 Key Schedule + Crypto Adapter
 
 ---
 
-## Phase 12: X.509 Verification + Chain Building (Session 2026-02-07)
+## Phase I13: X.509 Verification + Chain Building (Session 2026-02-07)
 
 ### Goals
 - Build and verify X.509 certificate chains (end-entity → intermediate → root CA)
@@ -2276,12 +2265,12 @@ Used real 3-cert RSA chain from C project (`testcode/testdata/tls/certificate/pe
 - All clippy warnings resolved, formatting clean
 
 ### Next Steps
-- Phase 13: TLS 1.3 Key Schedule + Crypto Adapter
-- Phase 14: TLS Record Layer Encryption
+- Phase I14: TLS 1.3 Key Schedule + Crypto Adapter
+- Phase I15: TLS Record Layer Encryption
 
 ---
 
-## Phase 13: TLS 1.3 Key Schedule + Crypto Adapter (Session 2026-02-06)
+## Phase I14: TLS 1.3 Key Schedule + Crypto Adapter (Session 2026-02-06)
 
 ### Goals
 - Implement TLS 1.3 key schedule (RFC 8446 §7.1): Early → Handshake → Master → Traffic Secrets
@@ -2356,12 +2345,12 @@ Used real 3-cert RSA chain from C project (`testcode/testdata/tls/certificate/pe
 - Full RFC 8448 Section 3 verification: early_secret, handshake_secret, client/server HS traffic secrets, master_secret, client/server app traffic secrets, traffic keys (key + iv)
 
 ### Next Steps
-- Phase 14: TLS Record Layer Encryption
-- Phase 15: TLS 1.3 Client Handshake
+- Phase I15: TLS Record Layer Encryption
+- Phase I16: TLS 1.3 Client Handshake
 
 ---
 
-## Phase 14: TLS Record Layer Encryption (Session 2026-02-08)
+## Phase I15: TLS Record Layer Encryption (Session 2026-02-08)
 
 ### Goals
 - Implement TLS 1.3 record-layer AEAD encryption/decryption (RFC 8446 §5)
@@ -2416,12 +2405,12 @@ Used real 3-cert RSA chain from C project (`testcode/testdata/tls/certificate/pe
 - All clippy warnings resolved, formatting clean
 
 ### Next Steps
-- Phase 15: TLS 1.3 Client Handshake
-- Phase 16: TLS 1.3 Server + Application Data
+- Phase I16: TLS 1.3 Client Handshake
+- Phase I17: TLS 1.3 Server + Application Data
 
 ---
 
-## Phase 15: TLS 1.3 Client Handshake (Session 2026-02-08)
+## Phase I16: TLS 1.3 Client Handshake (Session 2026-02-08)
 
 ### Goals
 - Implement TLS 1.3 full 1-RTT client handshake (RFC 8446)
@@ -2507,11 +2496,11 @@ Used real 3-cert RSA chain from C project (`testcode/testdata/tls/certificate/pe
 - All clippy warnings resolved, formatting clean
 
 ### Next Steps
-- Phase 16: TLS 1.3 Server Handshake + Application Data
+- Phase I17: TLS 1.3 Server Handshake + Application Data
 
 ---
 
-## Phase 16: TLS 1.3 Server Handshake + Application Data (Session 2026-02-08)
+## Phase I17: TLS 1.3 Server Handshake + Application Data (Session 2026-02-08)
 
 ### Goals
 - Implement TLS 1.3 server handshake state machine (RFC 8446)
@@ -2584,11 +2573,11 @@ Used real 3-cert RSA chain from C project (`testcode/testdata/tls/certificate/pe
 - All clippy warnings resolved, formatting clean
 
 ### Next Steps
-- Phase 17: PKCS#12 + CMS + Auth Protocols
+- Phase I18: PKCS#12 + CMS + Auth Protocols
 
 ---
 
-## Phase 17: PKCS#12 + CMS + Auth Protocols (Session 2026-02-08)
+## Phase I18: PKCS#12 + CMS + Auth Protocols (Session 2026-02-08)
 
 ### Goals
 - Implement HOTP/TOTP (RFC 4226/6238) in hitls-auth
@@ -2668,11 +2657,11 @@ Used real 3-cert RSA chain from C project (`testcode/testdata/tls/certificate/pe
 - All clippy warnings resolved, formatting clean
 
 ### Next Steps
-- Phase 18: SLH-DSA (FIPS 205) + XMSS (RFC 8391)
+- Phase I19: SLH-DSA (FIPS 205) + XMSS (RFC 8391)
 
 ---
 
-## Phase 18: SLH-DSA (FIPS 205) + XMSS (RFC 8391) (Session 2026-02-08)
+## Phase I19: SLH-DSA (FIPS 205) + XMSS (RFC 8391) (Session 2026-02-08)
 
 ### Goals
 - Implement SLH-DSA (Stateless Hash-Based Digital Signature Algorithm, FIPS 205) in hitls-crypto
@@ -2751,11 +2740,11 @@ Used real 3-cert RSA chain from C project (`testcode/testdata/tls/certificate/pe
 - All clippy warnings resolved, formatting clean
 
 ### Next Steps
-- Phase 19: Remaining PQC (FrodoKEM, McEliece, SM9) + CLI Tool + Integration Tests
+- Phase I20: Remaining PQC (FrodoKEM, McEliece, SM9) + CLI Tool + Integration Tests
 
 ---
 
-## Phase 19: FrodoKEM + SM9 + Classic McEliece + CLI Tool + Integration Tests (Session 2026-02-06)
+## Phase I20: FrodoKEM + SM9 + Classic McEliece + CLI Tool + Integration Tests (Session 2026-02-06)
 
 ### Goals
 - Implement FrodoKEM (LWE-based KEM) with 12 parameter sets
@@ -2852,7 +2841,7 @@ All 21 phases (0-20) of the openHiTLS C-to-Rust migration are now complete.
 
 ---
 
-## Phase 20: TLS 1.3 Completeness — PSK, 0-RTT, Post-HS Auth, Cert Compression
+## Phase I21: TLS 1.3 Completeness — PSK, 0-RTT, Post-HS Auth, Cert Compression
 
 ### Step 3: PSK / Session Tickets
 
@@ -2897,7 +2886,7 @@ All 21 phases (0-20) of the openHiTLS C-to-Rust migration are now complete.
 
 ### Step 6: Certificate Compression (RFC 8879)
 
-Implemented the remaining Phase 20 feature: TLS Certificate Compression (RFC 8879). Also fixed the README Phase 20 table to correctly mark HRR and KeyUpdate as Done (they were already implemented but the docs were outdated).
+Implemented the remaining Phase I21 feature: TLS Certificate Compression (RFC 8879). Also fixed the README Phase I21 table to correctly mark HRR and KeyUpdate as Done (they were already implemented but the docs were outdated).
 
 #### Certificate Compression Details
 - **Extension**: `compress_certificate` (type 27) — client sends list of supported compression algorithms in ClientHello
@@ -2938,7 +2927,7 @@ Implemented the remaining Phase 20 feature: TLS Certificate Compression (RFC 887
 
 ---
 
-## Phase 21: ECC Curve Additions
+## Phase I22: ECC Curve Additions
 
 ### Goals
 - Add P-224, P-521, Brainpool P-256r1, Brainpool P-384r1, Brainpool P-512r1 curves
@@ -2973,7 +2962,7 @@ Implemented the remaining Phase 20 feature: TLS Certificate Compression (RFC 887
 
 ---
 
-## Phase 22: CTR-DRBG + Hash-DRBG + PKCS#8 Key Parsing (Session 2026-02-08)
+## Phase I23: CTR-DRBG + Hash-DRBG + PKCS#8 Key Parsing (Session 2026-02-08)
 
 ### Goals
 - Add CTR-DRBG (NIST SP 800-90A §10.2) and Hash-DRBG (§10.1.1) to complement existing HMAC-DRBG
@@ -3074,7 +3063,7 @@ New tests (32):
 
 ---
 
-## Phase 23: CRL Parsing + Validation + Revocation Checking + OCSP (Session 2026-02-09)
+## Phase I24: CRL Parsing + Validation + Revocation Checking + OCSP (Session 2026-02-09)
 
 ### Goals
 - Parse X.509 CRLs (Certificate Revocation Lists) per RFC 5280 §5
@@ -3186,7 +3175,7 @@ New tests (24):
 
 ---
 
-## Phase 24: CSR Generation, X.509 Certificate Generation, TLS 1.2 PRF, CLI req (Session 2026-02-09)
+## Phase I25: CSR Generation, X.509 Certificate Generation, TLS 1.2 PRF, CLI req (Session 2026-02-09)
 
 ### Goals
 - Implement CSR (Certificate Signing Request) generation per PKCS#10 (RFC 2986)
@@ -3272,7 +3261,7 @@ New tests (37):
 
 ---
 
-## Phase 25: TLS 1.2 Handshake (ECDHE-GCM)
+## Phase I26: TLS 1.2 Handshake (ECDHE-GCM)
 
 ### Step 1: TLS 1.2 Cipher Suite Params + Key Derivation
 - `crypt/key_schedule12.rs`: `Tls12KeyBlock`, `derive_master_secret()`, `derive_key_block()`, `compute_verify_data()`
@@ -3326,7 +3315,7 @@ New tests (37):
 
 ---
 
-## Phase 26: DTLS 1.2 (RFC 6347)
+## Phase I27: DTLS 1.2 (RFC 6347)
 
 ### Goals
 - Implement DTLS 1.2 — the datagram variant of TLS 1.2 over UDP
@@ -3461,7 +3450,7 @@ New tests (48):
 
 ---
 
-## Phase 27: TLCP (GM/T 0024 / GB/T 38636-2020)
+## Phase I28: TLCP (GM/T 0024 / GB/T 38636-2020)
 
 ### Goals
 - Implement TLCP — China's Transport Layer Cryptography Protocol (GM/T 0024 / GB/T 38636-2020)
@@ -3565,7 +3554,7 @@ New tests (39):
 
 ---
 
-## Phase 28: TLS 1.2 CBC + ChaCha20-Poly1305 + ALPN + SNI (Session 2026-02-06)
+## Phase I29: TLS 1.2 CBC + ChaCha20-Poly1305 + ALPN + SNI (Session 2026-02-06)
 
 ### Goals
 - Add 8 ECDHE-CBC cipher suites (AES-128/256-CBC with SHA/SHA256/SHA384)
@@ -3680,7 +3669,7 @@ New tests (18):
 
 ---
 
-## Phase 29: TLS 1.2 Session Resumption + Client Certificate Auth (mTLS) (Session 2026-02-10)
+## Phase I30: TLS 1.2 Session Resumption + Client Certificate Auth (mTLS) (Session 2026-02-10)
 
 ### Goals
 - Implement TLS 1.2 session ID-based resumption (abbreviated handshake, RFC 5246 §7.4.1.2)
@@ -3792,7 +3781,7 @@ New tests (28):
 
 ---
 
-## Phase 30: s_client CLI + Network I/O (Session 2026-02-10)
+## Phase I31: s_client CLI + Network I/O (Session 2026-02-10)
 
 ### Goals
 - Implement `s_client` CLI command for connecting to real TLS servers over TCP
@@ -3857,7 +3846,7 @@ New tests (28):
 
 ---
 
-## Phase 31: s_server CLI + Key Conversion (Session 2026-02-10)
+## Phase I32: s_server CLI + Key Conversion (Session 2026-02-10)
 
 ### Goals
 - Implement `s-server` CLI command for accepting TLS connections
@@ -3923,7 +3912,7 @@ Updated match arm to call `s_server::run()`.
 
 ---
 
-## Phase 32: TCP Loopback Integration Tests
+## Phase I33: TCP Loopback Integration Tests
 
 ### What
 Added 5 TCP loopback integration tests that spawn real TCP server/client threads on `127.0.0.1:0` (random port) to validate end-to-end TLS communication over actual `TcpStream`.
@@ -3959,7 +3948,7 @@ Added 5 TCP loopback integration tests that spawn real TCP server/client threads
 
 ---
 
-## Phase 33: TLS 1.2 Session Ticket (RFC 5077) (Session 2026-02-10)
+## Phase I34: TLS 1.2 Session Ticket (RFC 5077) (Session 2026-02-10)
 
 ### Goals
 - Implement TLS 1.2 session ticket support per RFC 5077
@@ -4039,7 +4028,7 @@ Added `SESSION_TICKET` constant (0x0023 = 35) to extensions module. Implemented 
 
 ---
 
-## Phase 34: TLS 1.2 Extended Master Secret + Encrypt-Then-MAC + Renegotiation Indication (Session 2026-02-10)
+## Phase I35: TLS 1.2 Extended Master Secret + Encrypt-Then-MAC + Renegotiation Indication (Session 2026-02-10)
 
 ### Goals
 - Implement Extended Master Secret (RFC 7627) to bind master secret to handshake transcript and prevent triple handshake attacks
@@ -4049,7 +4038,7 @@ Added `SESSION_TICKET` constant (0x0023 = 35) to extensions module. Implemented 
 
 ### Summary
 
-Phase 34 adds three TLS 1.2 security extensions that harden the protocol against well-known attacks:
+Phase I35 adds three TLS 1.2 security extensions that harden the protocol against well-known attacks:
 
 1. **Extended Master Secret (RFC 7627)** — Changes master secret derivation from `PRF(pre_master_secret, "master secret", client_random + server_random)` to `PRF(pre_master_secret, "extended master secret", session_hash)` where `session_hash` is the hash of the handshake transcript up to and including the ClientKeyExchange. This binds the master secret to the specific handshake, preventing triple handshake attacks where a MITM could synchronize two sessions to share a master secret.
 
@@ -4130,7 +4119,7 @@ Phase 34 adds three TLS 1.2 security extensions that harden the protocol against
 
 ---
 
-## Phase 35: TLS 1.2 RSA + DHE Key Exchange — 13 New Cipher Suites (Session 2026-02-10)
+## Phase I36: TLS 1.2 RSA + DHE Key Exchange — 13 New Cipher Suites (Session 2026-02-10)
 
 ### Goals
 - Implement RSA static key exchange (client encrypts pre_master_secret with server's RSA public key, no ServerKeyExchange message)
@@ -4141,7 +4130,7 @@ Phase 34 adds three TLS 1.2 security extensions that harden the protocol against
 
 ### Summary
 
-Phase 35 adds two new TLS 1.2 key exchange mechanisms — RSA static and DHE_RSA — bringing the total cipher suite count from 14 to 27. This covers the most widely deployed non-ECDHE cipher suites in TLS 1.2.
+Phase I36 adds two new TLS 1.2 key exchange mechanisms — RSA static and DHE_RSA — bringing the total cipher suite count from 14 to 27. This covers the most widely deployed non-ECDHE cipher suites in TLS 1.2.
 
 1. **RSA Static Key Exchange** — The client generates a 48-byte pre_master_secret (with TLS version in the first two bytes), encrypts it with the server's RSA public key using PKCS#1 v1.5, and sends it in the ClientKeyExchange message. The server decrypts it with its RSA private key. No ServerKeyExchange message is sent. This is the simplest TLS 1.2 key exchange but lacks forward secrecy.
 
@@ -4236,7 +4225,7 @@ Phase 35 adds two new TLS 1.2 key exchange mechanisms — RSA static and DHE_RSA
 
 ---
 
-## Phase 36: TLS 1.2 PSK Cipher Suites — 20 New Cipher Suites (Session 2026-02-11)
+## Phase I37: TLS 1.2 PSK Cipher Suites — 20 New Cipher Suites (Session 2026-02-11)
 
 ### Goals
 - Implement TLS 1.2 Pre-Shared Key (PSK) cipher suites per RFC 4279 and RFC 5489
@@ -4364,7 +4353,7 @@ RFC 4279 defines pre-shared key (PSK) cipher suites for TLS, enabling authentica
 
 ---
 
-## Phase 37: TLS 1.3 Post-Quantum Hybrid KEM — X25519MLKEM768 (Session 2026-02-11)
+## Phase I38: TLS 1.3 Post-Quantum Hybrid KEM — X25519MLKEM768 (Session 2026-02-11)
 
 ### Goals
 - Integrate hybrid post-quantum key exchange into TLS 1.3 using X25519+ML-KEM-768
@@ -4458,7 +4447,7 @@ HRR fallback works naturally: the client offers both X25519MLKEM768 and X25519 i
 
 ---
 
-## Phase 38: TLS Extensions Completeness — Record Size Limit, Fallback SCSV, OCSP Stapling, SCT (Session 2026-02-11)
+## Phase I39: TLS Extensions Completeness — Record Size Limit, Fallback SCSV, OCSP Stapling, SCT (Session 2026-02-11)
 
 ### Goals
 - Implement Record Size Limit extension (RFC 8449) for both TLS 1.3 and TLS 1.2
@@ -4588,7 +4577,7 @@ Max Fragment Length (RFC 6066) was intentionally skipped as it is not present in
 
 ---
 
-## Phase 39: Async I/O + Hardware AES + Benchmarks (Session 2026-02-10)
+## Phase I40: Async I/O + Hardware AES + Benchmarks (Session 2026-02-10)
 
 ### Goals
 - Feature-gated async TLS connections (tokio)
@@ -4608,7 +4597,7 @@ Max Fragment Length (RFC 6066) was intentionally skipped as it is not present in
 
 ---
 
-## Phase 40: DTLCP + Custom Extensions + Key Logging (Session 2026-02-11)
+## Phase I41: DTLCP + Custom Extensions + Key Logging (Session 2026-02-11)
 
 ### Goals
 - **DTLCP**: DTLS 1.2 record layer + TLCP handshake/crypto (SM2/SM3/SM4), combining datagram transport with Chinese national cryptography
@@ -4732,7 +4721,7 @@ Max Fragment Length (RFC 6066) was intentionally skipped as it is not present in
 
 ---
 
-## Phase 41: Wycheproof + Fuzzing + Security Audit (Session 2026-02-11)
+## Phase I42: Wycheproof + Fuzzing + Security Audit (Session 2026-02-11)
 
 ### Goals
 - Validate crypto implementations against Google Wycheproof edge-case test vectors
@@ -4822,7 +4811,7 @@ Added fuzz-check CI job (nightly toolchain, `cargo check` in fuzz directory).
 
 ---
 
-## Phase 42: Feature Completeness (Session 2026-02-11)
+## Phase I43: Feature Completeness (Session 2026-02-11)
 
 ### Goals
 - PKI text output: `to_text()` for Certificate, CRL, CSR
@@ -4951,7 +4940,7 @@ Blind signature flow: `msg * r^e mod n → sign → blind_sig * r^(-1) mod n →
 
 ---
 
-## Phase 43: Remaining Features + DH Groups + TLS FFDHE Expansion (2026-02-11)
+## Phase I44: Remaining Features + DH Groups + TLS FFDHE Expansion (2026-02-11)
 
 ### Part A: Remaining Feature Conversions
 
@@ -5082,7 +5071,7 @@ Note: crypto went from 359 to 375 = +16 (net: 6 P-192 + 7 HCTR + 7→6 replaced 
 
 ---
 
-## Phase 44: FIPS/CMVP Compliance Framework (Session 2026-02-13)
+## Phase I45: FIPS/CMVP Compliance Framework (Session 2026-02-13)
 
 ### Goals
 - Implement FIPS 140-3 self-test infrastructure with state machine
@@ -5177,7 +5166,7 @@ Note: crypto went from 359 to 375 = +16 (net: 6 P-192 + 7 HCTR + 7→6 replaced 
 
 ---
 
-## Phase 45: CLI Enhancements + CMS DigestedData (Session 2026-02-13)
+## Phase I46: CLI Enhancements + CMS DigestedData (Session 2026-02-13)
 
 ### Goals
 - Add CMS DigestedData (RFC 5652 §5) — parse, create, verify
@@ -5244,7 +5233,7 @@ Note: crypto went from 359 to 375 = +16 (net: 6 P-192 + 7 HCTR + 7→6 replaced 
 
 ---
 
-## Phase 46: Entropy Health Testing — NIST SP 800-90B (Session 2026-02-13)
+## Phase I47: Entropy Health Testing — NIST SP 800-90B (Session 2026-02-13)
 
 ### Goals
 - Implement NIST SP 800-90B entropy health tests (Repetition Count Test + Adaptive Proportion Test)
@@ -5327,7 +5316,7 @@ Note: crypto went from 359 to 375 = +16 (net: 6 P-192 + 7 HCTR + 7→6 replaced 
 
 ---
 
-## Phase 47: Ed448 / X448 / Curve448 (Session 2026-02-14)
+## Phase I48: Ed448 / X448 / Curve448 (Session 2026-02-14)
 
 ### Goals
 - Implement Curve448 (Goldilocks) field arithmetic in GF(2^448-2^224-1) with 16x28-bit limb representation
@@ -5425,7 +5414,7 @@ Note: crypto went from 359 to 375 = +16 (net: 6 P-192 + 7 HCTR + 7→6 replaced 
 
 ---
 
-## Phase 48: Test Coverage + CMS Ed25519 + enc CLI + TLS 1.2 OCSP/SCT (Session 2026-02-14)
+## Phase I49: Test Coverage + CMS Ed25519 + enc CLI + TLS 1.2 OCSP/SCT (Session 2026-02-14)
 
 ### Goals
 - Add unit tests for three untested TLS modules (alert, session, record)
@@ -5491,15 +5480,15 @@ Note: crypto went from 359 to 375 = +16 (net: 6 P-192 + 7 HCTR + 7→6 replaced 
 ### Build Status
 - Clippy: zero warnings (`RUSTFLAGS="-D warnings"`)
 - Formatting: clean (`cargo fmt --check`)
-- 1362 workspace tests passing (37 ignored), +71 new tests from Phase 48
+- 1362 workspace tests passing (37 ignored), +71 new tests from Phase I49
 
-> **Note**: The jump from Phase 47 (1157) to Phase 48 (1362) reflects +71 Phase 48 tests plus ~134 tests
-> from earlier phases whose counts were retroactively corrected during the Phase 47 → Phase 48 session
+> **Note**: The jump from Phase I48 (1157) to Phase I49 (1362) reflects +71 Phase I49 tests plus ~134 tests
+> from earlier phases whose counts were retroactively corrected during the Phase I48 → Phase I49 session
 > (test helper refactors, feature-flag fixes, and ignored-test reclassification).
 
 ---
 
-## Phase 49: C Test Vectors Porting + CMS Real File Tests + PKCS#12 Interop (Session 2026-02-14)
+## Phase I50: C Test Vectors Porting + CMS Real File Tests + PKCS#12 Interop (Session 2026-02-14)
 
 ### Goals
 Port real test vectors from the C project to improve PKI test coverage with real-world certificate chains, CMS files, and PKCS#12 containers.
@@ -5552,7 +5541,7 @@ Tests added to `x509/mod.rs`:
 
 **Bug fix**: `test_parse_negative_serial` — cert has serial `00 FF` (DER padding to keep positive). Fixed assertion to strip leading zero before checking value byte.
 
-### Test Counts (Phase 49)
+### Test Counts (Phase I50)
 - **hitls-pki**: 177 (from 125), +52 new tests
 - **Total workspace**: 1414 (from 1362), +52 new tests, 37 ignored
 
@@ -5563,7 +5552,7 @@ Tests added to `x509/mod.rs`:
 
 ---
 
-## Phase 50: X.509 Extension Parsing + EKU/SAN/AKI/SKI Enforcement + CMS SKI Lookup
+## Phase I51: X.509 Extension Parsing + EKU/SAN/AKI/SKI Enforcement + CMS SKI Lookup
 
 ### Overview
 Added typed parsing and enforcement for critical RFC 5280 X.509 extensions. This phase significantly improves real-world PKI compliance by adding EKU enforcement, AKI/SKI-based issuer matching, CMS SubjectKeyIdentifier signer lookup, and Name Constraints enforcement.
@@ -5610,7 +5599,7 @@ Added `validate_name_constraints()` to chain verification. When an intermediate 
 | `hitls-pki/src/x509/verify.rs` | EKU enforcement, AKI/SKI matching, NC enforcement, +21 tests |
 | `hitls-pki/src/cms/mod.rs` | SKI signer lookup, +4 tests |
 
-### Test Counts (Phase 50)
+### Test Counts (Phase I51)
 - **hitls-pki**: 216 (from 177), +39 new tests
 - **Total workspace**: 1453 (from 1414), +39 new tests, 37 ignored
 
@@ -5621,7 +5610,7 @@ Added `validate_name_constraints()` to chain verification. When an intermediate 
 
 ---
 
-## Phase 51: C Test Vectors Round 2 + CertificatePolicies + CMS Chain/NoAttr Tests
+## Phase I52: C Test Vectors Round 2 + CertificatePolicies + CMS Chain/NoAttr Tests
 
 ### Date: 2026-02-14
 
@@ -5688,7 +5677,7 @@ Ported additional C test vectors for certificate parsing edge cases, AKI/SKI cha
 | `hitls-pki/src/cms/mod.rs` | RSA-PSS verify support + 13 tests (noattr + chain) |
 | `tests/vectors/` | ~50 test vector files copied from C codebase |
 
-### Test Counts (Phase 51)
+### Test Counts (Phase I52)
 - **hitls-pki**: 272 (from 216), +56 new tests
 - **Total workspace**: 1509 (from 1453), +56 new tests, 37 ignored
 
@@ -5699,7 +5688,7 @@ Ported additional C test vectors for certificate parsing edge cases, AKI/SKI cha
 
 ---
 
-## Phase 52: PKI Signature Coverage + OCSP/CRL Testing + CMS Error Paths
+## Phase I53: PKI Signature Coverage + OCSP/CRL Testing + CMS Error Paths
 
 ### Goal
 Wire Ed448, SM2, and RSA-PSS signature verification into PKI cert/CRL/OCSP verify paths. Add OCSP verify_signature tests (previously zero coverage). Port CRL DER test vectors from C codebase. Add CMS EnvelopedData error path tests. Improve test quality across text output, PKCS#12, and chain verification.
@@ -5769,7 +5758,7 @@ Copied 6 DER files from C codebase:
 | `tests/vectors/crl/ecdsa/` | +3 DER files from C codebase |
 | `tests/vectors/crl/rsa_der/` | +3 DER files from C codebase |
 
-### Test Counts (Phase 52)
+### Test Counts (Phase I53)
 - **hitls-pki**: 313 (from 272), +41 new tests
 - **Total workspace**: 1550 (from 1509), +41 new tests, 37 ignored
 
@@ -5780,7 +5769,7 @@ Copied 6 DER files from C codebase:
 
 ---
 
-## Phase 53: TLS RFC 5705 Key Export + CMS Detached Sign + pkeyutl Completeness (2026-02-14)
+## Phase I54: TLS RFC 5705 Key Export + CMS Detached Sign + pkeyutl Completeness (2026-02-14)
 
 ### Goals
 Implement RFC 5705 / RFC 8446 §7.5 key material export on all TLS connection types, add CMS detached SignedData mode, complete pkeyutl CLI (derive, sign/verify expansion), and extend PKCS#8 for Ed448/X448 + SPKI public key parsing.
@@ -5859,7 +5848,7 @@ Added `ecdh`, `ed448`, `x448` feature flags to hitls-pki and hitls-cli Cargo.tom
 | `hitls-cli/src/s_server.rs` | +Ed448/X448 in pkcs8_to_server_key |
 | `hitls-cli/Cargo.toml` | +ecdh, ed448, x448 features |
 
-### Test Counts (Phase 53)
+### Test Counts (Phase I54)
 - **hitls-tls**: 568 (from 558), +10 new tests
 - **hitls-pki**: 321 (from 313), +8 new tests (4 CMS detached + 4 PKCS#8/SPKI)
 - **hitls-cli**: 40 (from 32), +8 new tests (4 derive + 4 sign/verify)
@@ -5872,7 +5861,7 @@ Added `ecdh`, `ed448`, `x448` feature flags to hitls-pki and hitls-cli Cargo.tom
 
 ---
 
-## Phase 54: Integration Test Expansion + TLCP Public API + Code Quality (Session 2026-02-14)
+## Phase I55: Integration Test Expansion + TLCP Public API + Code Quality (Session 2026-02-14)
 
 ### Goals
 - Fix `panic!()` in ML-KEM production library code
@@ -5948,7 +5937,7 @@ Added `ecdh`, `ed448`, `x448` feature flags to hitls-pki and hitls-cli Cargo.tom
 | `tests/interop/Cargo.toml` | +dtls12, tlcp, dtlcp, sm2, sm4 features |
 | `tests/interop/src/lib.rs` | +16 integration tests (5 DTLS + 4 TLCP + 3 DTLCP + 4 mTLS), +helpers |
 
-### Test Counts (Phase 54)
+### Test Counts (Phase I55)
 - **hitls-tls**: 580 (from 568), +12 new server unit tests
 - **hitls-integration-tests**: 39 (from 23), +16 new integration tests
 - **Total workspace**: 1604 (from 1574), +30 new tests, 37 ignored
@@ -5964,7 +5953,7 @@ Added `ecdh`, `ed448`, `x448` feature flags to hitls-pki and hitls-cli Cargo.tom
 
 ---
 
-## Phase 55: Unit Test Coverage Expansion (Session 2026-02-14)
+## Phase I56: Unit Test Coverage Expansion (Session 2026-02-14)
 
 ### Goals
 - Expand unit test coverage for under-tested modules
@@ -6062,7 +6051,7 @@ Added `ecdh`, `ed448`, `x448` feature flags to hitls-pki and hitls-cli Cargo.tom
 
 ---
 
-## Phase 56: Unit Test Coverage Expansion — Crypto RFC Vectors + ASN.1 Negative Tests + TLS State Machine (Session 2026-02-15)
+## Phase I57: Unit Test Coverage Expansion — Crypto RFC Vectors + ASN.1 Negative Tests + TLS State Machine (Session 2026-02-15)
 
 ### Goals
 - Add RFC test vectors and negative tests for under-tested crypto modules (Ed25519, ECDSA, HMAC, ChaCha20-Poly1305)
@@ -6159,7 +6148,7 @@ Added `ecdh`, `ed448`, `x448` feature flags to hitls-pki and hitls-cli Cargo.tom
 
 ---
 
-## Phase 57: Unit Test Coverage Expansion — Cipher Modes, PQC Negative Tests, DRBG State, MAC Algorithms, Transcript Hash (Session 2026-02-15)
+## Phase I58: Unit Test Coverage Expansion — Cipher Modes, PQC Negative Tests, DRBG State, MAC Algorithms, Transcript Hash (Session 2026-02-15)
 
 ### Goals
 - Add negative/edge tests for cipher modes (CFB, OFB, ECB, XTS)
@@ -6263,7 +6252,7 @@ Added `ecdh`, `ed448`, `x448` feature flags to hitls-pki and hitls-cli Cargo.tom
 
 ---
 
-## Phase 58: Unit Test Coverage Expansion — CTR/CCM/GCM/KeyWrap, DSA, HPKE, HybridKEM, SM3, Entropy, Privacy Pass
+## Phase I59: Unit Test Coverage Expansion — CTR/CCM/GCM/KeyWrap, DSA, HPKE, HybridKEM, SM3, Entropy, Privacy Pass
 
 ### Date: 2026-02-15
 
@@ -6287,7 +6276,7 @@ Added 36 new tests across 12 files, expanding negative/edge-case coverage for mo
 | `hitls-crypto/src/entropy/health.rs` | +1 | RCT reset prevents failure (feed stuck data, reset, feed again → no failure) |
 | `hitls-auth/src/privpass/mod.rs` | +3 | Wrong challenge verify → Ok(false), empty key/n/e/d rejected, TokenType wire format roundtrip + invalid [0xFF,0xFF] |
 
-### Test Counts (Phase 58)
+### Test Counts (Phase I59)
 - **hitls-crypto**: 567 (31 ignored) + 15 Wycheproof [was: 534]
 - **hitls-auth**: 27 [was: 24]
 - **Total workspace**: 1748 (40 ignored) [was: 1712]
@@ -6299,7 +6288,7 @@ Added 36 new tests across 12 files, expanding negative/edge-case coverage for mo
 
 ---
 
-## Phase 59: Unit Test Coverage Expansion — RSA, ECDH, SM2, ElGamal, Paillier, ECC, Hash, AES, BigNum, OTP, SPAKE2+ (Session 2026-02-15)
+## Phase I60: Unit Test Coverage Expansion — RSA, ECDH, SM2, ElGamal, Paillier, ECC, Hash, AES, BigNum, OTP, SPAKE2+ (Session 2026-02-15)
 
 ### Goals
 - Add 34 new tests across 14 files covering security-critical error paths, API boundary conditions, and reset/reuse patterns
@@ -6323,7 +6312,7 @@ Added 36 new tests across 12 files, expanding negative/edge-case coverage for mo
 | `hitls-auth/src/otp/mod.rs` | +3 | Empty secret HOTP, 1-digit OTP range, TOTP period boundary (t=29 vs t=30) |
 | `hitls-auth/src/spake2plus/mod.rs` | +3 | generate_share before setup → error, empty password succeeds, invalid share → error |
 
-### Test Counts (Phase 59)
+### Test Counts (Phase I60)
 - **hitls-crypto**: 593 (31 ignored) + 15 Wycheproof [was: 567]
 - **hitls-bignum**: 48 [was: 46]
 - **hitls-auth**: 33 [was: 27]
@@ -6336,7 +6325,7 @@ Added 36 new tests across 12 files, expanding negative/edge-case coverage for mo
 
 ---
 
-## Phase 60: TLS 1.2 CCM Cipher Suites (RFC 6655 / RFC 7251)
+## Phase I61: TLS 1.2 CCM Cipher Suites (RFC 6655 / RFC 7251)
 
 ### Date: 2026-02-16
 
@@ -6370,7 +6359,7 @@ Added 6 AES-CCM cipher suites for TLS 1.2 per RFC 6655 and RFC 7251, with 8 new 
 - All CCM suites use SHA-256 PRF (hash_len=32)
 - AES-256-CCM suites map to `TLS_AES_128_CCM_SHA256` for AEAD dispatch (key size from key material)
 
-### Test Counts (Phase 60)
+### Test Counts (Phase I61)
 - **hitls-tls**: 620 [was: 612]
 - **Total workspace**: 1790 (40 ignored) [was: 1782]
 
@@ -6381,7 +6370,7 @@ Added 6 AES-CCM cipher suites for TLS 1.2 per RFC 6655 and RFC 7251, with 8 new 
 
 ---
 
-## Phase 61: CCM_8 (8-byte tag) + PSK+CCM Cipher Suites
+## Phase I62: CCM_8 (8-byte tag) + PSK+CCM Cipher Suites
 
 ### Date: 2026-02-16
 
@@ -6403,10 +6392,10 @@ Added CCM_8 (8-byte AEAD tag) and PSK+CCM cipher suites across TLS 1.3 and TLS 1
 ### Implementation Details
 - `AesCcm8Aead` wraps `hitls_crypto::modes::ccm` with `tag_len=8` for CCM_8 variants
 - CCM_8 uses same nonce/AAD format as CCM/GCM: `fixed_iv(4) || explicit_nonce(8)`
-- PSK+CCM suites use standard 16-byte CCM tag (same `AesCcmAead` adapter from Phase 60)
+- PSK+CCM suites use standard 16-byte CCM tag (same `AesCcmAead` adapter from Phase I61)
 - TLS 1.3 AES_128_CCM_8_SHA256 uses 8-byte tag in record layer
 
-### Test Counts (Phase 61)
+### Test Counts (Phase I62)
 - **hitls-tls**: 632 [was: 620]
 - **Total workspace**: 1802 (40 ignored) [was: 1790]
 
@@ -6417,7 +6406,7 @@ Added CCM_8 (8-byte AEAD tag) and PSK+CCM cipher suites across TLS 1.3 and TLS 1
 
 ---
 
-## Phase 62: PSK CBC-SHA256/SHA384 + ECDHE_PSK GCM Cipher Suites
+## Phase I63: PSK CBC-SHA256/SHA384 + ECDHE_PSK GCM Cipher Suites
 
 ### Date: 2026-02-16
 
@@ -6437,7 +6426,7 @@ Added 8 new TLS 1.2 cipher suites completing PSK cipher suite coverage: 6 CBC-SH
 | TLS_ECDHE_PSK_WITH_AES_128_GCM_SHA256 | 0xD001 | ECDHE_PSK | draft-ietf-tls-ecdhe-psk-aead |
 | TLS_ECDHE_PSK_WITH_AES_256_GCM_SHA384 | 0xD002 | ECDHE_PSK | draft-ietf-tls-ecdhe-psk-aead |
 
-### Test Counts (Phase 62)
+### Test Counts (Phase I63)
 - **hitls-tls**: 637 [was: 632]
 - **Total workspace**: 1807 (40 ignored) [was: 1802]
 
@@ -6448,7 +6437,7 @@ Added 8 new TLS 1.2 cipher suites completing PSK cipher suite coverage: 6 CBC-SH
 
 ---
 
-## Phase 63: PSK CCM Completion + CCM_8 Authentication Cipher Suites
+## Phase I64: PSK CCM Completion + CCM_8 Authentication Cipher Suites
 
 ### Date: 2026-02-16
 
@@ -6470,7 +6459,7 @@ Added 10 new TLS 1.2 cipher suites completing CCM/CCM_8 coverage: PSK AES_128_CC
 | TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8 | 0xC0AE | ECDHE_ECDSA | 8 | RFC 7251 |
 | TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8 | 0xC0AF | ECDHE_ECDSA | 8 | RFC 7251 |
 
-### Test Counts (Phase 63)
+### Test Counts (Phase I64)
 - **hitls-tls**: 648 [was: 637]
 - **Total workspace**: 1818 (40 ignored) [was: 1807]
 
@@ -6481,7 +6470,7 @@ Added 10 new TLS 1.2 cipher suites completing CCM/CCM_8 coverage: PSK AES_128_CC
 
 ---
 
-## Phase 64: DHE_DSS Cipher Suites (DSA Authentication for TLS 1.2)
+## Phase I65: DHE_DSS Cipher Suites (DSA Authentication for TLS 1.2)
 
 ### Date: 2026-02-16
 
@@ -6520,7 +6509,7 @@ Added 6 TLS 1.2 DHE_DSS cipher suites (RFC 5246) with DSA authentication. New `A
 - CBC-SHA256 suites: mac_key_len=32, mac_len=32 (SHA-256 HMAC)
 - GCM suites: fixed_iv_len=4, record_iv_len=8, tag_len=16
 
-### Test Counts (Phase 64)
+### Test Counts (Phase I65)
 - **hitls-tls**: 656 [was: 648]
 - **Total workspace**: 1826 (40 ignored) [was: 1818]
 
@@ -6531,7 +6520,7 @@ Added 6 TLS 1.2 DHE_DSS cipher suites (RFC 5246) with DSA authentication. New `A
 
 ---
 
-## Phase 65: DH_ANON + ECDH_ANON Cipher Suites (Anonymous Key Exchange for TLS 1.2)
+## Phase I66: DH_ANON + ECDH_ANON Cipher Suites (Anonymous Key Exchange for TLS 1.2)
 
 ### Date: 2026-02-16
 
@@ -6561,7 +6550,7 @@ Added 8 TLS 1.2 anonymous cipher suites (RFC 5246 / RFC 4492) with no authentica
 - `crates/hitls-tls/src/connection12_async.rs` — Async SKE dispatch
 - `crates/hitls-tls/src/record/encryption12.rs` — GCM AEAD mapping + 8 tests
 
-### Test Counts (Phase 65)
+### Test Counts (Phase I66)
 - **hitls-tls**: 666 [was: 656]
 - **Total workspace**: 1836 (40 ignored) [was: 1826]
 
@@ -6572,7 +6561,7 @@ Added 8 TLS 1.2 anonymous cipher suites (RFC 5246 / RFC 4492) with no authentica
 
 ---
 
-## Phase 66: TLS 1.2 Renegotiation (RFC 5746)
+## Phase I67: TLS 1.2 Renegotiation (RFC 5746)
 
 ### Date: 2026-02-17
 
@@ -6618,7 +6607,7 @@ Added server-initiated TLS 1.2 renegotiation with full RFC 5746 verify_data vali
 - **Critical bug fix**: Server `read()` loop must only return buffered data when `state == Connected` (not `Renegotiating`), otherwise renegotiation never completes.
 - **Constant-time verify_data comparison**: Uses `subtle::ConstantTimeEq` (`ct_eq()`) for all renegotiation_info validation.
 
-### Test Counts (Phase 66)
+### Test Counts (Phase I67)
 - **hitls-tls**: 676 [was: 666]
 - **Total workspace**: 1846 (40 ignored) [was: 1836]
 
@@ -6629,7 +6618,7 @@ Added server-initiated TLS 1.2 renegotiation with full RFC 5746 verify_data vali
 
 ---
 
-## Phase 67 — Connection Info APIs + Graceful Shutdown + ALPN Completion (2026-02-17)
+## Phase I68 — Connection Info APIs + Graceful Shutdown + ALPN Completion (2026-02-17)
 
 ### Summary
 Added connection parameter query APIs (ConnectionInfo struct), completed ALPN negotiation for all protocol versions, and implemented graceful shutdown with close_notify tracking.
@@ -6669,7 +6658,7 @@ Added connection parameter query APIs (ConnectionInfo struct), completed ALPN ne
 - **Session resumption tracking**: TLS 1.2 `is_session_resumed` set based on abbreviated vs full handshake path. TLS 1.3 derived from `is_psk_mode()`.
 - **All 8 connection types updated**: Tls12ClientConnection, Tls12ServerConnection, Tls13ClientConnection, Tls13ServerConnection (sync), plus their 4 async counterparts.
 
-### Test Counts (Phase 67)
+### Test Counts (Phase I68)
 - **hitls-tls**: 684 [was: 676]
 - **Total workspace**: 1854 (40 ignored) [was: 1846]
 
@@ -6680,7 +6669,7 @@ Added connection parameter query APIs (ConnectionInfo struct), completed ALPN ne
 
 ---
 
-## Phase 68 — Hostname Verification + Certificate Chain Validation + SNI Callback (2026-02-17)
+## Phase I69 — Hostname Verification + Certificate Chain Validation + SNI Callback (2026-02-17)
 
 ### Summary
 Security-critical phase: client now validates server certificate chain against trusted CAs and verifies hostname matching. Added RFC 6125 hostname verification (SAN/CN matching, wildcards, IP addresses), certificate chain validation via `CertificateVerifier`, `CertVerifyCallback` for custom verification override, `SniCallback` for server-side certificate selection by hostname. Wired into all 5 client handshake paths (TLS 1.2/1.3/DTLS 1.2/TLCP/DTLCP). 15 new tests (all hostname verification unit tests in hitls-pki).
@@ -6735,7 +6724,7 @@ Security-critical phase: client now validates server certificate chain against t
 - **SNI callback pattern**: Both TLS 1.2 and 1.3 servers dispatch after extension parsing and before cipher suite negotiation. `AcceptWithConfig` replaces the entire config (allowing different cert/key per hostname).
 - **TLCP/DTLCP cert verification**: Verifies `server_sign_certs` (signing certificate chain) since TLCP uses double certificates.
 
-### Test Counts (Phase 68)
+### Test Counts (Phase I69)
 - **hitls-pki**: 336 [was: 321] (+15 hostname verification tests)
 - **hitls-tls**: 684 [unchanged — no new TLS tests, verification wired into existing paths]
 - **Total workspace**: 1869 (40 ignored) [was: 1854]
@@ -6767,7 +6756,7 @@ Security-critical phase: client now validates server certificate chain against t
 
 ---
 
-## Phase 69 — Server-Side Session Cache + Session Expiration + Cipher Preference (2026-02-17)
+## Phase I70 — Server-Side Session Cache + Session Expiration + Cipher Preference (2026-02-17)
 
 ### Summary
 Production readiness: server now caches and resumes sessions by ID. Added `session_cache: Option<Arc<Mutex<dyn SessionCache>>>` to TlsConfig, wired into both sync and async TLS 1.2 server connections. After full handshake, sessions are auto-stored in cache; on ClientHello, sessions are auto-looked up for ID-based resumption. Added TTL-based expiration to `InMemorySessionCache` (default 2 hours) with lazy expiration in `get()` and explicit `cleanup()` method. Added `cipher_server_preference: bool` config (default: true) — when false, client's cipher order is preferred. Applied to both TLS 1.2 and TLS 1.3. 13 new tests.
@@ -6805,7 +6794,7 @@ Production readiness: server now caches and resumes sessions by ID. Added `sessi
 - **Borrow checker**: `cache.put(&session.id, session)` fails because `session.id` borrows `session` which is moved — fixed by cloning: `let sid = session.id.clone(); cache.put(&sid, session);`
 - **Test timestamp fix**: Updated all test `TlsSession` instances from hardcoded `created_at: 0` / `1700000000` to `SystemTime::now()` to avoid false TTL expiry
 
-### Test Counts (Phase 69)
+### Test Counts (Phase I70)
 - **hitls-tls**: 697 [was: 684] (+13 new tests)
 - **Total workspace**: 1880 (40 ignored) [was: 1869]
 
@@ -6834,7 +6823,7 @@ Production readiness: server now caches and resumes sessions by ID. Added `sessi
 
 ---
 
-## Phase 70: Client-Side Session Cache + Write Record Fragmentation
+## Phase I71: Client-Side Session Cache + Write Record Fragmentation
 
 ### Date: 2026-02-17
 
@@ -6867,7 +6856,7 @@ Added client-side session cache (auto-store/auto-lookup by server_name) and writ
 - **Empty buffer shortcut**: `buf.is_empty()` returns `Ok(0)` immediately without sealing any records
 - **Clone**: `TlsSession` is Clone — cache stores a copy, connection also gets a copy
 
-### Test Counts (Phase 70)
+### Test Counts (Phase I71)
 - **hitls-tls**: 709 [was: 697] (+12 new tests)
 - **Total workspace**: 1892 (40 ignored) [was: 1880]
 
@@ -6895,12 +6884,12 @@ Added client-side session cache (auto-store/auto-lookup by server_name) and writ
 
 ---
 
-## Phase T71: CLI Command Unit Tests + Session Cache Concurrency
+## Phase T1: CLI Command Unit Tests + Session Cache Concurrency
 
 ### Date: 2026-02-17
 
 ### Summary
-Systematic test coverage improvement for the seven previously-untested CLI command modules and Arc<Mutex<>> concurrency safety for the InMemorySessionCache added in Phase 69. Part of the testing phase roadmap (Phase T71 = Stage A of the test optimization plan). Added 72 new tests total: 77 in hitls-cli (net +77 from 40→117) and 6 in hitls-tls session module.
+Systematic test coverage improvement for the seven previously-untested CLI command modules and Arc<Mutex<>> concurrency safety for the InMemorySessionCache added in Phase I70. Part of the testing phase roadmap (Phase T1 = Stage A of the test optimization plan). Added 72 new tests total: 77 in hitls-cli (net +77 from 40→117) and 6 in hitls-tls session module.
 
 ### Files Modified
 
@@ -6939,7 +6928,7 @@ Systematic test coverage improvement for the seven previously-untested CLI comma
 
 ---
 
-## Phase 72: KeyUpdate Loop Protection + Max Fragment Length (RFC 6066) + Signature Algorithms Cert (RFC 8446 §4.2.3)
+## Phase I72: KeyUpdate Loop Protection + Max Fragment Length (RFC 6066) + Signature Algorithms Cert (RFC 8446 §4.2.3)
 
 ### Date: 2026-02-18
 
@@ -6975,7 +6964,7 @@ Added three features: (1) KeyUpdate DoS protection with a 128-consecutive-limit 
 - **MFL server policy**: Server echoes client's MFL value (accept-all); no separate server config needed
 - **sig_algs_cert reuse**: Wire format identical to `signature_algorithms` — just different `ExtensionType(50)`
 
-### Test Counts (Phase 72)
+### Test Counts (Phase I72)
 - **hitls-tls**: 720 [was: 709] (+11 new tests in hitls-tls, +2 in config)
 - **Total workspace**: 1905 (40 ignored) [was: 1892]
 
@@ -7002,7 +6991,7 @@ Added three features: (1) KeyUpdate DoS protection with a 128-consecutive-limit 
 
 ---
 
-## Phase T73: Async TLS 1.3 Unit Tests + Cipher Suite Integration (2026-02-18)
+## Phase T2: Async TLS 1.3 Unit Tests + Cipher Suite Integration (2026-02-18)
 
 ### Summary
 Added 33 new tests across hitls-tls and hitls-integration-tests:
@@ -7049,7 +7038,7 @@ New helpers: `run_tls12_tcp_loopback`, `run_tls13_tcp_loopback`, `make_psk_confi
 - `TLS_AES_128_CCM_SHA256` (0x1304) is NOT in `CipherSuiteParams::from_suite()` for TLS 1.3 (only `TLS_AES_128_CCM_8_SHA256` 0x1305 is). Replaced `test_tcp_tls13_aes128_ccm` with `test_tcp_tls13_rsa_server_cert`.
 - TLS 1.2 integration tests must use `Tls12ClientConnection`/`Tls12ServerConnection`, not `TlsClientConnection`/`TlsServerConnection` (which are TLS 1.3 only).
 
-### Test Counts (Phase T73)
+### Test Counts (Phase T2)
 
 | Crate | Before | After | Delta |
 |-------|--------|-------|-------|
@@ -7057,7 +7046,7 @@ New helpers: `run_tls12_tcp_loopback`, `run_tls13_tcp_loopback`, `make_psk_confi
 | hitls-integration-tests | 39 | 60 | +21 |
 | **Workspace total** | **1988** | **2021** | **+33** |
 
-### Workspace Test Breakdown After Phase T73
+### Workspace Test Breakdown After Phase T2
 
 | Crate | Tests | Ignored |
 |-------|------:|-------:|
@@ -7081,7 +7070,7 @@ New helpers: `run_tls12_tcp_loopback`, `run_tls13_tcp_loopback`, `make_psk_confi
 
 ---
 
-## Phase 74: Certificate Authorities Extension (RFC 8446 §4.2.4) + Early Exporter Master Secret (RFC 8446 §7.5) + DTLS 1.2 Session Cache
+## Phase I73: Certificate Authorities Extension (RFC 8446 §4.2.4) + Early Exporter Master Secret (RFC 8446 §7.5) + DTLS 1.2 Session Cache
 
 ### Date: 2026-02-18
 
@@ -7118,7 +7107,7 @@ Added three features: (1) Certificate Authorities extension (type 47) with full 
 - **Async exporter gap fixed**: Async connections were missing `exporter_master_secret` entirely — both regular and early exporter were added
 - **DTLS 1.2 session cache**: Auto-store only (not auto-lookup/abbreviated handshake), must happen before key material zeroize
 
-### Test Counts (Phase 74)
+### Test Counts (Phase I73)
 - **hitls-tls**: 741 [was: 726] (+15 new tests)
 - **Total workspace**: 2003 (40 ignored) [was: 1988]
 
@@ -7149,7 +7138,7 @@ Added three features: (1) Certificate Authorities extension (type 47) with full 
 
 ---
 
-## Phase T75: Fuzz Seed Corpus + Error Scenario Integration Tests
+## Phase T3: Fuzz Seed Corpus + Error Scenario Integration Tests
 
 ### Date: 2026-02-18
 
@@ -7175,13 +7164,13 @@ Added structured fuzz seed corpus and error scenario integration tests:
 
 ---
 
-## Phase T76: Phase 74 Feature Integration Tests + Async Export Unit Tests
+## Phase T4: Phase I73 Feature Integration Tests + Async Export Unit Tests
 
 ### Date: 2026-02-18
 
 ### Summary
 
-Added integration and async unit tests for Phase 74 features:
+Added integration and async unit tests for Phase I73 features:
 1. **Integration tests** (+10): certificate_authorities config handshake, export_keying_material client/server match + different labels + before handshake + various lengths + server-side, export_early_keying_material no-PSK error, TLS 1.2 export_keying_material match, TLS 1.2 session cache + ticket resumption.
 2. **Async unit tests** (+6): export_keying_material before handshake, early export no-PSK, both-sides match, different labels, CA config, deterministic.
 
@@ -7201,7 +7190,7 @@ Added integration and async unit tests for Phase 74 features:
 
 ---
 
-## Phase 77: PADDING Extension (RFC 7685) + OID Filters (RFC 8446 §4.2.5) + DTLS 1.2 Abbreviated Handshake
+## Phase I74: PADDING Extension (RFC 7685) + OID Filters (RFC 8446 §4.2.5) + DTLS 1.2 Abbreviated Handshake
 
 ### Date: 2026-02-18
 
@@ -7237,7 +7226,7 @@ Added three features: (1) PADDING extension (type 21, RFC 7685) with codec (buil
 - **Session ID for full handshake**: Server now generates a fresh random session_id for full handshakes (instead of echoing client's), preventing false abbreviation detection.
 - **Session cache TTL**: Cached sessions respect InMemorySessionCache TTL expiration (default 2h).
 
-### Test Counts (Phase 77)
+### Test Counts (Phase I74)
 - **hitls-tls**: 768 [was: 753] (+15 new tests)
 - **Total workspace**: 2069 (40 ignored) [was: 2036 (actually 2003 + 33 auth)]
 
@@ -7268,7 +7257,7 @@ Added three features: (1) PADDING extension (type 21, RFC 7685) with codec (buil
 
 ---
 
-## Phase T78: cert_verify Unit Tests + Config Callbacks + Integration Tests
+## Phase T5: cert_verify Unit Tests + Config Callbacks + Integration Tests
 
 ### Date: 2026-02-18
 
@@ -7296,7 +7285,7 @@ Added comprehensive tests for cert_verify module and config callbacks:
 
 ---
 
-## Phase 79: Async DTLS 1.2 + Heartbeat Extension (RFC 6520) + GREASE (RFC 8701)
+## Phase I75: Async DTLS 1.2 + Heartbeat Extension (RFC 6520) + GREASE (RFC 8701)
 
 ### Date: 2026-02-18
 
@@ -7358,7 +7347,7 @@ Implemented three features:
 
 ---
 
-## Phase 84: TLS Callback Framework + Missing Alert Codes + CBC-MAC-SM4
+## Phase I76: TLS Callback Framework + Missing Alert Codes + CBC-MAC-SM4
 
 ### Date: 2026-02-19
 
@@ -7427,7 +7416,7 @@ Implemented three features:
 
 +21 tests (2218 → 2239)
 
-Note: Phase 84 was applied on top of Phase T83 (2218 tests). The +21 count reflects the net new tests added by Phase 84 features (10 CBC-MAC + 10 config callbacks + 1 alert test). Some existing tests were also updated (e.g., alert variant count 28→34).
+Note: Phase I76 was applied on top of Phase T83 (2218 tests). The +21 count reflects the net new tests added by Phase I76 features (10 CBC-MAC + 10 config callbacks + 1 alert test). Some existing tests were also updated (e.g., alert variant count 28→34).
 
 ### Build Status
 - `cargo test --workspace --all-features`: 2239 passed, 0 failed, 40 ignored
@@ -7436,7 +7425,7 @@ Note: Phase 84 was applied on top of Phase T83 (2218 tests). The +21 count refle
 
 ---
 
-## Phase 85: Trusted CA Keys (RFC 6066 §6) + USE_SRTP (RFC 5764) + STATUS_REQUEST_V2 (RFC 6961) + CMS AuthenticatedData (RFC 5652 §9)
+## Phase I77: Trusted CA Keys (RFC 6066 §6) + USE_SRTP (RFC 5764) + STATUS_REQUEST_V2 (RFC 6961) + CMS AuthenticatedData (RFC 5652 §9)
 
 ### Date: 2026-02-19
 
@@ -7494,7 +7483,7 @@ Implemented four features:
 
 ---
 
-## Phase 86: DTLS Config Enhancements + Integration Tests for Phase 84–85 Features
+## Phase I78: DTLS Config Enhancements + Integration Tests for Phase I76–I77 Features
 
 ### Date: 2026-02-19
 
@@ -7502,7 +7491,7 @@ Implemented four features:
 
 Implemented two features:
 1. **DTLS Configuration Enhancements** — Added `flight_transmit_enable` (bool, default true) and `empty_records_limit` (u32, default 32) to TlsConfig + TlsConfigBuilder. Implemented `check_empty_record()` in RecordLayer for DoS protection: tracks consecutive empty plaintext records, rejects empty Alert/ApplicationData records, rejects empty encrypted records, and returns fatal error when limit exceeded. 2 config tests + 7 record layer tests.
-2. **Integration Tests for Phase 84–85 Features** â 9 integration tests covering: MsgCallback TLS 1.3/1.2 (config acceptance + handshake success), InfoCallback (server-side events), ClientHelloCallback (cipher suite observation), CBC-MAC-SM4 (create/verify/determinism), CMS AuthenticatedData (create/verify/DER roundtrip), RecordPaddingCallback (wired + handshake + data exchange), DTLS config enhancements (flight_transmit_enable + empty_records_limit + handshake), RecordLayer empty records limit (DoS protection).
+2. **Integration Tests for Phase I76–I77 Features** â 9 integration tests covering: MsgCallback TLS 1.3/1.2 (config acceptance + handshake success), InfoCallback (server-side events), ClientHelloCallback (cipher suite observation), CBC-MAC-SM4 (create/verify/determinism), CMS AuthenticatedData (create/verify/DER roundtrip), RecordPaddingCallback (wired + handshake + data exchange), DTLS config enhancements (flight_transmit_enable + empty_records_limit + handshake), RecordLayer empty records limit (DoS protection).
 
 ### Files Modified
 
@@ -7543,7 +7532,7 @@ Implemented two features:
 
 ---
 
-## Phase 93: Encrypted PKCS#8 + Callbacks + SM4-CTR-DRBG + CMS ML-DSA (2026-02-19)
+## Phase I79: Encrypted PKCS#8 + Callbacks + SM4-CTR-DRBG + CMS ML-DSA (2026-02-19)
 
 ### Part A: Encrypted PKCS#8 (PBES2) + Session ID Context + quiet_shutdown
 
@@ -7664,7 +7653,7 @@ Implemented three features plus documentation sync, completing 100% C→Rust fea
 
 ---
 
-## Phase T95: connection_info / handshake enums / lib.rs constants / codec error paths / async accessors
+## Phase T6: connection_info / handshake enums / lib.rs constants / codec error paths / async accessors
 
 ### Date: 2026-02-20
 
@@ -7744,7 +7733,7 @@ Added 40 unit tests across 7 files targeting zero-test or thin-coverage areas:
 
 ---
 
-## Phase T96: ECC Curve Params / DH Group Params / TLCP Public API / DTLCP Error Paths / DTLCP Encryption
+## Phase T7: ECC Curve Params / DH Group Params / TLCP Public API / DTLCP Error Paths / DTLCP Encryption
 
 **Date**: 2026-02-20
 **Scope**: Unit tests for previously untested parameter modules and thin-coverage connection/encryption modules
@@ -7768,7 +7757,7 @@ Added 25 new tests covering:
 | `crates/hitls-tls/src/connection_dtlcp.rs` | +4 tests |
 | `crates/hitls-tls/src/record/encryption_dtlcp.rs` | +4 tests |
 
-### Workspace Test Counts After Phase T96
+### Workspace Test Counts After Phase T7
 
 | Crate | Tests | Ignored |
 |-------|------:|-------:|
@@ -7792,7 +7781,7 @@ Added 25 new tests covering:
 
 ---
 
-## Phase T97: ECC Jacobian point/AES software S-box/SM9 Fp field/SM9 G1/McEliece bit vector
+## Phase T8: ECC Jacobian point/AES software S-box/SM9 Fp field/SM9 G1/McEliece bit vector
 
 **Date**: 2026-02-20
 **Scope**: First-ever unit tests for 5 previously untested crypto implementation files
@@ -7816,7 +7805,7 @@ Added 33 new tests covering:
 | `crates/hitls-crypto/src/sm9/ecp.rs` | +5 tests (new test module) |
 | `crates/hitls-crypto/src/mceliece/vector.rs` | +4 tests (new test module) |
 
-### Workspace Test Counts After Phase T97
+### Workspace Test Counts After Phase T8
 
 | Crate | Tests | Ignored |
 |-------|------:|-------:|
@@ -7840,7 +7829,7 @@ Added 33 new tests covering:
 
 ---
 
-## Phase T98: 0-RTT early data + replay protection tests
+## Phase T9: 0-RTT early data + replay protection tests
 
 **Date**: 2026-02-21
 **Scope**: Close D1 Critical deficiency — 0-RTT early data extension codec, client offering logic, async 0-RTT accepted/rejected flows
@@ -7862,7 +7851,7 @@ Added 8 new tests covering:
 | `crates/hitls-tls/src/handshake/client.rs` | +2 tests (offering guard: no-PSK, zero max_early_data) |
 | `crates/hitls-tls/src/connection_async.rs` | +3 tests + helper fn (async 0-RTT accepted/rejected/queue API) |
 
-### Workspace Test Counts After Phase T98
+### Workspace Test Counts After Phase T9
 
 | Crate | Tests | Ignored |
 |-------|------:|-------:|
@@ -7886,7 +7875,7 @@ Added 8 new tests covering:
 
 ---
 
-## Phase R99: PKI Encoding Consolidation
+## Phase R1: PKI Encoding Consolidation
 
 ### Date: 2026-02-21
 
@@ -7985,7 +7974,7 @@ Returns `Option` — callers wrap in their own error types (`CryptoError`, `PkiE
 
 ---
 
-## Phase R100: Record Layer Enum Dispatch
+## Phase R2: Record Layer Enum Dispatch
 
 ### Date: 2026-02-22
 
@@ -8073,7 +8062,7 @@ pub struct RecordLayer {
 
 ---
 
-## Phase R101: Connection File Decomposition
+## Phase R3: Connection File Decomposition
 
 ### Date: 2026-02-22
 
@@ -8129,7 +8118,7 @@ Key implementation details:
 
 ### Not Changed (by design)
 
-- `connection_async.rs` (2,129 lines) — Phase R103 will address async code
+- `connection_async.rs` (2,129 lines) — Phase R5 will address async code
 - `connection12_async.rs` (2,480 lines) — same rationale
 - `connection_tlcp.rs` (780 lines) — small enough
 - `connection_dtls12.rs` (1,151 lines) — small enough
@@ -8154,7 +8143,7 @@ Key implementation details:
 
 ---
 
-## Phase R102: Hash Digest Enum Dispatch
+## Phase R4: Hash Digest Enum Dispatch
 
 ### Date: 2026-02-22
 
@@ -8253,11 +8242,11 @@ Total: **24 files**, +633 / −621 lines.
 
 ---
 
-## Phase R103: Sync/Async Unification via Body Macros
+## Phase R5: Sync/Async Unification via Body Macros
 
 ### Date: 2026-02-22
 
-**Prompt**: Implement Phase R103 — Sync/Async Unification via Body Macros
+**Prompt**: Implement Phase R5 — Sync/Async Unification via Body Macros
 
 **Scope**: Eliminate ~2,900 lines of sync/async code duplication using `macro_rules!` body macros with `maybe_await!` pattern.
 
@@ -8278,7 +8267,7 @@ Total: **24 files**, +633 / −621 lines.
 
 ---
 
-## Phase R104: X.509 Module Decomposition
+## Phase R6: X.509 Module Decomposition
 
 ### Date: 2026-02-22
 
@@ -8333,7 +8322,7 @@ All `pub(crate)` items used by sibling modules (`crl.rs`, `ocsp.rs`, `verify.rs`
 
 ---
 
-## Phase R105: Integration Test Modularization
+## Phase R7: Integration Test Modularization
 
 ### Date: 2026-02-23
 
@@ -8385,7 +8374,7 @@ Transformed the `#[cfg(test)] mod tests { ... }` block into:
 
 ---
 
-## Phase R106: Test Helper Consolidation
+## Phase R8: Test Helper Consolidation
 
 ### Date: 2026-02-23
 **ARCH_REPORT ref**: §7 — Test Helper Consolidation
@@ -8416,7 +8405,7 @@ Created `crates/hitls-utils/src/hex.rs` with canonical `pub fn hex(s: &str) -> V
 
 ---
 
-## Phase R107: Parameter Struct Refactoring
+## Phase R9: Parameter Struct Refactoring
 
 ### Date: 2026-02-23
 
@@ -8453,7 +8442,7 @@ Kept 2 suppressions in `slh_dsa/hypertree.rs` (`xmss_node`, `hypertree_verify`) 
 
 ---
 
-## Phase R108: DRBG State Machine Unification
+## Phase R10: DRBG State Machine Unification
 
 ### Date: 2026-02-23
 
@@ -8494,7 +8483,7 @@ Extracted shared items into `drbg/mod.rs` and introduced a `Drbg` trait with def
 
 ---
 
-## Phase T109: Async TLS 1.2 Deep Coverage (+10 tests, 2,585→2,595)
+## Phase T10: Async TLS 1.2 Deep Coverage (+10 tests, 2,585→2,595)
 
 **Date**: 2026-02-23
 **Scope**: Close D2 async TLS 1.2 parity gap — 10 deep coverage tests for ALPN, SNI, AES-256-GCM, X25519, session resumption via ticket, server shutdown, peer certificates, empty write, bidirectional server-first, write-after-shutdown.
@@ -8529,7 +8518,7 @@ Added 10 new async TLS 1.2 tests covering scenarios not covered by existing 18 t
 
 ---
 
-## Phase T110: Async TLCP + DTLCP Connection Types & Tests (+15 tests, 2,595→2,610)
+## Phase T11: Async TLCP + DTLCP Connection Types & Tests (+15 tests, 2,595→2,610)
 
 **Date**: 2026-02-23
 **Scope**: Close D2 (Critical) — TLCP and DTLCP had 0 async connection tests and no async connection types. Created async wrappers for both protocols and added 15 tests.
@@ -8560,7 +8549,7 @@ Implemented `AsyncTlcpClientConnection` / `AsyncTlcpServerConnection` (TLS recor
 
 ---
 
-## Phase T111: Extension Negotiation E2E Tests (+14 tests, 2,610→2,624)
+## Phase T12: Extension Negotiation E2E Tests (+14 tests, 2,610→2,624)
 
 **Date**: 2026-02-23
 **Scope**: Close D3 (High) — Extension negotiation flows (client proposes → server selects/rejects) lacked dedicated E2E tests. Added 12 TCP loopback tests + 2 codec edge-case tests.
@@ -8595,7 +8584,7 @@ Created `tests/interop/tests/ext_negotiation.rs` with 12 E2E TCP loopback tests 
 
 ---
 
-## Phase T112: DTLS Loss Simulation & Resilience Tests (+10 tests, 2,624→2,634)
+## Phase T13: DTLS Loss Simulation & Resilience Tests (+10 tests, 2,624→2,634)
 
 **Date**: 2026-02-23
 **Scope**: Partially close D4 (High) — DTLS 1.2 had no tests for adverse delivery patterns (out-of-order, loss, corruption, truncation, wrong epoch). Added 8 integration tests exercising post-handshake resilience and 2 unit tests for unconnected-state error paths.
@@ -8625,7 +8614,7 @@ Created `tests/interop/tests/dtls_resilience.rs` with 8 integration tests that e
 
 ---
 
-## Phase T113: TLCP Double Certificate Validation Tests (+10 tests, 2,634→2,644)
+## Phase T14: TLCP Double Certificate Validation Tests (+10 tests, 2,634→2,644)
 
 **Date**: 2026-02-23
 **Scope**: Partially close D5 (High) — TLCP (GM/T 0024) uniquely requires dual certificates (signing cert + encryption cert) per server entity, but no test verified error behavior when the double-cert configuration is incomplete or incorrect. All existing tests provided valid configs — this phase exercises the error paths for missing/wrong certificates.
@@ -8664,7 +8653,7 @@ Added 6 unit tests (3 to server_tlcp.rs, 3 to server_dtlcp.rs) that exercise ser
 
 ---
 
-## Phase T114: SM9 Tower Field Unit Tests (+15 tests, 2,644→2,659)
+## Phase T15: SM9 Tower Field Unit Tests (+15 tests, 2,644→2,659)
 
 **Date**: 2026-02-23
 **Scope**: Partially close D10 (Low) — SM9's tower field arithmetic (Fp2, Fp4, Fp12) had zero direct unit tests across 44 public functions. All coverage was indirect through pairing/sign/encrypt tests (most `#[ignore]`d). This phase adds 15 dedicated unit tests verifying algebraic properties.
@@ -8709,7 +8698,7 @@ Added 15 unit tests across 3 files (5 per tower field level) verifying algebraic
 
 ---
 
-## Phase T115: SLH-DSA Internal Module Unit Tests (+15 tests, 2,659→2,674)
+## Phase T16: SLH-DSA Internal Module Unit Tests (+15 tests, 2,659→2,674)
 
 **Date**: 2026-02-23
 **Scope**: Partially close D10 (Low) — SLH-DSA (FIPS 205) had 6 internal modules (1,224 lines) with zero direct unit tests. All coverage was indirect through 12 high-level roundtrip tests in `mod.rs`. This phase adds 15 dedicated unit tests covering address encoding, parameter validation, hash function dispatch, WOTS+ base conversion, and tree operations.
@@ -8743,7 +8732,7 @@ Added 15 unit tests across 6 files:
 
 ---
 
-## Phase T116: McEliece + FrodoKEM + XMSS Internal Module Tests (+15 tests, 2,674→2,689)
+## Phase T17: McEliece + FrodoKEM + XMSS Internal Module Tests (+15 tests, 2,674→2,689)
 
 **Date**: 2026-02-23
 **Scope**: Close D10 (Low) — Three PQC families (Classic McEliece, FrodoKEM, XMSS) had internal modules with zero direct unit tests. All coverage was indirect through high-level keygen/encaps/sign roundtrip tests. This phase adds 15 dedicated unit tests covering parameter invariants, GF polynomial evaluation, Benes network, bit matrix operations, lattice PKE, address encoding, hash determinism, and base-W extraction.
@@ -8779,7 +8768,7 @@ Added 15 unit tests across 11 files in 3 PQC families:
 
 ---
 
-## Phase T117: Infrastructure — proptest Property-Based Tests + Coverage CI (+20 tests, 2,689→2,709)
+## Phase T18: Infrastructure — proptest Property-Based Tests + Coverage CI (+20 tests, 2,689→2,709)
 
 **Date**: 2026-02-23
 **Scope**: Close D6 + D7 (Medium) — The project had zero property-based tests and no code coverage metrics in CI. For a cryptographic library, property-based testing is critical to catch input-space gaps beyond hand-written edge cases. Coverage metrics provide quantitative quality visibility.
@@ -8821,7 +8810,7 @@ Added 20 proptest property-based tests (12 in hitls-crypto, 8 in hitls-utils) an
 
 ---
 
-## Phase T118: TLCP SM3 Cryptographic Path Coverage (+15 tests, 2,709→2,724)
+## Phase T19: TLCP SM3 Cryptographic Path Coverage (+15 tests, 2,709→2,724)
 
 **Date**: 2026-02-24
 **Scope**: Close D5 (Partial) — SM3-specific cryptographic code paths in transcript hash, PRF, key schedule, and verify_data were untested. All 10 existing transcript tests used SHA-256/384, all 13 PRF tests used SHA-256/384, and all 3 verify_data tests used SHA-256.
@@ -8850,7 +8839,7 @@ Added 15 SM3 path coverage tests across 3 TLS crypto modules:
 
 ---
 
-## Phase T119: TLS 1.3 Key Schedule & HKDF Robustness Tests (+15 tests, 2,724→2,739)
+## Phase T20: TLS 1.3 Key Schedule & HKDF Robustness Tests (+15 tests, 2,724→2,739)
 
 **Date**: 2026-02-24
 **Scope**: TLS 1.3 key schedule SHA-384 full pipeline, stage enforcement gaps, SM3 HKDF coverage, HMAC key boundary, RFC 8448 application traffic key vectors, CCM_8/SM4-GCM-SM3 cipher suite coverage.
@@ -8878,7 +8867,7 @@ Added 15 robustness tests across 3 TLS 1.3 crypto modules:
 
 ---
 
-## Phase T120: Record Layer Encryption Edge Cases & AEAD Failure Modes (+15 tests, 2,739→2,754)
+## Phase T21: Record Layer Encryption Edge Cases & AEAD Failure Modes (+15 tests, 2,739→2,754)
 
 **Date**: 2026-02-24
 **Scope**: DTLS 1.2 encryption error paths, TLCP CBC/GCM failure modes, AEAD wrong-AAD/empty-plaintext/unsupported-suite/key-validation tests.
@@ -8906,7 +8895,7 @@ Added 15 edge-case tests across 3 record layer encryption modules:
 
 ---
 
-## Phase T121: TLS 1.2 CBC Padding Security + DTLS Parsing + TLS 1.3 Inner Plaintext Edge Cases (+15 tests, 2,754→2,769)
+## Phase T22: TLS 1.2 CBC Padding Security + DTLS Parsing + TLS 1.3 Inner Plaintext Edge Cases (+15 tests, 2,754→2,769)
 
 **Date**: 2026-02-24
 **Scope**: TLS 1.2 CBC MAC-then-encrypt/EtM error paths, DTLS record parsing edge cases, TLS 1.3 inner plaintext framing failures.
@@ -8934,7 +8923,7 @@ Added 15 edge-case tests across 3 record layer modules:
 
 ---
 
-## Phase T122: DTLS Fragmentation/Retransmission + CertificateVerify Edge Cases (+15 tests, 2,769→2,784)
+## Phase T23: DTLS Fragmentation/Retransmission + CertificateVerify Edge Cases (+15 tests, 2,769→2,784)
 
 **Date**: 2026-02-24
 **Scope**: DTLS fragmentation reassembly manager, DTLS retransmission timer/Flight, TLS 1.3 CertificateVerify signature verification edge cases.
@@ -8962,7 +8951,7 @@ Added 15 edge-case tests across 3 handshake-layer modules:
 
 ---
 
-## Phase T123: DTLS Codec Edge Cases + Anti-Replay Window Boundaries + Entropy Conditioning (+15 tests, 2,784→2,799)
+## Phase T24: DTLS Codec Edge Cases + Anti-Replay Window Boundaries + Entropy Conditioning (+15 tests, 2,784→2,799)
 
 **Date**: 2026-02-24
 **Scope**: DTLS handshake codec edge cases, DTLS anti-replay sliding window boundaries, SHA-256 hash conditioning function edge cases.
@@ -8990,7 +8979,7 @@ Added 15 edge-case tests across 3 modules in 2 crates:
 
 ---
 
-## Phase T124: X.509 Extension Parsing + SLH-DSA WOTS+ Base Conversion + ASN.1 Tag Edge Cases (+15 tests, 2,799→2,814)
+## Phase T25: X.509 Extension Parsing + SLH-DSA WOTS+ Base Conversion + ASN.1 Tag Edge Cases (+15 tests, 2,799→2,814)
 
 **Date**: 2026-02-24
 **Scope**: X.509 extension parsing (BasicConstraints, KeyUsage, SAN, AKI), SLH-DSA WOTS+ base conversion and checksum, ASN.1 tag long-form encoding/decoding edge cases.
@@ -9018,7 +9007,7 @@ Added 15 edge-case tests across 3 modules in 3 crates:
 
 ---
 
-## Phase T125: PKI Encoding Helpers + X.509 Signing Dispatch + Certificate Builder Encoding (+15 tests, 2,814→2,829)
+## Phase T26: PKI Encoding Helpers + X.509 Signing Dispatch + Certificate Builder Encoding (+15 tests, 2,814→2,829)
 
 **Date**: 2026-02-24
 **Scope**: PKI shared ASN.1 encoding helpers (encoding.rs, 80 lines, 0 tests), X.509 signing hash dispatch and curve OID mapping (signing.rs, 330 lines, 0 tests), certificate builder DER encoding for DN/AlgorithmIdentifier/validity/extensions (builder.rs, 526 lines, 0 tests).
@@ -9046,7 +9035,7 @@ Added 15 tests across 3 core PKI infrastructure files that previously had zero t
 
 ---
 
-## Phase T126: X.509 Certificate Parsing + SM9 G2 Point Arithmetic + SM9 Pairing Helpers (+15 tests, 2,829→2,844)
+## Phase T27: X.509 Certificate Parsing + SM9 G2 Point Arithmetic + SM9 Pairing Helpers (+15 tests, 2,829→2,844)
 
 **Date**: 2026-02-24
 **Scope**: X.509 certificate core types and DER parsing (certificate.rs, 628 lines, 0 tests), SM9 G2 elliptic curve point operations on twist E'(Fp²) (ecp2.rs, 212 lines, 0 tests), R-ate pairing and Fp2 exponentiation helpers (pairing.rs, 286 lines, 0 tests).
@@ -9074,7 +9063,7 @@ Added 15 tests across 3 files that previously had zero test coverage:
 
 ---
 
-## Phase T127: SM9 Hash Functions + SM9 Algorithm Helpers + SM9 Curve Parameters (+15 tests, 2,844→2,857)
+## Phase T28: SM9 Hash Functions + SM9 Algorithm Helpers + SM9 Curve Parameters (+15 tests, 2,844→2,857)
 
 **Date**: 2026-02-24
 **Scope**: SM9 hash-to-range functions H1/H2 and KDF (hash.rs, 81 lines, 0 tests), SM9 top-level algorithm functions — sign/verify/encrypt/decrypt and serialization helpers (alg.rs, 370 lines, 0 tests), BN256 domain parameter constants (curve.rs, 76 lines, 0 tests).
@@ -9102,7 +9091,7 @@ Added 15 tests across 3 SM9 module files that previously had zero test coverage:
 
 ---
 
-## Phase T128: McEliece Keygen Helpers + McEliece Encoding + McEliece Decoding (+15 tests, 2,857→2,872)
+## Phase T29: McEliece Keygen Helpers + McEliece Encoding + McEliece Decoding (+15 tests, 2,857→2,872)
 
 **Date**: 2026-02-24
 **Scope**: Classic McEliece PQC algorithm internals — key generation helpers (keygen.rs, 242 lines, 0 tests), encoding and error vector generation (encode.rs, 123 lines, 0 tests), Goppa code decoding via Berlekamp-Massey (decode.rs, 180 lines, 0 tests).
@@ -9130,7 +9119,7 @@ Added 15 tests across 3 McEliece module files that previously had zero test cove
 
 ---
 
-## Phase T129: XMSS Tree Operations + XMSS WOTS+ Deepening + SLH-DSA FORS Deepening (+15 tests, 2,872→2,882)
+## Phase T30: XMSS Tree Operations + XMSS WOTS+ Deepening + SLH-DSA FORS Deepening (+15 tests, 2,872→2,882)
 
 **Date**: 2026-02-24
 **Scope**: XMSS Merkle tree operations (tree.rs, 161 lines, 0 tests — the last truly untested logic file), XMSS WOTS+ chain/compress/sign operations (wots.rs, 198 lines, 1 test), SLH-DSA FORS few-time signature internals (fors.rs, 146 lines, 1 test).
@@ -9158,7 +9147,7 @@ Added 15 tests across 3 post-quantum signature scheme files, shifting from "zero
 
 ---
 
-## Phase T130: McEliece GF(2^13) + Benes Network + Binary Matrix Deepening (+15 tests, 2,882→2,897)
+## Phase T31: McEliece GF(2^13) + Benes Network + Binary Matrix Deepening (+15 tests, 2,882→2,897)
 
 **Date**: 2026-02-24
 **Scope**: McEliece GF(2^13) finite field arithmetic (gf.rs, 135 lines, 1 test), Benes network control bits and permutation reconstruction (benes.rs, 380 lines, 1 test), binary matrix operations and Gaussian elimination (matrix.rs, 433 lines, 1 test).
@@ -9186,7 +9175,7 @@ Added 15 tests across 3 McEliece internal module files, deepening coverage of fo
 
 ---
 
-## Phase T131: FrodoKEM Matrix Ops + SLH-DSA Hypertree + McEliece Polynomial Deepening (+15 tests, 2,897→2,909)
+## Phase T32: FrodoKEM Matrix Ops + SLH-DSA Hypertree + McEliece Polynomial Deepening (+15 tests, 2,897→2,909)
 
 **Date**: 2026-02-24
 **Scope**: Deepen test coverage for three PQC internal modules with low test density: FrodoKEM matrix operations (matrix.rs, 343 lines, 1 test), SLH-DSA hypertree (hypertree.rs, 343 lines, 1 test), McEliece polynomial operations (poly.rs, 222 lines, 2 tests).
@@ -9214,7 +9203,7 @@ Added 15 tests across 3 files (12 non-ignored + 3 ignored):
 
 ---
 
-## Phase T132: McEliece + FrodoKEM + XMSS Parameter Set Validation Deepening (+15 tests, 2,909→2,924)
+## Phase T33: McEliece + FrodoKEM + XMSS Parameter Set Validation Deepening (+15 tests, 2,909→2,924)
 
 **Date**: 2026-02-24
 **Scope**: Deepen parameter set validation for three PQC parameter modules with low test density: McEliece params (params.rs, 284 lines, 1 test), FrodoKEM params (params.rs, 359 lines, 2 tests), XMSS params (params.rs, 169 lines, 1 test).
@@ -9242,7 +9231,7 @@ Added 15 tests across 3 parameter set files validating cross-variant consistency
 
 ---
 
-## Phase T133: XMSS Hash Abstraction + XMSS Address Scheme + ML-KEM NTT Deepening (+15 tests, 2,924→2,939)
+## Phase T34: XMSS Hash Abstraction + XMSS Address Scheme + ML-KEM NTT Deepening (+15 tests, 2,924→2,939)
 
 **Date**: 2026-02-24
 **Scope**: Deepen test coverage for three PQC internal modules with low test density: XMSS hash abstraction (hash.rs, 247 lines, 2 tests), XMSS address scheme (address.rs, 120 lines, 2 tests), ML-KEM NTT (ntt.rs, 229 lines, 3 tests).
@@ -9270,7 +9259,7 @@ Added 15 tests across 3 PQC internal modules validating hash function domain sep
 
 ---
 
-## Phase T134: BigNum Constant-Time + Primality Testing + Core Type Deepening (+15 tests, 2,939→2,954)
+## Phase T35: BigNum Constant-Time + Primality Testing + Core Type Deepening (+15 tests, 2,939→2,954)
 
 **Date**: 2026-02-24
 **Scope**: Deepen test coverage for three hitls-bignum core modules: constant-time operations (ct.rs, 136 lines, 3 tests), primality testing (prime.rs, 101 lines, 3 tests), core BigNum type (bignum.rs, 324 lines, 4 tests).
@@ -9298,7 +9287,7 @@ Added 15 tests across 3 BigNum core modules validating constant-time security pr
 
 ---
 
-## Phase 135: TLS 1.3 Middlebox Compatibility Mode (RFC 8446 §D.4) (+6 tests, 2,954→2,960)
+## Phase I80: TLS 1.3 Middlebox Compatibility Mode (RFC 8446 §D.4) (+6 tests, 2,954→2,960)
 
 **Date**: 2026-02-24
 **Scope**: Implement TLS 1.3 middlebox compatibility mode per RFC 8446 §D.4 to prevent connection failures through enterprise middleboxes (firewalls, DPI, proxies) that expect to see ChangeCipherSpec messages.
@@ -9330,7 +9319,7 @@ Added middlebox compatibility mode to TLS 1.3:
 
 ---
 
-## Phase P136: SHA-2 Hardware Acceleration — ARMv8 SHA-NI / x86-64 SHA-NI (+3 tests on aarch64, 2,960→2,963)
+## Phase P1: SHA-2 Hardware Acceleration — ARMv8 SHA-NI / x86-64 SHA-NI (+3 tests on aarch64, 2,960→2,963)
 
 **Date**: 2026-02-24
 **Scope**: Add hardware-accelerated SHA-256 compression using ARMv8 SHA-2 intrinsics and x86-64 SHA-NI intrinsics, with runtime detection and software fallback.
@@ -9356,7 +9345,7 @@ Added middlebox compatibility mode to TLS 1.3:
 
 ---
 
-## Phase P137: GHASH/CLMUL Hardware Acceleration — ARMv8 PMULL / x86-64 PCLMULQDQ (+8 tests on aarch64, 2,963→2,971)
+## Phase P2: GHASH/CLMUL Hardware Acceleration — ARMv8 PMULL / x86-64 PCLMULQDQ (+8 tests on aarch64, 2,963→2,971)
 
 **Date**: 2026-02-24
 **Scope**: Add hardware-accelerated GHASH (GF(2^128) multiplication for AES-GCM) using ARMv8 PMULL and x86-64 PCLMULQDQ carry-less multiplication intrinsics.
@@ -9383,7 +9372,7 @@ Added middlebox compatibility mode to TLS 1.3:
 
 ---
 
-## Phase P138: P-256 Specialized Field Arithmetic and Fast ECC Path (+47 tests, 2,971→3,018)
+## Phase P3: P-256 Specialized Field Arithmetic and Fast ECC Path (+47 tests, 2,971→3,018)
 
 **Date**: 2026-02-24
 **Scope**: Replace generic BigNum-based P-256 operations with specialized 4×u64 Montgomery field arithmetic and Jacobian point operations, closing the ~31× performance gap with C.
@@ -9409,7 +9398,7 @@ Added middlebox compatibility mode to TLS 1.3:
 
 ---
 
-## Phase P139: ChaCha20 SIMD Optimization — ARMv8 NEON / x86-64 SSE2 (+3 tests on aarch64, 3,018→3,021)
+## Phase P4: ChaCha20 SIMD Optimization — ARMv8 NEON / x86-64 SSE2 (+3 tests on aarch64, 3,018→3,021)
 
 **Date**: 2026-02-24
 **Scope**: Add vectorized ChaCha20 block function using ARMv8 NEON and x86-64 SSE2 intrinsics for the second most common AEAD cipher suite.
@@ -9435,7 +9424,7 @@ Added middlebox compatibility mode to TLS 1.3:
 
 ---
 
-## Phase T140: SLH-DSA Params + Hash Abstraction + Address Scheme Deepening (+15 tests, 2,954→2,969)
+## Phase T36: SLH-DSA Params + Hash Abstraction + Address Scheme Deepening (+15 tests, 2,954→2,969)
 
 **Date**: 2026-02-25
 **Scope**: Deepen test coverage for three SLH-DSA (FIPS 205) internal modules with existing but low test density: params.rs (289 lines, 2 tests), hash.rs (381 lines, 4 tests), address.rs (238 lines, 4 tests).
@@ -9463,7 +9452,7 @@ Added 15 tests across 3 SLH-DSA internal modules validating parameter set invari
 
 ---
 
-## Phase R141 — Dev Profile Optimization: Accelerate Ignored Tests
+## Phase R11 — Dev Profile Optimization: Accelerate Ignored Tests
 
 **Date**: 2026-02-25
 
@@ -9514,7 +9503,7 @@ Added per-crate Cargo profile overrides to optimize compute-intensive crates (`h
 
 ---
 
-## Phase T142: FrodoKEM PKE + SM9 G1 Point + SM9 Fp Field Deepening (+15 tests, 3,065→3,079)
+## Phase T37: FrodoKEM PKE + SM9 G1 Point + SM9 Fp Field Deepening (+15 tests, 3,065→3,079)
 
 **Date**: 2026-02-25
 **Scope**: Deepen test coverage for three crypto internal modules with low test density: FrodoKEM inner PKE (pke.rs, 160 lines, 1 test), SM9 G1 point operations (ecp.rs, 244 lines, 5 tests), SM9 Fp field arithmetic (fp.rs, 178 lines, 6 tests). Also re-ignored flaky ElGamal generate test (BnRandGenFail).
@@ -9543,7 +9532,7 @@ Added 15 tests across 3 cryptographic modules validating PKE correctness, ellipt
 
 ---
 
-## Phase T143: ML-DSA NTT + SM4-CTR-DRBG + BigNum Random Deepening (+15 tests, 3,079→3,094)
+## Phase T38: ML-DSA NTT + SM4-CTR-DRBG + BigNum Random Deepening (+15 tests, 3,079→3,094)
 
 **Date**: 2026-02-25
 **Scope**: Deepen test coverage for three modules with low test density: ML-DSA NTT (ntt.rs, 244 lines, 4 tests), SM4-CTR-DRBG (sm4_ctr_drbg.rs, 254 lines, 4 tests), BigNum random generation (rand.rs, 132 lines, 4 tests).
@@ -9571,7 +9560,7 @@ Added 15 tests across 3 modules validating NTT algebraic properties, DRBG correc
 
 ---
 
-## Phase T144: DH Group Params + Entropy Pool + SHA-1 Deepening (+15 tests, 3,094→3,109)
+## Phase T39: DH Group Params + Entropy Pool + SHA-1 Deepening (+15 tests, 3,094→3,109)
 
 **Date**: 2026-02-25
 **Scope**: Deepen test coverage for three modules with low test density: DH group parameters (groups.rs, 462 lines, 6 tests), entropy pool circular buffer (pool.rs, 229 lines, 7 tests), SHA-1 hash function (sha1/mod.rs, 261 lines, 6 tests).
@@ -9599,7 +9588,7 @@ Added 15 tests across 3 modules validating DH parameter constants, entropy buffe
 
 ---
 
-## Phase R145 — Dev Profile opt-level=2 Upgrade + Un-ignore 15 Tests
+## Phase R12 — Dev Profile opt-level=2 Upgrade + Un-ignore 15 Tests
 
 ### Summary
 Deep analysis revealed that bumping `hitls-crypto` from `opt-level = 1` to `opt-level = 2` provides 10-117x speedups on remaining slow tests. This allows un-ignoring 15 additional tests (5 already fast at opt1 + 10 newly fast at opt2), reducing total ignored from 21 to just 6 (5 network + 1 XMSS h=16).
@@ -9642,7 +9631,7 @@ Deep analysis revealed that bumping `hitls-crypto` from `opt-level = 1` to `opt-
 
 ---
 
-## Phase T146: ML-KEM Poly + SM9 Fp12 + Encrypted PKCS#8 Deepening (+15 tests, 3,109→3,124)
+## Phase T40: ML-KEM Poly + SM9 Fp12 + Encrypted PKCS#8 Deepening (+15 tests, 3,109→3,124)
 
 **Date**: 2026-02-25
 **Scope**: Deepen test coverage for three modules with low test density: ML-KEM polynomial operations (poly.rs, 339 lines, 5 tests), SM9 Fp12 tower field arithmetic (fp12.rs, 309 lines, 5 tests), encrypted PKCS#8 (encrypted.rs, 305 lines, 5 tests).
@@ -9670,7 +9659,7 @@ Added 15 tests across 3 modules validating lattice polynomial operations, tower 
 
 ---
 
-## Phase T147: ML-DSA Poly + X.509 Extensions + X.509 Text Deepening (+15 tests, 3,139→3,154)
+## Phase T41: ML-DSA Poly + X.509 Extensions + X.509 Text Deepening (+15 tests, 3,139→3,154)
 
 **Date**: 2026-02-25
 **Scope**: Deepen test coverage for three modules with low test density: ML-DSA polynomial operations (poly.rs, 609 lines, 6 tests), X.509 extension parsing (extensions.rs, 580 lines, 5 tests), X.509 text output (text.rs, 606 lines, 7 tests).
@@ -9698,7 +9687,7 @@ Added 15 tests across 3 modules validating lattice signature polynomial properti
 
 ---
 
-## Phase T148: XTS Mode + Edwards Curve + GMAC Deepening (+15 tests, 3,154→3,169)
+## Phase T42: XTS Mode + Edwards Curve + GMAC Deepening (+15 tests, 3,154→3,169)
 
 **Date**: 2026-02-25
 **Scope**: Deepen test coverage for three crypto modules: AES-XTS mode (xts.rs, 293 lines, 5 tests), Ed25519 Edwards curve arithmetic (edwards.rs, 277 lines, 5 tests), GMAC authentication (gmac/mod.rs, 201 lines, 5 tests).
@@ -9712,7 +9701,7 @@ Added 15 tests across 3 modules validating lattice signature polynomial properti
 
 ---
 
-## Phase T149: scrypt + CFB Mode + X448 Deepening (+15 tests, 3,169→3,184)
+## Phase T43: scrypt + CFB Mode + X448 Deepening (+15 tests, 3,169→3,184)
 
 **Date**: 2026-02-25
 **Scope**: Deepen test coverage for three crypto modules: scrypt KDF (scrypt/mod.rs, 244 lines, 5 tests), CFB cipher mode (modes/cfb.rs, 155 lines, 5 tests), X448 Diffie-Hellman (x448/mod.rs, 290 lines, 5 tests).
@@ -9726,7 +9715,7 @@ Added 15 tests across 3 modules validating lattice signature polynomial properti
 
 ---
 
-## Phase T150 — Semantic Fuzz Target Expansion (+3 targets, 10→13)
+## Phase T44 — Semantic Fuzz Target Expansion (+3 targets, 10→13)
 
 **Date**: 2026-02-26
 **Summary**: Resolve D11 (Critical) deficiency from QUALITY_REPORT.md by adding 3 semantic fuzz targets beyond parse-only coverage. Fuzz targets now exercise cryptographic operations (AEAD decrypt), verification logic (X.509 chain), and deep protocol decoding (all 10 handshake decoders).
@@ -9763,7 +9752,7 @@ QUALITY_REPORT.md D11 identified all 10 existing fuzz targets as parse-only — 
 
 ---
 
-## Phase P151: P-256 Deep Optimization
+## Phase P5: P-256 Deep Optimization
 
 **Date**: 2026-02-26
 **Summary**: P-256 deep optimization with precomputed base table, dedicated squaring, specialized Montgomery reduction, and mixed Jacobian-affine addition.
@@ -9797,8 +9786,8 @@ QUALITY_REPORT.md D11 identified all 10 existing fuzz targets as parse-only — 
 |------|--------|
 | `crates/hitls-crypto/src/ecc/p256_field.rs` | Added dedicated `mont_sqr()` (symmetry optimization), extracted `p256_mont_reduce()` with P-256 specialized reduction (P[0]=-1, P[2]=0), added 2 new tests |
 | `crates/hitls-crypto/src/ecc/p256_point.rs` | Added `P256AffinePoint` struct, `p256_point_add_mixed()`, precomputed base table via `OnceLock` with batch inversion, rewrote `p256_scalar_mul_base()` to use comb table, rewrote `p256_scalar_mul_add()` to use separate multiplication, added 5 new tests |
-| `PERF_REPORT.md` | Updated Phase P151 status from Pending to Complete with benchmark results |
-| `CLAUDE.md` | Updated status line, test counts (3184→3191), added Phase P151 to completed phases |
+| `PERF_REPORT.md` | Updated Phase P5 status from Pending to Complete with benchmark results |
+| `CLAUDE.md` | Updated status line, test counts (3184→3191), added Phase P5 to completed phases |
 
 ### Test Counts
 
@@ -9821,7 +9810,7 @@ QUALITY_REPORT.md D11 identified all 10 existing fuzz targets as parse-only — 
 
 ---
 
-## Phase P152: ML-KEM NEON NTT Optimization
+## Phase P6: ML-KEM NEON NTT Optimization
 
 **Date**: 2026-02-27
 **Summary**: ML-KEM NEON NTT optimization with 8-wide vectorized NTT/INTT butterflies, NEON Barrett reduction, NEON polynomial utilities, and batch SHAKE-128 squeeze.
@@ -9862,8 +9851,8 @@ QUALITY_REPORT.md D11 identified all 10 existing fuzz targets as parse-only — 
 | `crates/hitls-crypto/src/mlkem/ntt.rs` | Added `#[cfg(target_arch = "aarch64")]` import, runtime dispatch for 7 functions (ntt/invntt/basemul_acc/poly_add/poly_sub/to_mont/reduce_poly), renamed originals to `_scalar` variants, added 5 NEON correctness tests |
 | `crates/hitls-crypto/src/mlkem/poly.rs` | Batch SHAKE-128 squeeze in `rej_sample` (504 bytes per call vs 3 bytes) |
 | `crates/hitls-crypto/src/mlkem/mod.rs` | Registered `ntt_neon` submodule with `#[cfg(target_arch = "aarch64")]` |
-| `PERF_REPORT.md` | Updated Phase P152 status from Pending to Complete with benchmark results |
-| `CLAUDE.md` | Updated status line, test counts (3191→3196), added Phase P152 to completed phases |
+| `PERF_REPORT.md` | Updated Phase P6 status from Pending to Complete with benchmark results |
+| `CLAUDE.md` | Updated status line, test counts (3191→3196), added Phase P6 to completed phases |
 
 ### Test Counts
 
@@ -9886,7 +9875,7 @@ QUALITY_REPORT.md D11 identified all 10 existing fuzz targets as parse-only — 
 
 ---
 
-## Phase P153 — BigNum CIOS Montgomery + Pre-allocated Exponentiation
+## Phase P7 — BigNum CIOS Montgomery + Pre-allocated Exponentiation
 
 **Summary**: CIOS (Coarsely Integrated Operand Scanning) fused multiply+reduce for Montgomery multiplication, pre-allocated flat limb table for exponentiation, and optimized squaring with symmetry exploitation.
 
@@ -9931,8 +9920,8 @@ The remaining gap to C (~5.6× for DH-2048) is dominated by the inner loop: C us
 |------|--------|
 | `crates/hitls-bignum/src/montgomery.rs` | Complete rewrite: CIOS `cios_mul`, `sqr_limbs` with symmetry, `redc_limbs` (for `mont_sqr`), `limbs_ge`, `limbs_sub_in_place`, pre-allocated `mont_exp` with flat table. 6 new tests. |
 | `crates/hitls-crypto/benches/crypto_bench.rs` | Added `mod_exp` benchmarks (1024/2048/4096-bit) to bignum group |
-| `PERF_REPORT.md` | Updated Phase P153 status, DH/RSA numbers, executive summary, gap chart |
-| `CLAUDE.md` | Updated status line, test counts, Phase P153 in completed phases |
+| `PERF_REPORT.md` | Updated Phase P7 status, DH/RSA numbers, executive summary, gap chart |
+| `CLAUDE.md` | Updated status line, test counts, Phase P7 in completed phases |
 
 ### Test Counts
 
@@ -9955,7 +9944,7 @@ The remaining gap to C (~5.6× for DH-2048) is dominated by the inner loop: C us
 
 ---
 
-## Phase P154 — SM4 T-table Lookup Optimization
+## Phase P8 — SM4 T-table Lookup Optimization
 
 **Summary**: Precomputed T-tables (XBOX_0–3 and KBOX_0–3) fusing S-box substitution + L/L' linear transform into single u32 lookups, 4-way unrolled round loop, and precomputed decrypt round keys.
 
@@ -9989,9 +9978,9 @@ SM4 goes from "C 2.2–2.4× faster" to "Rust at parity (CBC) or 1.7× faster (G
 | File | Change |
 |------|--------|
 | `crates/hitls-crypto/src/sm4/mod.rs` | Complete rewrite: 8 compile-time T-tables, `t_table()`/`t_table_key()` lookup functions, 4-way unrolled `crypt_block()`, precomputed decrypt keys, 5 new cross-validation tests |
-| `PERF_REPORT.md` | Updated SM4 numbers in executive summary, §3.2, §4 heatmap, §5 roadmap, P154 detail, Appendix D raw data |
+| `PERF_REPORT.md` | Updated SM4 numbers in executive summary, §3.2, §4 heatmap, §5 roadmap, P8 detail, Appendix D raw data |
 | `CLAUDE.md` | Updated status line, test counts |
-| `DEV_LOG.md` | Added P154 entry |
+| `DEV_LOG.md` | Added P8 entry |
 
 ### Test Counts
 
@@ -10014,7 +10003,7 @@ SM4 goes from "C 2.2–2.4× faster" to "Rust at parity (CBC) or 1.7× faster (G
 
 ---
 
-## Phase P155 — ML-DSA NEON NTT Vectorization
+## Phase P9 — ML-DSA NEON NTT Vectorization
 
 **Summary**: ARMv8 NEON vectorization of ML-DSA (Dilithium) NTT operations using 4-wide i32 (`int32x4_t`) SIMD intrinsics. Montgomery multiplication via `vqdmulhq_s32` + `vhsubq_s32` trick. Forward NTT, inverse NTT, pointwise multiply, poly add/sub, to_mont, and reduce_poly all dispatched to NEON on aarch64.
 
@@ -10044,7 +10033,7 @@ End-to-end ML-DSA improvement is modest (~2–5%) because NTT constitutes only ~
 
 5. **Utility functions**: `pointwise_mul_neon`, `pointwise_mul_acc_neon`, `to_mont_neon`, `reduce_poly_neon`, `poly_add_neon`, `poly_sub_neon` -- all process 256 coefficients in chunks of 4.
 
-6. **Dispatch pattern**: Follows ML-KEM (Phase P152) pattern -- `#[cfg(target_arch = "aarch64")]` + `is_aarch64_feature_detected!("neon")` runtime check with scalar fallback.
+6. **Dispatch pattern**: Follows ML-KEM (Phase P6) pattern -- `#[cfg(target_arch = "aarch64")]` + `is_aarch64_feature_detected!("neon")` runtime check with scalar fallback.
 
 ### Files Modified
 
@@ -10053,9 +10042,9 @@ End-to-end ML-DSA improvement is modest (~2–5%) because NTT constitutes only ~
 | `crates/hitls-crypto/src/mldsa/ntt_neon.rs` | **NEW** (~250 lines): NEON-vectorized NTT, INTT, and polynomial utility functions |
 | `crates/hitls-crypto/src/mldsa/ntt.rs` | Added `ntt_neon` import, dispatch wrappers for 8 functions, renamed scalar implementations, 5 cross-validation tests |
 | `crates/hitls-crypto/src/mldsa/mod.rs` | Added `#[cfg(target_arch = "aarch64")] mod ntt_neon;` |
-| `PERF_REPORT.md` | Updated P155 status, ML-DSA analysis |
+| `PERF_REPORT.md` | Updated P9 status, ML-DSA analysis |
 | `CLAUDE.md` | Updated status line, test counts |
-| `DEV_LOG.md` | Added P155 entry |
+| `DEV_LOG.md` | Added P9 entry |
 
 ### Test Counts
 
@@ -10075,9 +10064,9 @@ End-to-end ML-DSA improvement is modest (~2–5%) because NTT constitutes only ~
 - `cargo test --workspace --all-features`: 3212 passed, 0 failed, 7 ignored
 - `RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets`: 0 warnings
 
-## Phase P156 — SM2 Specialized Field Arithmetic
+## Phase P10 — SM2 Specialized Field Arithmetic
 
-**Summary**: SM2 specialized field element arithmetic using 4×u64 Montgomery form, mirroring the P-256 fast path (Phase P151). SM2 and P-256 share identical structural properties (both 256-bit, both a=-3, both P[0]=-1 mod 2^64), enabling reuse of point arithmetic formulas. Includes precomputed comb table (64×16 affine points) for base point G, w=4 fixed-window scalar multiplication, and mixed Jacobian-affine addition. Internal dispatch only — no public API changes.
+**Summary**: SM2 specialized field element arithmetic using 4×u64 Montgomery form, mirroring the P-256 fast path (Phase P5). SM2 and P-256 share identical structural properties (both 256-bit, both a=-3, both P[0]=-1 mod 2^64), enabling reuse of point arithmetic formulas. Includes precomputed comb table (64×16 affine points) for base point G, w=4 fixed-window scalar multiplication, and mixed Jacobian-affine addition. Internal dispatch only — no public API changes.
 
 ### Performance Results
 
@@ -10132,59 +10121,59 @@ End-to-end ML-DSA improvement is modest (~2–5%) because NTT constitutes only ~
 
 ---
 
-## Phase T157-T165 -- Quality Improvement Roadmap
+## Phase T45–T53 -- Quality Improvement Roadmap
 
 > Comprehensive quality improvement covering 9 phases, targeting 8 open deficiencies
 > from QUALITY_REPORT.md. Defense model rating B -> B+.
 
-### Phase T157 -- TLS Connection Unit Tests (+15 tests)
+### Phase T45 -- TLS Connection Unit Tests (+15 tests)
 - **Target**: D13 (Critical) -- 3,938 lines TLS connection code with zero direct unit tests
 - **Files**: `crates/hitls-tls/src/connection/tests.rs` (append)
 - **Tests**: write_before_handshake, read_before_handshake, key_update_before_connected, shutdown_before_connected, double_handshake, write_after_shutdown, read_after_close_notify, key_update_recv_count, key_update_recv_count_reset, key_update_recv_count_limit_128, connection_info, peer_certificates, negotiated_alpn, record_size_enforcement, empty_write
 
-### Phase T158 -- TLS 1.2 Handshake Edge Cases (+15 tests)
+### Phase T46 -- TLS 1.2 Handshake Edge Cases (+15 tests)
 - **Target**: D13 (Critical, part 2)
 - **Files**: `crates/hitls-tls/src/connection/tests.rs` (append)
 - **Tests**: TLS 1.2 EKM, session resumption, verify_data, MFL negotiation, TLS 1.3 post-HS cert request (context mismatch, empty cert, sig verify fail, finished fail, success), wrong message type, no shared cipher, optional cert request
 
-### Phase T159 -- HW<->SW Cross-Validation (+8 tests)
+### Phase T47 -- HW<->SW Cross-Validation (+8 tests)
 - **Target**: D16 (High) -- 44 unsafe blocks in HW acceleration with no soft<->HW comparison
 - **Files**: `crates/hitls-crypto/src/aes/mod.rs`, `sha2/mod.rs`, `modes/ghash.rs`, `chacha20/mod.rs`, `ecc/p256_point.rs`, `mlkem/ntt.rs`
 - **Tests**: AES-128/256 soft vs HW, SHA-256 soft vs HW, GHASH soft vs HW, ChaCha20 soft vs HW, GCM roundtrip, P-256 scalar mul, ML-KEM NTT
 
-### Phase T160 -- Proptest Expansion (+15 property tests)
+### Phase T48 -- Proptest Expansion (+15 property tests)
 - **Target**: D14 (High) -- Proptest in only 2/9 crates -> 5/9
 - **Files**: `crates/hitls-tls/src/handshake/codec.rs`, `crates/hitls-bignum/src/ops.rs`, `crates/hitls-pki/src/pkcs8/mod.rs`
 - **Tests**: 5 TLS codec roundtrips (ServerHello, CertificateVerify, KeyUpdate, Finished, handshake header), 5 BigNum algebraic invariants (mod_add commutative, mod_mul commutative, mod_add identity, mod_mul associative, mod_inv), 5 PKI PKCS#8/SPKI roundtrips (Ed25519, X25519, X448, Ed448)
 
-### Phase T161 -- Side-Channel Timing Tests (+6 tests, all #[ignore])
+### Phase T49 -- Side-Channel Timing Tests (+6 tests, all #[ignore])
 - **Target**: D12 (Critical) -- Constant-time claims unverified
 - **File**: `crates/hitls-crypto/tests/timing.rs` (new)
 - **Tests**: HMAC ct_eq, AES-GCM tag verify, ECDSA verify, RSA PKCS#1v15 verify, X25519 DH, BigNum ct_eq
 - **Approach**: Custom Welch's t-test (|t| > 4.5 threshold, 10K samples, interleaved measurement)
 
-### Phase T162 -- Concurrency Stress Tests (+10 tests)
+### Phase T50 -- Concurrency Stress Tests (+10 tests)
 - **Target**: D15 (High) -- Only 38 concurrency-aware tests
 - **File**: `tests/interop/tests/concurrency.rs` (new)
 - **Tests**: 3 session cache (insert+lookup, eviction, remove), 2 DRBG (generate, reseed+generate), 2 TLS handshakes (1.3, 1.2), 1 data transfer, 1 key gen, 1 hash ops
 
-### Phase T163 -- Feature Flag Smoke Tests (+4 tests)
+### Phase T51 -- Feature Flag Smoke Tests (+4 tests)
 - **Target**: D18 (Medium) -- Only `--all-features` tested
 - **File**: `crates/hitls-crypto/tests/feature_smoke.rs` (new)
 - **Tests**: cfg-guarded tests for default (AES+SHA2+HMAC), SM (SM2+SM3+SM4), PQC (ML-KEM+ML-DSA), minimal (no features)
 
-### Phase T164 -- Zeroize Runtime Verification (+4 tests, all #[ignore])
+### Phase T52 -- Zeroize Runtime Verification (+4 tests, all #[ignore])
 - **Target**: D17 (Medium) -- Zeroize correctness unverified at runtime
 - **File**: `crates/hitls-crypto/tests/zeroize_verify.rs` (new)
 - **Tests**: AES key drop-path, HMAC key drop-path, ECDSA private key drop+recreate, X25519 private key explicit zeroize
 
-### Phase T165 -- DTLS State Machine Fuzz + OpenSSL Interop (+1 fuzz target, +2 tests)
+### Phase T53 -- DTLS State Machine Fuzz + OpenSSL Interop (+1 fuzz target, +2 tests)
 - **Target**: D11r/D8 -- DTLS state machine fuzz + cross-implementation interop
 - **Files**: `fuzz/fuzz_targets/fuzz_dtls_state_machine.rs` (new), `tests/interop/tests/openssl_interop.rs` (new)
 - **Fuzz target**: 8 code paths (DTLS record parsing, handshake header, ClientHello decode, HVR decode, TLS<->DTLS conversion, multi-record sequence, record->handshake chain), 6 seed corpus files
 - **Interop**: TLS 1.3 s_client->hitls-rs (passes), TLS 1.2 hitls-rs->s_server (reveals verify_data mismatch for future investigation)
 
-### Aggregate Test Counts (Post P153-P155 + T157-T165)
+### Aggregate Test Counts (Post P7-P9 + T45-T53)
 
 | Crate | Tests | Ignored |
 |-------|-------|---------|
@@ -10198,7 +10187,7 @@ End-to-end ML-DSA improvement is modest (~2–5%) because NTT constitutes only ~
 | interop | 174 (+22) | 2 (+2) |
 | **Total** | **3280** (+84) | **19** (+12) |
 
-### Build Status (Post T152-T160)
+### Build Status (Post T152-T48)
 - `cargo test --workspace --all-features`: 3280 passed, 0 failed, 19 ignored
 - `RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets`: 0 warnings
 - `cargo fmt --all -- --check`: clean
@@ -10206,7 +10195,7 @@ End-to-end ML-DSA improvement is modest (~2–5%) because NTT constitutes only ~
 
 ---
 
-## Phase P166 — SHA-512 ARMv8.2 Hardware Acceleration
+## Phase P11 — SHA-512 ARMv8.2 Hardware Acceleration
 
 **Summary**: SHA-512/384 hardware acceleration using ARMv8.2-A SHA-512 Crypto Extension instructions (`vsha512hq_u64`, `vsha512h2q_u64`, `vsha512su0q_u64`, `vsha512su1q_u64`). Implementation follows the Linux kernel sha512-ce-core.S 5-register rotation pattern with K+W halves swap. Runtime detection via `is_aarch64_feature_detected!("sha3")` with software fallback.
 
@@ -10235,7 +10224,7 @@ End-to-end ML-DSA improvement is modest (~2–5%) because NTT constitutes only ~
 
 ---
 
-## Phase P167 — Ed25519 Precomputed Base Table
+## Phase P12 — Ed25519 Precomputed Base Table
 
 **Summary**: Precomputed comb table (64 groups × 16 Niels points) for Ed25519 base point scalar multiplication, eliminating all 255 point doublings in favor of 63 mixed additions with Niels-form points.
 
@@ -10262,42 +10251,42 @@ End-to-end ML-DSA improvement is modest (~2–5%) because NTT constitutes only ~
 
 ---
 
-## Phase T161–T170 — Quality Improvement Phase 2 (2026-02-27)
+## Phase T49–T58 — Quality Improvement Phase I3 (2026-02-27)
 
 ### Summary
 Deep quality analysis identified 8 new deficiencies (D19–D26). 10 phases implemented in 3 priority sprints adding +121 tests and +4 fuzz targets.
 
-### Phase T161 — DHE-DSS + RSA Static + RSA_PSK E2E (+18 tests)
+### Phase T49 — DHE-DSS + RSA Static + RSA_PSK E2E (+18 tests)
 - DHE-DSS (+6), RSA static kex (+5), RSA_PSK (+7) cipher suite E2E tests
 
-### Phase T162 — PSK/DHE_PSK/ECDHE_PSK Expansion (+15 tests)
+### Phase T50 — PSK/DHE_PSK/ECDHE_PSK Expansion (+15 tests)
 - PSK (+4), DHE_PSK (+5), ECDHE_PSK (+6) cipher suite tests
 
-### Phase T163 — Protocol Attack Scenarios (+16 tests)
+### Phase T51 — Protocol Attack Scenarios (+16 tests)
 - Downgrade, truncation, renegotiation, version manipulation, alerts
 
-### Phase T164 — Fuzz Target Expansion (+4 targets, +39 corpus)
+### Phase T52 — Fuzz Target Expansion (+4 targets, +39 corpus)
 - TLS extensions, TLS 1.2 codec, TLCP codec, CBC record fuzzing
 
-### Phase T165 — Error Path Coverage (+18 tests)
+### Phase T53 — Error Path Coverage (+18 tests)
 - CBC decrypt, TLS 1.3 AEAD, DTLS record/anti-replay error paths
 
-### Phase T166 — Async Integration (+12 tests)
+### Phase T54 — Async Integration (+12 tests)
 - TLCP/DTLS/DTLCP async + concurrent stress (3→15 async tests)
 
-### Phase T167 — TLS 1.2 State Machine Unit Isolation (+16 tests)
+### Phase T55 — TLS 1.2 State Machine Unit Isolation (+16 tests)
 - Client (8) + server (7) state machine isolation + full handshake (1)
 
-### Phase T168 — SM9 G2 Point Arithmetic (+8 tests)
+### Phase T56 — SM9 G2 Point Arithmetic (+8 tests)
 - Double, add, inverse, scalar-mul, invalid bytes, multi-scalar-mul, affine roundtrip
 
-### Phase T169 — TLS Extension E2E (+8 tests)
+### Phase T57 — TLS Extension E2E (+8 tests)
 - OCSP (+2), early data (+2), cert compression (+2), SCT (+1), EMS (+1)
 
-### Phase T170 — ECDHE-RSA CBC + Async Stress (+10 tests)
+### Phase T58 — ECDHE-RSA CBC + Async Stress (+10 tests)
 - 5 ECDHE-RSA cipher suites + 5 async cipher suite matrix tests
 
-### Aggregate Test Counts (Post P166 + P167 + T161–T170)
+### Aggregate Test Counts (Post P11 + P12 + T49–T58)
 
 | Crate | Tests | Ignored |
 |-------|-------|---------|
@@ -10311,7 +10300,7 @@ Deep quality analysis identified 8 new deficiencies (D19–D26). 10 phases imple
 | interop | 188 | 2 |
 | **Total** | **3,465** | **19** |
 
-### Build Status (Post P166 + P167 + T161–T170)
+### Build Status (Post P11 + P12 + T49–T58)
 - `cargo test --workspace --all-features`: 3,465 passed, 0 failed, 19 ignored
 - `RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets`: 0 warnings
 - `cargo fmt --all -- --check`: clean
@@ -10319,9 +10308,9 @@ Deep quality analysis identified 8 new deficiencies (D19–D26). 10 phases imple
 
 ---
 
-## Phase T171–T174 — Test Optimization & Deep Defense (2026-02-27)
+## Phase T59–T62 — Test Optimization & Deep Defense (2026-02-27)
 
-### Phase T171 — RSA Constant-Time Fix + Buffer Zeroize + Timing Tests (+4 tests)
+### Phase T59 — RSA Constant-Time Fix + Buffer Zeroize + Timing Tests (+4 tests)
 
 **Priority**: P0 — Fixes active security vulnerabilities.
 
@@ -10352,7 +10341,7 @@ Deep quality analysis identified 8 new deficiencies (D19–D26). 10 phases imple
 - `crates/hitls-crypto/src/rsa/pkcs1v15.rs`: +1 test
   - `test_pkcs1v15_decrypt_varied_separator_positions`: Separator at positions 10, 50, 100, 200
 
-### Phase T172 — Crypto Semantic Fuzz Targets (+6 targets, +24 corpus)
+### Phase T60 — Crypto Semantic Fuzz Targets (+6 targets, +24 corpus)
 
 **Priority**: P1 — Expand semantic fuzz coverage.
 
@@ -10368,7 +10357,7 @@ Deep quality analysis identified 8 new deficiencies (D19–D26). 10 phases imple
 
 **Files**: 6 new fuzz targets, `fuzz/Cargo.toml` updated (+6 bins, +rsa,ecdsa,sm2,hkdf features)
 
-### Phase T173 — TLS State Machine Fuzz + Corpus Enrichment (+2 targets, +16 corpus)
+### Phase T61 — TLS State Machine Fuzz + Corpus Enrichment (+2 targets, +16 corpus)
 
 **Priority**: P1 — Address TLS state-machine-level fuzzing gap.
 
@@ -10384,7 +10373,7 @@ Deep quality analysis identified 8 new deficiencies (D19–D26). 10 phases imple
 
 **Files**: 2 new fuzz targets, `fuzz/Cargo.toml` updated (+2 bins, +tls13 feature)
 
-### Phase T174 — Infrastructure Hardening (CI/Deps/Docs)
+### Phase T62 — Infrastructure Hardening (CI/Deps/Docs)
 
 **Priority**: P2 — Fix configuration gaps.
 
@@ -10398,7 +10387,7 @@ Deep quality analysis identified 8 new deficiencies (D19–D26). 10 phases imple
 | `deny.toml` (NEW) | Supply-chain policy: vuln=deny, license allow-list, wildcard ban, source restrictions |
 | `SECURITY.md` | Updated test/fuzz counts (997→3,405+, 10→26 fuzz targets) |
 
-### Aggregate Counts (Post T171–T174)
+### Aggregate Counts (Post T59–T62)
 
 | Metric | Before | After | Delta |
 |--------|--------|-------|-------|
@@ -10408,7 +10397,7 @@ Deep quality analysis identified 8 new deficiencies (D19–D26). 10 phases imple
 | Corpus files | 118 | 158 | +40 |
 | CI jobs | 8 | 9 | +1 (cargo-deny) |
 
-### Build Status (Post T171–T174)
+### Build Status (Post T59–T62)
 - `cargo test --workspace --all-features`: 3,467 passed, 0 failed, 21 ignored
 - `RUSTFLAGS="-D warnings" cargo clippy`: 0 warnings
 - `cargo fmt --all -- --check`: clean
