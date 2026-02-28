@@ -9,7 +9,6 @@ use hitls_crypto::hmac::Hmac;
 use hitls_crypto::provider::Digest;
 use hitls_types::TlsError;
 use subtle::ConstantTimeEq;
-use zeroize::Zeroize;
 
 use super::encryption::{MAX_CIPHERTEXT_LENGTH, MAX_PLAINTEXT_LENGTH};
 
@@ -18,6 +17,9 @@ const TLS12_VERSION: u16 = 0x0303;
 
 /// AES block size (16 bytes).
 const AES_BLOCK_SIZE: usize = 16;
+
+/// Maximum MAC output size (SHA-384 = 48 bytes).
+const MAX_MAC_SIZE: usize = 48;
 
 /// Create an HMAC instance for the given MAC length.
 /// 20 → HMAC-SHA1, 32 → HMAC-SHA256, 48 → HMAC-SHA384.
@@ -44,18 +46,17 @@ fn create_hmac(mac_len: usize, mac_key: &[u8]) -> Result<Hmac, TlsError> {
     .map_err(TlsError::CryptoError)
 }
 
-/// Compute HMAC MAC for TLS 1.2 CBC records.
-///
-/// MAC = HMAC(mac_key, seq(8) || type(1) || version(2) || length(2) || plaintext)
-fn compute_cbc_mac(
+/// Compute HMAC MAC using a cached HMAC instance (reset + reuse, zero heap allocation).
+/// Writes MAC into `out[..mac_len]`.
+fn compute_cbc_mac_with(
+    hmac: &mut Hmac,
     mac_len: usize,
-    mac_key: &[u8],
     seq: u64,
     content_type: ContentType,
     fragment: &[u8],
-) -> Result<Vec<u8>, TlsError> {
-    let mut hmac = create_hmac(mac_len, mac_key)?;
-
+    out: &mut [u8],
+) -> Result<(), TlsError> {
+    hmac.reset();
     hmac.update(&seq.to_be_bytes())
         .map_err(TlsError::CryptoError)?;
     hmac.update(&[content_type as u8])
@@ -65,19 +66,21 @@ fn compute_cbc_mac(
     hmac.update(&(fragment.len() as u16).to_be_bytes())
         .map_err(TlsError::CryptoError)?;
     hmac.update(fragment).map_err(TlsError::CryptoError)?;
-
-    let mut mac = vec![0u8; mac_len];
-    hmac.finish(&mut mac).map_err(TlsError::CryptoError)?;
-    Ok(mac)
+    hmac.finish(&mut out[..mac_len])
+        .map_err(TlsError::CryptoError)
 }
 
 /// Build TLS-style padding for CBC (RFC 5246 §6.2.3.2).
 ///
 /// padding_length = (block_size - ((data_len + 1) % block_size)) % block_size
 /// Total padding = padding_length + 1 bytes, all set to padding_length.
-fn build_tls_padding(data_len: usize) -> Vec<u8> {
+/// Returns (padding_bytes, total_padding_len) as a stack array.
+fn build_tls_padding(data_len: usize) -> ([u8; AES_BLOCK_SIZE], usize) {
     let padding_length = (AES_BLOCK_SIZE - ((data_len + 1) % AES_BLOCK_SIZE)) % AES_BLOCK_SIZE;
-    vec![padding_length as u8; padding_length + 1]
+    let total = padding_length + 1;
+    let buf = [padding_length as u8; AES_BLOCK_SIZE];
+    // All bytes are already set to padding_length, which is correct for TLS padding
+    (buf, total)
 }
 
 /// AES-CBC encrypt in-place with a pre-expanded key (data must be block-aligned).
@@ -120,26 +123,21 @@ fn aes_cbc_decrypt_with(
 }
 
 /// TLS 1.2 CBC MAC-then-encrypt record encryptor.
-/// Stores pre-expanded AES key to avoid per-record key expansion.
+/// Stores pre-expanded AES key and cached HMAC to avoid per-record allocation.
 pub struct RecordEncryptor12Cbc {
     cipher: hitls_crypto::aes::AesKey,
-    mac_key: Vec<u8>,
+    hmac: Hmac,
     mac_len: usize,
     seq: u64,
-}
-
-impl Drop for RecordEncryptor12Cbc {
-    fn drop(&mut self) {
-        self.mac_key.zeroize();
-    }
 }
 
 impl RecordEncryptor12Cbc {
     pub fn new(enc_key: Vec<u8>, mac_key: Vec<u8>, mac_len: usize) -> Result<Self, TlsError> {
         let cipher = hitls_crypto::aes::AesKey::new(&enc_key).map_err(TlsError::CryptoError)?;
+        let hmac = create_hmac(mac_len, &mac_key)?;
         Ok(Self {
             cipher,
-            mac_key,
+            hmac,
             mac_len,
             seq: 0,
         })
@@ -157,22 +155,24 @@ impl RecordEncryptor12Cbc {
             return Err(TlsError::RecordError("plaintext exceeds maximum".into()));
         }
 
-        // Compute MAC over plaintext
-        let mac = compute_cbc_mac(
+        // Compute MAC over plaintext (zero-alloc via cached HMAC)
+        let mut mac = [0u8; MAX_MAC_SIZE];
+        compute_cbc_mac_with(
+            &mut self.hmac,
             self.mac_len,
-            &self.mac_key,
             self.seq,
             content_type,
             plaintext,
+            &mut mac,
         )?;
 
         // Build: plaintext || MAC || TLS-padding
         let data_len = plaintext.len() + self.mac_len;
-        let padding = build_tls_padding(data_len);
-        let mut encrypt_data = Vec::with_capacity(data_len + padding.len());
+        let (padding, pad_len) = build_tls_padding(data_len);
+        let mut encrypt_data = Vec::with_capacity(data_len + pad_len);
         encrypt_data.extend_from_slice(plaintext);
-        encrypt_data.extend_from_slice(&mac);
-        encrypt_data.extend_from_slice(&padding);
+        encrypt_data.extend_from_slice(&mac[..self.mac_len]);
+        encrypt_data.extend_from_slice(&padding[..pad_len]);
 
         // Generate random explicit IV
         let mut iv = [0u8; AES_BLOCK_SIZE];
@@ -204,26 +204,21 @@ impl RecordEncryptor12Cbc {
 }
 
 /// TLS 1.2 CBC record decryptor.
-/// Stores pre-expanded AES key to avoid per-record key expansion.
+/// Stores pre-expanded AES key and cached HMAC to avoid per-record allocation.
 pub struct RecordDecryptor12Cbc {
     cipher: hitls_crypto::aes::AesKey,
-    mac_key: Vec<u8>,
+    hmac: Hmac,
     mac_len: usize,
     seq: u64,
-}
-
-impl Drop for RecordDecryptor12Cbc {
-    fn drop(&mut self) {
-        self.mac_key.zeroize();
-    }
 }
 
 impl RecordDecryptor12Cbc {
     pub fn new(enc_key: Vec<u8>, mac_key: Vec<u8>, mac_len: usize) -> Result<Self, TlsError> {
         let cipher = hitls_crypto::aes::AesKey::new(&enc_key).map_err(TlsError::CryptoError)?;
+        let hmac = create_hmac(mac_len, &mac_key)?;
         Ok(Self {
             cipher,
-            mac_key,
+            hmac,
             mac_len,
             seq: 0,
         })
@@ -283,13 +278,15 @@ impl RecordDecryptor12Cbc {
             0
         };
 
-        // Compute expected MAC (always compute to avoid timing leak)
-        let expected_mac = compute_cbc_mac(
+        // Compute expected MAC (zero-alloc via cached HMAC)
+        let mut expected_mac = [0u8; MAX_MAC_SIZE];
+        compute_cbc_mac_with(
+            &mut self.hmac,
             self.mac_len,
-            &self.mac_key,
             self.seq,
             record.content_type,
             &decrypted[..content_len],
+            &mut expected_mac,
         )?;
 
         // Compare received MAC (constant-time)
@@ -299,7 +296,7 @@ impl RecordDecryptor12Cbc {
             // Dummy comparison against first mac_len bytes
             &decrypted[..self.mac_len]
         };
-        let mac_ok = mac_slice.ct_eq(expected_mac.as_slice()).unwrap_u8();
+        let mac_ok = mac_slice.ct_eq(&expected_mac[..self.mac_len]).unwrap_u8();
 
         if pad_ok & mac_ok != 1 {
             return Err(TlsError::RecordError("bad record MAC".into()));
@@ -334,37 +331,27 @@ impl RecordDecryptor12Cbc {
 ///
 /// Reverses the order: encrypt plaintext+padding first, then MAC over the ciphertext.
 /// This eliminates padding oracle attacks.
-/// Stores pre-expanded AES key to avoid per-record key expansion.
+/// Stores pre-expanded AES key and cached HMAC to avoid per-record allocation.
 pub struct RecordEncryptor12EtM {
     cipher: hitls_crypto::aes::AesKey,
-    mac_key: Vec<u8>,
+    hmac: Hmac,
     mac_len: usize,
     seq: u64,
-}
-
-impl Drop for RecordEncryptor12EtM {
-    fn drop(&mut self) {
-        self.mac_key.zeroize();
-    }
 }
 
 impl RecordEncryptor12EtM {
     pub fn new(enc_key: Vec<u8>, mac_key: Vec<u8>, mac_len: usize) -> Result<Self, TlsError> {
         let cipher = hitls_crypto::aes::AesKey::new(&enc_key).map_err(TlsError::CryptoError)?;
+        let hmac = create_hmac(mac_len, &mac_key)?;
         Ok(Self {
             cipher,
-            mac_key,
+            hmac,
             mac_len,
             seq: 0,
         })
     }
 
     /// Encrypt a record with Encrypt-Then-MAC.
-    ///
-    /// 1. Pad plaintext with TLS padding
-    /// 2. Generate random IV, encrypt plaintext||padding with AES-CBC
-    /// 3. Compute MAC over seq || type || version || length(IV+ciphertext) || IV || ciphertext
-    /// 4. Fragment = IV || ciphertext || MAC
     pub fn encrypt_record(
         &mut self,
         content_type: ContentType,
@@ -375,10 +362,10 @@ impl RecordEncryptor12EtM {
         }
 
         // Pad plaintext
-        let padding = build_tls_padding(plaintext.len());
-        let mut encrypt_data = Vec::with_capacity(plaintext.len() + padding.len());
+        let (padding, pad_len) = build_tls_padding(plaintext.len());
+        let mut encrypt_data = Vec::with_capacity(plaintext.len() + pad_len);
         encrypt_data.extend_from_slice(plaintext);
-        encrypt_data.extend_from_slice(&padding);
+        encrypt_data.extend_from_slice(&padding[..pad_len]);
 
         // Generate random explicit IV
         let mut iv = [0u8; AES_BLOCK_SIZE];
@@ -388,27 +375,34 @@ impl RecordEncryptor12EtM {
         aes_cbc_encrypt_with(&self.cipher, &iv, &mut encrypt_data)?;
 
         // Compute MAC over: seq(8) || type(1) || version(2) || length(2) || IV || ciphertext
-        // length = len(IV + ciphertext), i.e., the ciphertext portion before MAC
         let adjusted_len = (AES_BLOCK_SIZE + encrypt_data.len()) as u16;
-        let mut hmac = create_hmac(self.mac_len, &self.mac_key)?;
-        hmac.update(&self.seq.to_be_bytes())
+        self.hmac.reset();
+        self.hmac
+            .update(&self.seq.to_be_bytes())
             .map_err(TlsError::CryptoError)?;
-        hmac.update(&[content_type as u8])
+        self.hmac
+            .update(&[content_type as u8])
             .map_err(TlsError::CryptoError)?;
-        hmac.update(&TLS12_VERSION.to_be_bytes())
+        self.hmac
+            .update(&TLS12_VERSION.to_be_bytes())
             .map_err(TlsError::CryptoError)?;
-        hmac.update(&adjusted_len.to_be_bytes())
+        self.hmac
+            .update(&adjusted_len.to_be_bytes())
             .map_err(TlsError::CryptoError)?;
-        hmac.update(&iv).map_err(TlsError::CryptoError)?;
-        hmac.update(&encrypt_data).map_err(TlsError::CryptoError)?;
-        let mut mac = vec![0u8; self.mac_len];
-        hmac.finish(&mut mac).map_err(TlsError::CryptoError)?;
+        self.hmac.update(&iv).map_err(TlsError::CryptoError)?;
+        self.hmac
+            .update(&encrypt_data)
+            .map_err(TlsError::CryptoError)?;
+        let mut mac = [0u8; MAX_MAC_SIZE];
+        self.hmac
+            .finish(&mut mac[..self.mac_len])
+            .map_err(TlsError::CryptoError)?;
 
         // Fragment = IV || ciphertext || MAC
         let mut fragment = Vec::with_capacity(AES_BLOCK_SIZE + encrypt_data.len() + self.mac_len);
         fragment.extend_from_slice(&iv);
         fragment.extend_from_slice(&encrypt_data);
-        fragment.extend_from_slice(&mac);
+        fragment.extend_from_slice(&mac[..self.mac_len]);
 
         if self.seq == u64::MAX {
             return Err(TlsError::RecordError("sequence number overflow".into()));
@@ -428,37 +422,27 @@ impl RecordEncryptor12EtM {
 }
 
 /// TLS 1.2 Encrypt-Then-MAC record decryptor (RFC 7366).
-/// Stores pre-expanded AES key to avoid per-record key expansion.
+/// Stores pre-expanded AES key and cached HMAC to avoid per-record allocation.
 pub struct RecordDecryptor12EtM {
     cipher: hitls_crypto::aes::AesKey,
-    mac_key: Vec<u8>,
+    hmac: Hmac,
     mac_len: usize,
     seq: u64,
-}
-
-impl Drop for RecordDecryptor12EtM {
-    fn drop(&mut self) {
-        self.mac_key.zeroize();
-    }
 }
 
 impl RecordDecryptor12EtM {
     pub fn new(enc_key: Vec<u8>, mac_key: Vec<u8>, mac_len: usize) -> Result<Self, TlsError> {
         let cipher = hitls_crypto::aes::AesKey::new(&enc_key).map_err(TlsError::CryptoError)?;
+        let hmac = create_hmac(mac_len, &mac_key)?;
         Ok(Self {
             cipher,
-            mac_key,
+            hmac,
             mac_len,
             seq: 0,
         })
     }
 
     /// Decrypt a TLS 1.2 Encrypt-Then-MAC record.
-    ///
-    /// 1. Split fragment: IV(16) || ciphertext(N) || MAC(mac_len)
-    /// 2. Verify MAC over seq || type || version || length(IV+ciphertext) || IV || ciphertext
-    /// 3. Decrypt ciphertext with AES-CBC
-    /// 4. Remove TLS padding
     pub fn decrypt_record(&mut self, record: &Record) -> Result<Vec<u8>, TlsError> {
         let fragment = &record.fragment;
 
@@ -485,22 +469,29 @@ impl RecordDecryptor12EtM {
 
         // Verify MAC FIRST (this is the key security property of ETM)
         let adjusted_len = (AES_BLOCK_SIZE + ciphertext.len()) as u16;
-        let mut hmac = create_hmac(self.mac_len, &self.mac_key)?;
-        hmac.update(&self.seq.to_be_bytes())
+        self.hmac.reset();
+        self.hmac
+            .update(&self.seq.to_be_bytes())
             .map_err(TlsError::CryptoError)?;
-        hmac.update(&[record.content_type as u8])
+        self.hmac
+            .update(&[record.content_type as u8])
             .map_err(TlsError::CryptoError)?;
-        hmac.update(&TLS12_VERSION.to_be_bytes())
+        self.hmac
+            .update(&TLS12_VERSION.to_be_bytes())
             .map_err(TlsError::CryptoError)?;
-        hmac.update(&adjusted_len.to_be_bytes())
+        self.hmac
+            .update(&adjusted_len.to_be_bytes())
             .map_err(TlsError::CryptoError)?;
-        hmac.update(iv).map_err(TlsError::CryptoError)?;
-        hmac.update(ciphertext).map_err(TlsError::CryptoError)?;
-        let mut expected_mac = vec![0u8; self.mac_len];
-        hmac.finish(&mut expected_mac)
+        self.hmac.update(iv).map_err(TlsError::CryptoError)?;
+        self.hmac
+            .update(ciphertext)
+            .map_err(TlsError::CryptoError)?;
+        let mut expected_mac = [0u8; MAX_MAC_SIZE];
+        self.hmac
+            .finish(&mut expected_mac[..self.mac_len])
             .map_err(TlsError::CryptoError)?;
 
-        if !bool::from(received_mac.ct_eq(&expected_mac)) {
+        if !bool::from(received_mac.ct_eq(&expected_mac[..self.mac_len])) {
             return Err(TlsError::RecordError("bad record MAC".into()));
         }
 

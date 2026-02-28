@@ -11,16 +11,22 @@ use crate::provider::Digest;
 use hitls_types::CryptoError;
 use zeroize::Zeroize;
 
+/// Maximum block size of any supported hash (SHA-512 = 128 bytes).
+const MAX_BLOCK_SIZE: usize = 128;
+
+/// Maximum output size of any supported hash (SHA-512 = 64 bytes).
+const MAX_OUTPUT_SIZE: usize = 64;
+
 /// HMAC context using a boxed Digest for the underlying hash.
 pub struct Hmac {
     /// Inner hash context (initialized with ipad-xored key).
     inner: Box<dyn Digest>,
     /// Outer hash context (initialized with opad-xored key).
     outer: Box<dyn Digest>,
-    /// Factory to create fresh digest instances (for reset).
-    factory: Box<dyn Fn() -> Box<dyn Digest>>,
-    /// Processed key block (for reset).
-    key_block: Vec<u8>,
+    /// Processed key block (for reset), stored as fixed-size stack array.
+    key_block: [u8; MAX_BLOCK_SIZE],
+    /// Actual block size of the hash.
+    block_size: usize,
 }
 
 impl Hmac {
@@ -37,13 +43,13 @@ impl Hmac {
         drop(sample);
 
         // Step 1: If key > block_size, hash it; otherwise pad with zeros
-        let mut key_block = vec![0u8; block_size];
+        let mut key_block = [0u8; MAX_BLOCK_SIZE];
         if key.len() > block_size {
             let mut hasher = hash_factory();
             hasher.update(key)?;
-            let mut hashed_key = vec![0u8; output_size];
-            hasher.finish(&mut hashed_key)?;
-            key_block[..output_size].copy_from_slice(&hashed_key);
+            let mut hashed_key = [0u8; MAX_OUTPUT_SIZE];
+            hasher.finish(&mut hashed_key[..output_size])?;
+            key_block[..output_size].copy_from_slice(&hashed_key[..output_size]);
             hashed_key.zeroize();
         } else {
             key_block[..key.len()].copy_from_slice(key);
@@ -53,27 +59,33 @@ impl Hmac {
         let mut inner = hash_factory();
         let mut outer = hash_factory();
 
-        // inner key = key_block XOR ipad
-        let mut ipad_key = vec![0u8; block_size];
-        for (i, byte) in ipad_key.iter_mut().enumerate() {
-            *byte = key_block[i] ^ 0x36;
+        // inner key = key_block XOR ipad (stack array, no heap)
+        let mut ipad_key = [0u8; MAX_BLOCK_SIZE];
+        for (dst, &src) in ipad_key[..block_size]
+            .iter_mut()
+            .zip(&key_block[..block_size])
+        {
+            *dst = src ^ 0x36;
         }
-        inner.update(&ipad_key)?;
+        inner.update(&ipad_key[..block_size])?;
         ipad_key.zeroize();
 
-        // outer key = key_block XOR opad
-        let mut opad_key = vec![0u8; block_size];
-        for (i, byte) in opad_key.iter_mut().enumerate() {
-            *byte = key_block[i] ^ 0x5c;
+        // outer key = key_block XOR opad (stack array, no heap)
+        let mut opad_key = [0u8; MAX_BLOCK_SIZE];
+        for (dst, &src) in opad_key[..block_size]
+            .iter_mut()
+            .zip(&key_block[..block_size])
+        {
+            *dst = src ^ 0x5c;
         }
-        outer.update(&opad_key)?;
+        outer.update(&opad_key[..block_size])?;
         opad_key.zeroize();
 
         Ok(Self {
             inner,
             outer,
-            factory: Box::new(hash_factory),
             key_block,
+            block_size,
         })
     }
 
@@ -85,35 +97,36 @@ impl Hmac {
     /// Finalize the HMAC computation and write the result to `out`.
     pub fn finish(&mut self, out: &mut [u8]) -> Result<(), CryptoError> {
         let output_size = self.inner.output_size();
-        let mut inner_hash = vec![0u8; output_size];
-        self.inner.finish(&mut inner_hash)?;
+        let mut inner_hash = [0u8; MAX_OUTPUT_SIZE];
+        self.inner.finish(&mut inner_hash[..output_size])?;
 
-        self.outer.update(&inner_hash)?;
+        self.outer.update(&inner_hash[..output_size])?;
         inner_hash.zeroize();
 
         self.outer.finish(out)
     }
 
     /// Reset the HMAC state for reuse with the same key.
+    /// Uses Digest::reset() to avoid Box<dyn Digest> re-allocation.
     pub fn reset(&mut self) {
-        let block_size = self.inner.block_size();
+        let bs = self.block_size;
 
-        self.inner = (self.factory)();
-        self.outer = (self.factory)();
+        self.inner.reset();
+        self.outer.reset();
 
-        let mut ipad_key = vec![0u8; block_size];
-        for (i, byte) in ipad_key.iter_mut().enumerate() {
-            *byte = self.key_block[i] ^ 0x36;
+        // Re-feed ipad/opad keys using stack arrays (zero heap allocation)
+        let mut ipad_key = [0u8; MAX_BLOCK_SIZE];
+        for (dst, &src) in ipad_key[..bs].iter_mut().zip(&self.key_block[..bs]) {
+            *dst = src ^ 0x36;
         }
-        // Ignore errors in reset — update on fresh context should not fail
-        let _ = self.inner.update(&ipad_key);
+        let _ = self.inner.update(&ipad_key[..bs]);
         ipad_key.zeroize();
 
-        let mut opad_key = vec![0u8; block_size];
-        for (i, byte) in opad_key.iter_mut().enumerate() {
-            *byte = self.key_block[i] ^ 0x5c;
+        let mut opad_key = [0u8; MAX_BLOCK_SIZE];
+        for (dst, &src) in opad_key[..bs].iter_mut().zip(&self.key_block[..bs]) {
+            *dst = src ^ 0x5c;
         }
-        let _ = self.outer.update(&opad_key);
+        let _ = self.outer.update(&opad_key[..bs]);
         opad_key.zeroize();
     }
 
@@ -135,6 +148,7 @@ impl Hmac {
 impl Drop for Hmac {
     fn drop(&mut self) {
         self.key_block.zeroize();
+        // block_size is not secret, no need to zeroize
     }
 }
 

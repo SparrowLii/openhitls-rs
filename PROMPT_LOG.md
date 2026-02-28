@@ -3190,3 +3190,17 @@ Targeted coverage gaps in connection_info, handshake enums, lib.rs constants, co
 - **P25**: CBC stack arrays — `Vec<u8>` → `[u8; 16]` for `prev`/`ct_copy` in `cbc_encrypt_with`/`cbc_decrypt_with`, eliminates per-block heap allocation.
 - 3,484 tests (unchanged), 21 ignored
 - All tests pass, 0 clippy warnings, formatting clean
+
+---
+
+## Phase P26 — HMAC Reset + TLS 1.2 CBC HMAC Caching (2026-03-01)
+
+**Prompt**: Cache HMAC in TLS 1.2 CBC record structs. Redesign `Hmac` to use `Digest::reset()` instead of factory re-creation, eliminate all heap allocations from HMAC buffers. Store cached `Hmac` in all 4 CBC record structs.
+
+**Result**:
+- Removed `factory: Box<dyn Fn() -> Box<dyn Digest>>` from `Hmac` — uses `Digest::reset()` for zero-alloc `reset()`
+- All HMAC buffers moved to stack arrays: `key_block: [u8; 128]`, ipad/opad: `[u8; 128]`, inner_hash: `[u8; 64]`
+- 4 TLS 1.2 CBC record structs cache `Hmac` instance instead of `mac_key: Vec<u8>`
+- `compute_cbc_mac()` → `compute_cbc_mac_with(&mut Hmac)` with stack MAC output
+- `build_tls_padding()` returns stack array `([u8; 16], usize)` instead of `Vec<u8>`
+- 3,484 tests (unchanged), 21 ignored, 0 clippy warnings

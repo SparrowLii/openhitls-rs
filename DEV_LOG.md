@@ -6,7 +6,7 @@ Category summary:
 - Implementation: I1–I81 (81 phases)
 - Testing: T1–T63 (63 phases)
 - Refactoring: R1–R12 (12 phases)
-- Performance: P1–P25 (25 phases)
+- Performance: P1–P26 (26 phases)
 
 | # | Phase | Type | Title | Date |
 |---|-------|------|-------|------|
@@ -191,6 +191,7 @@ Category summary:
 | 179 | P23 | Perf | GCM/CCM Per-Record Key Schedule + GHASH Table Caching | 2026-03-01 |
 | 180 | P24 | Perf | TLS 1.2 CBC Per-Record AES Key Caching | 2026-03-01 |
 | 181 | P25 | Perf | CBC Generic Path Stack Array Optimization | 2026-03-01 |
+| 182 | P26 | Perf | HMAC Reset + TLS 1.2 CBC HMAC Caching | 2026-03-01 |
 
 ---
 
@@ -10847,6 +10848,55 @@ Replaced `Vec<u8>` heap-allocated temporaries with `[u8; 16]` stack arrays in `c
 | Ignored | 21 | 21 | 0 |
 
 ### Build Status (Post P23–P25)
+- `cargo test --workspace --all-features`: 3,484 passed, 0 failed, 21 ignored
+- `RUSTFLAGS="-D warnings" cargo clippy`: 0 warnings
+- `cargo fmt --all -- --check`: clean
+
+---
+
+## Phase P26 — HMAC Reset + TLS 1.2 CBC HMAC Caching (2026-03-01)
+
+### Summary
+Eliminated per-record HMAC construction in TLS 1.2 CBC record encryption/decryption. The `Hmac` struct was redesigned to use `Digest::reset()` instead of re-creating `Box<dyn Digest>` via factory closure, and all temporary buffers were moved to stack arrays. TLS 1.2 CBC record structs now cache a pre-initialized `Hmac` instance, calling `reset()` between records.
+
+### HMAC Struct Redesign (`crates/hitls-crypto/src/hmac/mod.rs`)
+- Removed `factory: Box<dyn Fn() -> Box<dyn Digest>>` field — eliminated 2 Box allocations per `reset()`
+- Changed `key_block: Vec<u8>` → `key_block: [u8; MAX_BLOCK_SIZE]` (128 bytes, stack)
+- Added `block_size: usize` field, `MAX_BLOCK_SIZE = 128`, `MAX_OUTPUT_SIZE = 64` constants
+- `new()`: Stack arrays for ipad_key, opad_key, hashed_key (zero heap allocation)
+- `finish()`: Stack array `[0u8; MAX_OUTPUT_SIZE]` for inner hash result
+- `reset()`: Uses `self.inner.reset()` + `self.outer.reset()` + re-feeds ipad/opad from saved key_block
+- `Drop`: Zeroizes `key_block` on drop
+
+### TLS 1.2 CBC HMAC Caching (`crates/hitls-tls/src/record/encryption12_cbc.rs`)
+- All 4 record structs (`RecordEncryptor12Cbc`, `RecordDecryptor12Cbc`, `RecordEncryptor12EtM`, `RecordDecryptor12EtM`) now store `hmac: Hmac` instead of `mac_key: Vec<u8>`
+- Removed `Drop` impls (no more `mac_key: Vec<u8>` to zeroize — `Hmac` handles its own zeroize)
+- `compute_cbc_mac()` → `compute_cbc_mac_with(&mut Hmac)`: Takes cached HMAC, uses `reset()` + stack output buffer
+- `build_tls_padding()`: Returns `([u8; AES_BLOCK_SIZE], usize)` instead of `Vec<u8>`
+- Added `MAX_MAC_SIZE = 48` constant for stack-allocated MAC output buffers
+- EtM structs use inline `self.hmac.reset()` + update + finish pattern
+
+### Changes
+| File | Change |
+|------|--------|
+| `crates/hitls-crypto/src/hmac/mod.rs` | Removed factory Box, stack arrays for all buffers, `Digest::reset()` based `reset()` |
+| `crates/hitls-tls/src/record/encryption12_cbc.rs` | Cached `Hmac` in 4 structs, stack MAC output, stack padding |
+
+### Allocation Savings Per Record
+| Operation | Before | After |
+|-----------|--------|-------|
+| HMAC construction | 2 Box + 1 Vec + factory call | `reset()` (zero allocation) |
+| HMAC key buffers | 3 Vec (ipad, opad, key_block) | 3 stack arrays |
+| HMAC inner hash | 1 Vec | 1 stack array |
+| TLS padding | 1 Vec | 1 stack array |
+| MAC output | 1 Vec | 1 stack array |
+
+### Test Results
+- All HMAC tests pass (8 RFC vectors + 1 reset + 1 empty + 1 proptest)
+- All 75 TLS CBC tests pass
+- 3,484 total tests, 21 ignored, 0 clippy warnings
+
+### Build Status (Post P26)
 - `cargo test --workspace --all-features`: 3,484 passed, 0 failed, 21 ignored
 - `RUSTFLAGS="-D warnings" cargo clippy`: 0 warnings
 - `cargo fmt --all -- --check`: clean
