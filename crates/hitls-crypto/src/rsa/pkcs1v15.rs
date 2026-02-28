@@ -144,13 +144,13 @@ pub(crate) fn pkcs1v15_decrypt_unpad(em: &[u8]) -> Result<Vec<u8>, CryptoError> 
 
 /// Fill a buffer with random non-zero bytes.
 fn fill_nonzero_random(buf: &mut [u8]) -> Result<(), CryptoError> {
-    let mut tmp = vec![0u8; buf.len()];
+    let mut byte = [0u8; 1];
     for slot in buf.iter_mut() {
         // Rejection-sample until non-zero
         loop {
-            getrandom::getrandom(&mut tmp[..1]).map_err(|_| CryptoError::BnRandGenFail)?;
-            if tmp[0] != 0 {
-                *slot = tmp[0];
+            getrandom::getrandom(&mut byte).map_err(|_| CryptoError::BnRandGenFail)?;
+            if byte[0] != 0 {
+                *slot = byte[0];
                 break;
             }
         }

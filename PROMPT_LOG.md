@@ -3279,3 +3279,16 @@ Targeted coverage gaps in connection_info, handshake enums, lib.rs constants, co
 - `handshake/client.rs`: binder/eems/ch hash (×3) Vec → `[0u8; 64]` + slice
 - 10 heap allocations eliminated across handshake code paths
 - 3,484 tests (unchanged), 21 ignored, 0 clippy warnings
+
+---
+
+## Phase P35 — RSA Padding Stack Arrays (2026-03-01)
+
+**Prompt**: Eliminate unnecessary heap allocations in RSA padding (OAEP, PSS, PKCS1v15).
+
+**Result**:
+- OAEP: `seed` `vec![0u8; 32]` → `[0u8; 32]` stack (H_LEN is const)
+- PSS: `salt` `vec![0u8; salt_len]` → `[0u8; 64]` stack + slice (Vec fallback for >64)
+- PKCS1v15: `fill_nonzero_random` eliminated `vec![0u8; buf.len()]` wasted allocation (only 1 byte ever used per loop)
+- All 49 RSA tests pass
+- 3,484 tests (unchanged), 21 ignored, 0 clippy warnings

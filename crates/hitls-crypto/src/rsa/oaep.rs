@@ -42,7 +42,7 @@ pub(crate) fn oaep_encrypt_pad(msg: &[u8], k: usize) -> Result<Vec<u8>, CryptoEr
     debug_assert_eq!(db.len(), db_len);
 
     // Generate random seed
-    let mut seed = vec![0u8; H_LEN];
+    let mut seed = [0u8; H_LEN];
     getrandom::getrandom(&mut seed).map_err(|_| CryptoError::BnRandGenFail)?;
 
     // dbMask = MGF1(seed, k - hLen - 1)
