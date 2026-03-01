@@ -6,6 +6,50 @@ use super::{DigestVariant, HashAlgId};
 use hitls_crypto::provider::Digest;
 use hitls_types::TlsError;
 
+/// Stack-allocated hash output (max 64 bytes, no heap allocation).
+///
+/// Implements `Deref<Target=[u8]>` so it can be used wherever `&[u8]` is expected
+/// (function arguments, `extend_from_slice`, `.len()`, etc.) with zero caller changes.
+#[derive(Debug)]
+pub struct HashOutput {
+    buf: [u8; 64],
+    len: usize,
+}
+
+impl HashOutput {
+    fn new(len: usize) -> Self {
+        Self {
+            buf: [0u8; 64],
+            len,
+        }
+    }
+}
+
+impl std::ops::Deref for HashOutput {
+    type Target = [u8];
+    fn deref(&self) -> &[u8] {
+        &self.buf[..self.len]
+    }
+}
+
+impl PartialEq for HashOutput {
+    fn eq(&self, other: &HashOutput) -> bool {
+        self.buf[..self.len] == other.buf[..other.len]
+    }
+}
+
+impl PartialEq<Vec<u8>> for HashOutput {
+    fn eq(&self, other: &Vec<u8>) -> bool {
+        &self.buf[..self.len] == other.as_slice()
+    }
+}
+
+impl PartialEq<[u8]> for HashOutput {
+    fn eq(&self, other: &[u8]) -> bool {
+        &self.buf[..self.len] == other
+    }
+}
+
 /// Running transcript hash over handshake messages.
 ///
 /// Uses a message buffer + replay approach: `current_hash()` creates a fresh
@@ -37,23 +81,28 @@ impl TranscriptHash {
     /// Get the current transcript hash without consuming the state.
     ///
     /// Creates a fresh hasher, replays all buffered messages, and finishes.
-    pub fn current_hash(&self) -> Result<Vec<u8>, TlsError> {
+    /// Returns a stack-allocated `HashOutput` (no heap allocation).
+    pub fn current_hash(&self) -> Result<HashOutput, TlsError> {
         let mut hasher = DigestVariant::new(self.alg);
         hasher
             .update(&self.message_buffer)
             .map_err(TlsError::CryptoError)?;
-        let mut out = vec![0u8; self.hash_len];
-        hasher.finish(&mut out).map_err(TlsError::CryptoError)?;
+        let mut out = HashOutput::new(self.hash_len);
+        hasher
+            .finish(&mut out.buf[..self.hash_len])
+            .map_err(TlsError::CryptoError)?;
         Ok(out)
     }
 
     /// Get the hash of an empty message sequence: Hash("").
     ///
     /// Needed for `Derive-Secret(secret, "derived", "")`.
-    pub fn empty_hash(&self) -> Result<Vec<u8>, TlsError> {
+    pub fn empty_hash(&self) -> Result<HashOutput, TlsError> {
         let mut hasher = DigestVariant::new(self.alg);
-        let mut out = vec![0u8; self.hash_len];
-        hasher.finish(&mut out).map_err(TlsError::CryptoError)?;
+        let mut out = HashOutput::new(self.hash_len);
+        hasher
+            .finish(&mut out.buf[..self.hash_len])
+            .map_err(TlsError::CryptoError)?;
         Ok(out)
     }
 

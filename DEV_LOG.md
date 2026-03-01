@@ -213,6 +213,7 @@ Category summary:
 | 201 | I82 | Impl | CRL Builder (CrlBuilder + RevokedCertBuilder) | 2026-03-01 |
 | 202 | P45 | Perf | ML-DSA Signing Loop Heap Elimination | 2026-03-01 |
 | 203 | P46 | Perf | ML-KEM Keygen/Encaps Heap Elimination | 2026-03-01 |
+| 204 | P47 | Perf | TranscriptHash Stack-Allocated Output | 2026-03-01 |
 
 ---
 
@@ -11463,6 +11464,32 @@ Replaced per-call heap allocations in ML-KEM keygen/encrypt/decapsulate with sta
 - 3,534 total tests, 21 ignored, 0 clippy warnings
 
 ### Build Status (Post P46)
+- `cargo test --workspace --all-features`: 3,534 passed, 0 failed, 21 ignored
+- `RUSTFLAGS="-D warnings" cargo clippy`: 0 warnings
+- `cargo fmt --all -- --check`: clean
+
+---
+
+## Phase P47 — TranscriptHash Stack-Allocated Output (2026-03-01)
+
+### Summary
+Replaced `Vec<u8>` heap allocation in `TranscriptHash::current_hash()` and `empty_hash()` with a stack-allocated `HashOutput` wrapper (`[u8; 64]` + length). `HashOutput` implements `Deref<Target=[u8]>`, `PartialEq`, and `Debug`, so all ~47 callsites across 12 handshake files require zero changes — Rust's deref coercion handles the `&Vec<u8>` → `&[u8]` transition automatically.
+
+### Changes
+| File | Change |
+|------|--------|
+| `crates/hitls-tls/src/crypt/transcript.rs` | New `HashOutput` struct with `Deref<Target=[u8]>`, `PartialEq`, `Debug`. `current_hash()` and `empty_hash()` return `Result<HashOutput, TlsError>` instead of `Result<Vec<u8>, TlsError>`. Zero-copy: hash writes directly into stack buffer |
+
+### Impact
+- Eliminates 5–15 heap allocations per TLS handshake (one per `current_hash()` call)
+- Each call previously allocated 32 bytes (SHA-256/SM3) or 48 bytes (SHA-384) on heap
+- Zero caller changes needed thanks to Deref coercion
+
+### Test Results
+- All 16 transcript tests pass
+- 3,534 total tests, 21 ignored, 0 clippy warnings
+
+### Build Status (Post P47)
 - `cargo test --workspace --all-features`: 3,534 passed, 0 failed, 21 ignored
 - `RUSTFLAGS="-D warnings" cargo clippy`: 0 warnings
 - `cargo fmt --all -- --check`: clean
