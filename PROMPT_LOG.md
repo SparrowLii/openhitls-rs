@@ -3395,6 +3395,20 @@ Targeted coverage gaps in connection_info, handshake enums, lib.rs constants, co
 
 ---
 
+## Phase T64 — Quality Defense Actions (2026-03-01)
+
+**Prompt**: Execute 7 quality defense actions: CI hardening (--workspace flags), 6 new fuzz targets (HMAC/X25519/DRBG/PBKDF2/Ed448/FrodoKEM), TLS config unit tests, Keccak ARM HW↔SW cross-validation, ARM64 cross-compile CI, ML-KEM/ML-DSA deterministic KAT infrastructure.
+
+**Result**:
+- +6 fuzz targets (34→40) with +48 corpus seeds (238→286)
+- +24 TLS config unit tests (ServerPrivateKey variants, builder edge cases, MaxFragmentLength)
+- +4 Keccak ARM HW↔SW cross-validation tests (cfg-gated aarch64)
+- +13 ML-KEM/ML-DSA deterministic KAT tests (`generate_from_seed`, `encapsulate_deterministic`)
+- +1 CI job (cross-check aarch64-unknown-linux-gnu)
+- 3,519 tests, 21 ignored, 0 clippy warnings
+
+---
+
 ## Phase I82 — CRL Builder (2026-03-01)
 
 **Prompt**: Implement the CRL Builder plan (Phase I82): CrlBuilder + RevokedCertBuilder in builder.rs, to_der/to_pem on CertificateRevocationList in crl.rs, re-export from mod.rs, ~10 tests.

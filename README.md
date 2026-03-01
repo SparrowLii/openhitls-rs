@@ -248,7 +248,7 @@ openhitls-rs/
 │   ├── hitls-pki/       # X.509, PKCS#8/12, CMS
 │   ├── hitls-auth/      # HOTP/TOTP, SPAKE2+, Privacy Pass
 │   └── hitls-cli/       # Command-line tool (14 commands)
-├── tests/interop/       # Integration tests (188 cross-crate)
+├── tests/interop/       # Integration tests (241 cross-crate)
 ├── tests/vectors/       # Test vectors (NIST, Wycheproof, GM/T)
 ├── fuzz/                # 40 libfuzzer fuzz targets
 └── benches/             # Criterion benchmarks
@@ -314,4 +314,4 @@ Licensed under the [Mulan Permissive Software License, Version 2](http://license
 
 ## Acknowledgments
 
-This project is a Rust rewrite of [openHiTLS](https://gitee.com/openhitls/openhitls), an open-source cryptographic and TLS library originally written in C. See [DEV_LOG.md](DEV_LOG.md) for the detailed migration history (Phases I1–I81, T1–T64, R1–R12, P1–P26).
+This project is a Rust rewrite of [openHiTLS](https://gitee.com/openhitls/openhitls), an open-source cryptographic and TLS library originally written in C. See [DEV_LOG.md](DEV_LOG.md) for the detailed migration history (Phases I1–I82, T1–T64, R1–R12, P1–P44).
