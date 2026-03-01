@@ -3460,5 +3460,16 @@ Targeted coverage gaps in connection_info, handshake enums, lib.rs constants, co
 - `encapsulate`: `Vec::with_capacity(64)` → `[0u8; 64]` with `copy_from_slice`
 - `decapsulate`: `Vec::with_capacity(64)` → `[0u8; 64]` with `copy_from_slice`
 - Eliminates 3 heap allocations per ML-KEM keygen/encaps/decaps
-- `j_input` in implicit rejection path left as Vec (variable-size, rare path)
+- All 3,534 tests pass, 21 ignored, 0 clippy warnings
+
+---
+
+## Phase P49 — CBC Padding Vec Elimination (2026-03-01)
+
+**Prompt**: Continue performance optimizations. CBC encrypt uses `vec![pad_len as u8; pad_len]` temporary heap allocation for PKCS#7 padding bytes.
+
+**Result**:
+- `cbc_encrypt`: `vec![pad_len; pad_len]` → `[0u8; AES_BLOCK_SIZE]` stack array + fill + extend_from_slice
+- `cbc_encrypt_with`: same pattern with `[0u8; 16]`
+- Also changed `plaintext.to_vec()` → `Vec::with_capacity(len + pad_len)` for right-sized single allocation
 - All 3,534 tests pass, 21 ignored, 0 clippy warnings

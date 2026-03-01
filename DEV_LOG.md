@@ -215,6 +215,7 @@ Category summary:
 | 203 | P46 | Perf | ML-KEM Keygen/Encaps Heap Elimination | 2026-03-01 |
 | 204 | P47 | Perf | TranscriptHash Stack-Allocated Output | 2026-03-01 |
 | 205 | P48 | Perf | ML-KEM g_input Stack Arrays | 2026-03-01 |
+| 206 | P49 | Perf | CBC Padding Vec Elimination | 2026-03-01 |
 
 ---
 
@@ -11515,6 +11516,29 @@ Replaced `Vec::with_capacity()` heap allocations for fixed-size `g_input` buffer
 - 3,534 total tests, 21 ignored, 0 clippy warnings
 
 ### Build Status (Post P48)
+- `cargo test --workspace --all-features`: 3,534 passed, 0 failed, 21 ignored
+- `RUSTFLAGS="-D warnings" cargo clippy`: 0 warnings
+- `cargo fmt --all -- --check`: clean
+
+## Phase P49 — CBC Padding Vec Elimination (2026-03-01)
+
+### Summary
+Replaced `vec![pad_len as u8; pad_len]` temporary heap allocation in CBC encrypt padding with `[0u8; 16]` stack array + `fill()`. Applied to both `cbc_encrypt` (AES-specific) and `cbc_encrypt_with` (generic BlockCipher). Also changed `plaintext.to_vec()` to `Vec::with_capacity(plaintext.len() + pad_len)` for a single right-sized allocation instead of growing.
+
+### Changes
+| File | Change |
+|------|--------|
+| `crates/hitls-crypto/src/modes/cbc.rs` | `cbc_encrypt`: `vec![pad_len; pad_len]` → stack `[0u8; AES_BLOCK_SIZE]` + `fill` + `extend_from_slice`. `cbc_encrypt_with`: same pattern with `[0u8; 16]` |
+
+### Impact
+- Eliminates 1 temporary heap allocation per CBC encrypt (padding bytes Vec)
+- Right-sized initial Vec allocation avoids reallocation during extend
+
+### Test Results
+- All 19 CBC tests + 1 Wycheproof CBC test pass
+- 3,534 total tests, 21 ignored, 0 clippy warnings
+
+### Build Status (Post P49)
 - `cargo test --workspace --all-features`: 3,534 passed, 0 failed, 21 ignored
 - `RUSTFLAGS="-D warnings" cargo clippy`: 0 warnings
 - `cargo fmt --all -- --check`: clean
