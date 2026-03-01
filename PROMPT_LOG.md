@@ -3515,3 +3515,17 @@ Targeted coverage gaps in connection_info, handshake enums, lib.rs constants, co
 - Reduces point additions: ~128 → ~64 per scalar mul (saves ~64 expensive field multiply chains)
 - Precompute cost: 15 point additions (amortized over 64 window lookups)
 - All 89 SM9 tests pass, 3,534 total tests, 21 ignored, 0 clippy warnings
+
+---
+
+## Phase P52 — ECC/EdDSA Windowed Scalar Multiplication (2026-03-01)
+
+**Prompt**: Continue performance optimizations. Generic ECC, Ed25519, and Ed448 scalar_mul use binary double-and-add. Apply w=4 fixed-window method.
+
+**Result**:
+- `ecc/point.rs scalar_mul`: w=4 window for P-384/P-521/Brainpool (generic Jacobian)
+- `curve25519/edwards.rs scalar_mul`: w=4 window for Ed25519 generic (LE byte order, reversed iteration)
+- `curve448/edwards.rs scalar_mul`: w=4 window for Ed448 generic
+- `GeExtended`: added `Copy` derive (all fields are `Fe25519([u64; 5])` which is `Copy`)
+- ~50% fewer point additions per scalar_mul across affected curves
+- All 3,534 tests pass, 21 ignored, 0 clippy warnings
