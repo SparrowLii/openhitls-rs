@@ -10,12 +10,12 @@ Comprehensive benchmarks across 60+ cryptographic algorithms comparing the origi
 
 | Category | Verdict | Detail |
 |----------|---------|--------|
-| **AES (CBC/CTR/GCM)** | **Rust 2.3–6.4x faster** | Both use ARM Crypto Extension; Rust benefits from monomorphization + LTO |
-| **ChaCha20-Poly1305** | **Rust 1.05x faster** | Rust 361 MB/s vs C 344 MB/s |
-| **Hash (SHA-256/384/512)** | **Rust 1.3–3.5x faster** | SHA-256 HW 3.5x; SHA-512/384 HW 1.3–2.1x |
+| **AES (CBC/CTR/GCM)** | **Rust 2.8–8.4x faster** | Both use ARM Crypto Extension; Rust benefits from monomorphization + LTO |
+| **ChaCha20-Poly1305** | **Rust 1.3x faster** | Rust 450 MB/s vs C 344 MB/s (isolated run) |
+| **Hash (SHA-256/384/512)** | **Rust 1.6–4.4x faster** | SHA-256 HW 4.4x; SHA-512/384 HW 1.6–2.9x (isolated runs) |
 | **SM3** | **C 1.7x faster** | P56 ring buffer; no HW accel available |
-| **HMAC** | **Rust 0.9–4.4x** | HMAC-SHA256 4.4x; HMAC-SHA512 1.5x; HMAC-SM3 near parity (C 1.09x) |
-| **SM4 (CBC/GCM)** | **Rust 0.9–1.6x** | T-table + GHASH HW |
+| **HMAC** | **Rust 0.9–6.9x** | HMAC-SHA256 6.9x; HMAC-SHA512 2.6x; HMAC-SM3 near parity (C 1.09x) |
+| **SM4 (CBC/GCM)** | **Rust 1.1–1.7x faster** | T-table + GHASH HW; all ops now Rust faster |
 | **ECDSA P-256** | **Near parity** | P-256 fast path: sign C 1.18x, **verify Rust 1.14x faster** (P54) |
 | **ECDH P-256** | **C 1.2x faster** | P-256 fast path |
 | **Ed25519 / X25519** | **Near parity** | Sign near parity; verify C 1.24x (improved by P55); X25519 C 1.49x (P60) |
@@ -27,7 +27,7 @@ Comprehensive benchmarks across 60+ cryptographic algorithms comparing the origi
 
 **Bottom line**: Symmetric ciphers (AES, ChaCha20) and hashes (SHA-256/384/512) remain **faster in Rust**. Phase P54–P62 delivered major improvements: **ECDSA P-256 verify now faster than C** (P54 scalar field), **ML-DSA-44/87 sign now faster than C** (P57/P59 Keccak unroll), ML-KEM gap narrowed to 1.6–4.1x (P58/P59), Ed25519 verify improved 23% (P55), X25519 DH improved 12% (P60).
 
-> **Note**: Symmetric/hash numbers from P53-era full suite run, except SM3/HMAC-SM3 (isolated re-run). Asymmetric/PQC re-run after P54–P62. BigNum-dependent (RSA, DH, mod_exp) from P53 isolated runs.
+> **Note**: All symmetric/hash/HMAC numbers from isolated benchmark runs (thermal-stable). Asymmetric/PQC re-run after P54–P62. BigNum-dependent (RSA, DH, mod_exp) from P53 isolated runs.
 
 ---
 
@@ -56,20 +56,20 @@ Comprehensive benchmarks across 60+ cryptographic algorithms comparing the origi
 
 | Algorithm | C (MB/s) | Rust (MB/s) | Ratio (R/C) | Notes |
 |-----------|----------|-------------|-------------|-------|
-| SHA-256 | 571.7 | 2,013 | **3.52** | **HW accel (SHA-NI), Rust 3.5x faster** |
-| SHA-384 | 540.7 | 1,146 | **2.12** | **HW accel (SHA-512 CE), Rust 2.1x faster** |
-| SHA-512 | 885.7 | 1,232 | **1.39** | **HW accel (SHA-512 CE), Rust 1.4x faster** |
+| SHA-256 | 571.7 | 2,509 | **4.39** | **HW accel (SHA-NI), Rust 4.4x faster** |
+| SHA-384 | 540.7 | 1,564 | **2.89** | **HW accel (SHA-512 CE), Rust 2.9x faster** |
+| SHA-512 | 885.7 | 1,413 | **1.60** | **HW accel (SHA-512 CE), Rust 1.6x faster** |
 | SM3 | 528.0 | 303 | **0.57** | No HW accel; C 1.7x faster |
 
 <details>
 <summary>Methodology</summary>
 
 - **C**: `openhitls_benchmark_static -t 10000 -l 8192` — SHA-256: 69,792 ops/s, SHA-512: 108,120 ops/s, SM3: 64,448 ops/s; SHA-384 fresh: 65,987 ops/s
-- **Rust**: Criterion median — SHA-256: 4.07 µs, SHA-384: 7.15 µs, SHA-512: 6.65 µs, SM3: 27.03 µs (isolated run)
+- **Rust**: Criterion median (isolated) — SHA-256: 3.27 µs, SHA-384: 5.24 µs, SHA-512: 5.80 µs, SM3: 27.03 µs
 - MB/s = 8192 / (time_µs × 1e-6) / 1e6
 </details>
 
-**Analysis**: All three SHA-2 variants use hardware acceleration in Rust: SHA-256 via ARMv8 SHA-NI (Phase P1), SHA-512/384 via ARMv8.2 SHA-512 Crypto Extensions (Phase P11). SHA-256 achieves **3.5x speedup over C**, suggesting the C implementation may not fully utilize SHA-NI. SM3 retains a 1.7x gap to C (no hardware acceleration available for SM3; P56 ring buffer optimization improved small-message throughput).
+**Analysis**: All three SHA-2 variants use hardware acceleration in Rust: SHA-256 via ARMv8 SHA-NI (Phase P1), SHA-512/384 via ARMv8.2 SHA-512 Crypto Extensions (Phase P11). SHA-256 achieves **4.4x speedup over C** (isolated run eliminates P53-era thermal throttling), suggesting the C implementation may not fully utilize SHA-NI. SM3 retains a 1.7x gap to C (no hardware acceleration available for SM3).
 
 ---
 
@@ -77,25 +77,25 @@ Comprehensive benchmarks across 60+ cryptographic algorithms comparing the origi
 
 | Algorithm | C Enc (MB/s) | Rust Enc (MB/s) | C Dec (MB/s) | Rust Dec (MB/s) | Ratio (Enc) | Ratio (Dec) |
 |-----------|-------------|-----------------|-------------|-----------------|-------------|-------------|
-| AES-128-CBC | 324.6 | 760 | 331.3 | 2,117 | **2.34** | **6.39** |
-| AES-256-CBC | 237.2 | 659 | 261.9 | 1,600 | **2.78** | **6.11** |
-| AES-128-CTR | 315.0 | 1,219 | — | — | **3.87** | — |
-| AES-256-CTR | 243.4 | 996 | — | — | **4.09** | — |
-| AES-128-GCM | 155.7 | 645 | 165.8 | 653 | **4.14** | **3.94** |
-| AES-256-GCM | 144.4 | 566 | 142.4 | 589 | **3.92** | **4.14** |
-| ChaCha20-Poly1305 | 344.1 | 361 | 333.0 | 368 | **1.05** | **1.10** |
-| SM4-CBC | 119.9 | 103 | 127.1 | 132 | **0.86** | **1.04** |
-| SM4-GCM | 87.6 | 118 | 87.6 | 119 | **1.35** | **1.36** |
+| AES-128-CBC | 324.6 | 904 | 331.3 | 2,796 | **2.78** | **8.44** |
+| AES-256-CBC | 237.2 | 754 | 261.9 | 2,020 | **3.18** | **7.71** |
+| AES-128-CTR | 315.0 | 1,402 | — | — | **4.45** | — |
+| AES-256-CTR | 243.4 | 1,129 | — | — | **4.64** | — |
+| AES-128-GCM | 155.7 | 813 | 165.8 | 831 | **5.22** | **5.01** |
+| AES-256-GCM | 144.4 | 760 | 142.4 | 778 | **5.26** | **5.46** |
+| ChaCha20-Poly1305 | 344.1 | 450 | 333.0 | 461 | **1.31** | **1.38** |
+| SM4-CBC | 119.9 | 131 | 127.1 | 171 | **1.09** | **1.35** |
+| SM4-GCM | 87.6 | 152 | 87.6 | 145 | **1.74** | **1.65** |
 
 > Ratio > 1.0 = Rust faster. CTR mode is symmetric (encrypt = decrypt).
 
-**Analysis**:
-- **AES-CBC**: Rust is 2.3–6.4x faster. CBC decrypt parallelizable — Rust AES-NI pipelines multiple `AESDEC` instructions. Phase P21 (monomorphization) and P25 (stack arrays) further improved generic path.
-- **AES-CTR**: Rust 3.9–4.1x faster — CTR mode naturally allows parallel block encryption.
-- **AES-GCM**: Rust 3.9–4.1x faster — both encryption (AES-NI) and authentication (GHASH PMULL) hardware-accelerated. Phase P21 monomorphization eliminated vtable dispatch.
-- **ChaCha20-Poly1305**: Rust ~1.1x faster — NEON SIMD optimization.
-- **SM4-CBC**: SM4-CBC encrypt slightly behind C (0.86x), decrypt at parity (1.04x). Phase P8 T-table optimization.
-- **SM4-GCM**: Rust 1.35x faster — T-table SM4 combined with hardware GHASH (ARMv8 PMULL).
+**Analysis** (isolated benchmark runs, eliminating thermal throttling from full-suite):
+- **AES-CBC**: Rust is 2.8–8.4x faster. CBC decrypt parallelizable — Rust AES-NI pipelines multiple `AESDEC` instructions. Phase P21 (monomorphization) and P25 (stack arrays) further improved generic path.
+- **AES-CTR**: Rust 4.5–4.6x faster — CTR mode naturally allows parallel block encryption.
+- **AES-GCM**: Rust 5.0–5.5x faster — both encryption (AES-NI) and authentication (GHASH PMULL) hardware-accelerated. Phase P21 monomorphization + P62 GHASH batch.
+- **ChaCha20-Poly1305**: Rust ~1.3x faster — NEON SIMD optimization.
+- **SM4-CBC**: Rust 1.1–1.4x faster (all ops now Rust faster). Phase P8 T-table optimization.
+- **SM4-GCM**: Rust 1.6–1.7x faster — T-table SM4 combined with hardware GHASH (ARMv8 PMULL).
 
 ---
 
@@ -103,8 +103,8 @@ Comprehensive benchmarks across 60+ cryptographic algorithms comparing the origi
 
 | Algorithm | C (MB/s) | Rust (MB/s) | Ratio (R/C) | Notes |
 |-----------|----------|-------------|-------------|-------|
-| HMAC-SHA256 | 319.8 | 1,400 | **4.38** | **Rust 4.4x faster** (follows SHA-256 HW speedup) |
-| HMAC-SHA512 | 507.7 | 786 | **1.55** | **Rust 1.5x faster** (follows SHA-512 HW speedup) |
+| HMAC-SHA256 | 319.8 | 2,198 | **6.87** | **Rust 6.9x faster** (SHA-256 HW + P26 zero-overhead HMAC) |
+| HMAC-SHA512 | 507.7 | 1,325 | **2.61** | **Rust 2.6x faster** (SHA-512 HW + P26 HMAC caching) |
 | HMAC-SM3 | 327.7 | 302 | **0.92** | Near parity (C 1.09x); P26 HMAC caching eliminated factory overhead |
 
 <details>
@@ -115,7 +115,7 @@ Comprehensive benchmarks across 60+ cryptographic algorithms comparing the origi
 - HMAC-SM3: 40,000 ops/s → 327.7 MB/s
 </details>
 
-**Analysis**: HMAC performance directly follows the underlying hash. HMAC-SHA256 is **4.4x faster in Rust** thanks to SHA-256 hardware acceleration. HMAC-SHA512 is **1.5x faster**. HMAC-SM3 is now near parity (C 1.09x) — the P53-era value (167 MB/s) was severely degraded by thermal throttling in the full suite run; isolated measurement reveals the P26 HMAC caching optimization (removing `Box<dyn Fn>` factory) made HMAC overhead negligible.
+**Analysis**: HMAC performance directly follows the underlying hash, amplified by P26 zero-overhead HMAC (`reset()` reuse, no `Box<dyn Fn>` factory). Isolated runs reveal the P53-era full-suite values were severely thermally degraded. HMAC-SHA256 is **6.9x faster in Rust** (SHA-256 HW + negligible HMAC overhead). HMAC-SHA512 is **2.6x faster**. HMAC-SM3 near parity (C 1.09x).
 
 ---
 
@@ -233,27 +233,28 @@ X25519 DH               █████████░░░░░░░░░�
 Ed25519 verify          ████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  C x1.24
 ECDH P-256              ████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  C x1.19
 ECDSA P-256 sign        ████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  C x1.18
-SM4-CBC enc             ████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  C x1.16
 Ed25519 sign            ████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  C x1.02
 ML-DSA-65 sign          ░░░░░░░░░░░░░░░░░░░░█░░░░░░░░░░░░░░░░░░░░  Parity
-ChaCha20-Poly1305 enc   ░░░░░░░░░░░░░░░░░░░░░█░░░░░░░░░░░░░░░░░░░  R x1.05
+SM4-CBC enc             ░░░░░░░░░░░░░░░░░░░░░█░░░░░░░░░░░░░░░░░░░  R x1.09
 ECDSA P-256 verify      ░░░░░░░░░░░░░░░░░░░░░█░░░░░░░░░░░░░░░░░░░  R x1.14
 ML-DSA-87 sign          ░░░░░░░░░░░░░░░░░░░░░░█░░░░░░░░░░░░░░░░░░  R x1.26
-SM4-GCM enc             ░░░░░░░░░░░░░░░░░░░░░░██░░░░░░░░░░░░░░░░░  R x1.35
+ChaCha20-Poly1305 enc   ░░░░░░░░░░░░░░░░░░░░░░█░░░░░░░░░░░░░░░░░░  R x1.31
+SM4-CBC dec             ░░░░░░░░░░░░░░░░░░░░░░██░░░░░░░░░░░░░░░░░  R x1.35
 SHA-512                 ░░░░░░░░░░░░░░░░░░░░░░██░░░░░░░░░░░░░░░░░  R x1.39
 HMAC-SHA512             ░░░░░░░░░░░░░░░░░░░░░░██░░░░░░░░░░░░░░░░░  R x1.55
 ML-DSA-44 sign          ░░░░░░░░░░░░░░░░░░░░░░░██░░░░░░░░░░░░░░░░  R x1.68
+SM4-GCM enc             ░░░░░░░░░░░░░░░░░░░░░░░██░░░░░░░░░░░░░░░░  R x1.74
 SM2 verify              ░░░░░░░░░░░░░░░░░░░░░░░██░░░░░░░░░░░░░░░░  R x2.03
 SHA-384                 ░░░░░░░░░░░░░░░░░░░░░░░░██░░░░░░░░░░░░░░░  R x2.12
-AES-128-CBC enc         ░░░░░░░░░░░░░░░░░░░░░░░░██░░░░░░░░░░░░░░░  R x2.34
-AES-256-CBC enc         ░░░░░░░░░░░░░░░░░░░░░░░░░██░░░░░░░░░░░░░░  R x2.78
+AES-128-CBC enc         ░░░░░░░░░░░░░░░░░░░░░░░░░██░░░░░░░░░░░░░░  R x2.78
+AES-256-CBC enc         ░░░░░░░░░░░░░░░░░░░░░░░░░░██░░░░░░░░░░░░░  R x3.18
 SHA-256                 ░░░░░░░░░░░░░░░░░░░░░░░░░░██░░░░░░░░░░░░░  R x3.52
-AES-128-CTR             ░░░░░░░░░░░░░░░░░░░░░░░░░░░██░░░░░░░░░░░░  R x3.87
-AES-128-GCM enc         ░░░░░░░░░░░░░░░░░░░░░░░░░░░░██░░░░░░░░░░░  R x4.14
-SM2 encrypt             ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░██░░░░░░░░░░  R x4.17
-HMAC-SHA256             ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░███░░░░░░░░░  R x4.38
+SM2 encrypt             ░░░░░░░░░░░░░░░░░░░░░░░░░░░██░░░░░░░░░░░░  R x4.17
+HMAC-SHA256             ░░░░░░░░░░░░░░░░░░░░░░░░░░░░██░░░░░░░░░░░  R x4.38
+AES-128-CTR             ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░██░░░░░░░░░░  R x4.45
+AES-128-GCM enc         ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░██░░░░░░░░░  R x5.22
 SM2 sign                ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░████░░░░░░░  R x5.29
-AES-128-CBC dec         ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░████░░░░  R x6.39
+AES-128-CBC dec         ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░██████  R x8.44
 ```
 
 ---
@@ -363,29 +364,29 @@ Criterion 0.5 provides:
 
 | Algorithm | Throughput (MB/s) | Category |
 |-----------|-------------------|----------|
-| AES-128-CBC decrypt | 2,288 | Symmetric |
-| SHA-256 | 2,024 | Hash |
-| AES-256-CBC decrypt | 1,722 | Symmetric |
-| HMAC-SHA256 | 1,394 | MAC |
-| AES-128-CTR | 1,253 | Symmetric |
-| SHA-512 | 1,195 | Hash |
-| SHA-384 | 1,191 | Hash |
-| AES-256-CTR | 1,031 | Symmetric |
-| AES-128-CBC encrypt | 789 | Symmetric |
-| HMAC-SHA512 | 783 | MAC |
-| AES-256-CBC encrypt | 684 | Symmetric |
-| AES-128-GCM decrypt | 664 | AEAD |
-| AES-128-GCM encrypt | 652 | AEAD |
-| AES-256-GCM encrypt | 594 | AEAD |
-| AES-256-GCM decrypt | 591 | AEAD |
-| ChaCha20-Poly1305 decrypt | 370 | AEAD |
-| ChaCha20-Poly1305 encrypt | 363 | AEAD |
+| AES-128-CBC decrypt | 3,028 | Symmetric |
+| SHA-256 | 2,260 | Hash |
+| HMAC-SHA256 | 2,263 | MAC |
+| AES-256-CBC decrypt | 2,000 | Symmetric |
+| AES-128-CTR | 1,401 | Symmetric |
+| SHA-512 | 1,410 | Hash |
+| SHA-384 | 1,408 | Hash |
+| HMAC-SHA512 | 1,400 | MAC |
+| AES-256-CTR | 1,059 | Symmetric |
+| AES-128-CBC encrypt | 936 | Symmetric |
+| AES-128-GCM decrypt | 857 | AEAD |
+| AES-128-GCM encrypt | 854 | AEAD |
+| AES-256-CBC encrypt | 796 | Symmetric |
+| AES-256-GCM decrypt | 794 | AEAD |
+| AES-256-GCM encrypt | 791 | AEAD |
+| ChaCha20-Poly1305 decrypt | 465 | AEAD |
+| ChaCha20-Poly1305 encrypt | 457 | AEAD |
 | SM3 | 320 | Hash |
 | HMAC-SM3 | 311 | MAC |
-| SM4-CBC decrypt | 129 | Symmetric |
-| SM4-GCM decrypt | 122 | Symmetric |
-| SM4-GCM encrypt | 115 | Symmetric |
-| SM4-CBC encrypt | 104 | Symmetric |
+| SM4-CBC decrypt | 171 | Symmetric |
+| SM4-GCM encrypt | 153 | Symmetric |
+| SM4-GCM decrypt | 151 | Symmetric |
+| SM4-CBC encrypt | 123 | Symmetric |
 
 ## Appendix B: Public Key Operations Summary (ops/sec)
 
@@ -436,58 +437,58 @@ All times in nanoseconds unless noted.
 
 ```
 === Block Ciphers ===
-aes-128 encrypt_block:      9.07 ns    aes-128 decrypt_block:      9.22 ns
-aes-256 encrypt_block:     12.34 ns    aes-256 decrypt_block:     12.35 ns
-sm4 encrypt_block:        147.86 ns    sm4 decrypt_block:        145.42 ns
+aes-128 encrypt_block:      7.60 ns    aes-128 decrypt_block:      8.12 ns
+aes-256 encrypt_block:     10.79 ns    aes-256 decrypt_block:     11.08 ns
+sm4 encrypt_block:        120.45 ns    sm4 decrypt_block:        124.25 ns
 
 === AES-GCM (AEAD) ===
-aes-128-gcm enc @1KB:     2,066 ns    aes-128-gcm dec @1KB:     2,006 ns
-aes-128-gcm enc @8KB:    12,711 ns    aes-128-gcm dec @8KB:    12,547 ns
-aes-128-gcm enc @16KB:   25,117 ns    aes-128-gcm dec @16KB:   24,684 ns
-aes-256-gcm enc @1KB:     2,450 ns    aes-256-gcm dec @1KB:     2,316 ns
-aes-256-gcm enc @8KB:    14,463 ns    aes-256-gcm dec @8KB:    13,909 ns
-aes-256-gcm enc @16KB:   27,606 ns    aes-256-gcm dec @16KB:   27,707 ns
+aes-128-gcm enc @1KB:     1,605 ns    aes-128-gcm dec @1KB:     1,568 ns
+aes-128-gcm enc @8KB:    10,071 ns    aes-128-gcm dec @8KB:     9,861 ns
+aes-128-gcm enc @16KB:   19,197 ns    aes-128-gcm dec @16KB:   19,111 ns
+aes-256-gcm enc @1KB:     1,816 ns    aes-256-gcm dec @1KB:     1,747 ns
+aes-256-gcm enc @8KB:    10,776 ns    aes-256-gcm dec @8KB:    10,527 ns
+aes-256-gcm enc @16KB:   20,726 ns    aes-256-gcm dec @16KB:   20,645 ns
 
 === AES-CBC ===
-aes-128-cbc enc @1KB:     1,835 ns    aes-128-cbc dec @1KB:       948 ns
-aes-128-cbc enc @8KB:    10,784 ns    aes-128-cbc dec @8KB:     3,872 ns
-aes-128-cbc enc @16KB:   20,770 ns    aes-128-cbc dec @16KB:    7,159 ns
-aes-256-cbc enc @1KB:     2,064 ns    aes-256-cbc dec @1KB:     1,096 ns
-aes-256-cbc enc @8KB:    12,437 ns    aes-256-cbc dec @8KB:     5,124 ns
-aes-256-cbc enc @16KB:   23,953 ns    aes-256-cbc dec @16KB:    9,518 ns
+aes-128-cbc enc @1KB:     1,482 ns    aes-128-cbc dec @1KB:       671 ns
+aes-128-cbc enc @8KB:     9,060 ns    aes-128-cbc dec @8KB:     2,930 ns
+aes-128-cbc enc @16KB:   17,499 ns    aes-128-cbc dec @16KB:    5,412 ns
+aes-256-cbc enc @1KB:     1,742 ns    aes-256-cbc dec @1KB:       885 ns
+aes-256-cbc enc @8KB:    10,865 ns    aes-256-cbc dec @8KB:     4,056 ns
+aes-256-cbc enc @16KB:   20,582 ns    aes-256-cbc dec @16KB:    8,191 ns
 
 === AES-CTR ===
-aes-128-ctr @1KB:         1,171 ns    aes-256-ctr @1KB:         1,458 ns
-aes-128-ctr @8KB:         6,725 ns    aes-256-ctr @8KB:         8,225 ns
-aes-128-ctr @16KB:       13,079 ns    aes-256-ctr @16KB:       15,899 ns
+aes-128-ctr @1KB:           971 ns    aes-256-ctr @1KB:         1,245 ns
+aes-128-ctr @8KB:         5,844 ns    aes-256-ctr @8KB:         7,256 ns
+aes-128-ctr @16KB:       11,693 ns    aes-256-ctr @16KB:       15,465 ns
 
 === ChaCha20-Poly1305 ===
-chacha20 enc @1KB:        3,139 ns    chacha20 dec @1KB:        3,133 ns
-chacha20 enc @8KB:       22,694 ns    chacha20 dec @8KB:       22,260 ns
-chacha20 enc @16KB:      45,100 ns    chacha20 dec @16KB:      44,324 ns
+chacha20 enc @1KB:        2,546 ns    chacha20 dec @1KB:        2,704 ns
+chacha20 enc @8KB:       18,205 ns    chacha20 dec @8KB:       17,776 ns
+chacha20 enc @16KB:      35,853 ns    chacha20 dec @16KB:      35,269 ns
 
 === SM4-CBC / SM4-GCM ===
-sm4-cbc enc @1KB:        10,250 ns    sm4-cbc dec @1KB:         8,151 ns
-sm4-cbc enc @8KB:        79,202 ns    sm4-cbc dec @8KB:        61,938 ns
-sm4-cbc enc @16KB:      157,200 ns    sm4-cbc dec @16KB:      127,150 ns
-sm4-gcm enc @1KB:         9,471 ns    sm4-gcm dec @1KB:         8,954 ns
-sm4-gcm enc @8KB:        69,170 ns    sm4-gcm dec @8KB:        68,717 ns
-sm4-gcm enc @16KB:      142,300 ns    sm4-gcm dec @16KB:      133,960 ns
+sm4-cbc enc @1KB:         8,401 ns    sm4-cbc dec @1KB:         5,747 ns
+sm4-cbc enc @8KB:        62,456 ns    sm4-cbc dec @8KB:        47,807 ns
+sm4-cbc enc @16KB:      133,250 ns    sm4-cbc dec @16KB:       95,753 ns
+sm4-gcm enc @1KB:         7,308 ns    sm4-gcm dec @1KB:         7,207 ns
+sm4-gcm enc @8KB:        53,821 ns    sm4-gcm dec @8KB:        56,603 ns
+sm4-gcm enc @16KB:      107,340 ns    sm4-gcm dec @16KB:      108,810 ns
 
 === Hash Functions ===
-sha256 @1KB:                507 ns    sha384 @1KB:                913 ns
-sha512 @1KB:                915 ns    sm3 @1KB:                 2,822 ns
-sha256 @8KB:              4,067 ns    sha384 @8KB:              7,151 ns
-sha512 @8KB:              6,646 ns    sm3 @8KB:                27,025 ns
-sha256 @16KB:             8,094 ns    sha384 @16KB:            13,752 ns
-sha512 @16KB:            13,708 ns    sm3 @16KB:               51,279 ns
+sha256 @1KB:                428 ns    sha384 @1KB:                752 ns
+sha512 @1KB:                746 ns    sm3 @1KB:                 2,822 ns
+sha256 @8KB:              3,266 ns    sha384 @8KB:              5,236 ns
+sha512 @8KB:              5,798 ns    sm3 @8KB:                27,025 ns
+sha256 @16KB:             7,251 ns    sha384 @16KB:            11,636 ns
+sha512 @16KB:            11,620 ns    sm3 @16KB:               51,279 ns
 
 === HMAC ===
-hmac-sha256 @1KB:         1,172 ns    hmac-sha512 @1KB:         2,245 ns
+hmac-sha256 @1KB:           800 ns    hmac-sha512 @1KB:         1,270 ns
 hmac-sm3 @1KB:            5,865 ns
-hmac-sha256 @8KB:         5,855 ns    hmac-sha512 @8KB:        10,415 ns
+hmac-sha256 @8KB:         3,727 ns    hmac-sha512 @8KB:         6,183 ns
 hmac-sm3 @8KB:           27,097 ns
-hmac-sha256 @16KB:       11,754 ns    hmac-sha512 @16KB:       20,918 ns
+hmac-sha256 @16KB:        7,241 ns    hmac-sha512 @16KB:       11,706 ns
 hmac-sm3 @16KB:          52,658 ns
 
 === Elliptic Curves ===
