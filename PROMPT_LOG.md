@@ -3529,3 +3529,19 @@ Targeted coverage gaps in connection_info, handshake enums, lib.rs constants, co
 - `GeExtended`: added `Copy` derive (all fields are `Fe25519([u64; 5])` which is `Copy`)
 - ~50% fewer point additions per scalar_mul across affected curves
 - All 3,534 tests pass, 21 ignored, 0 clippy warnings
+
+---
+
+## Phase P53 — BigNum CIOS Inner Loop Optimization (2026-03-01)
+
+**Prompt**: Optimize CIOS Montgomery multiplication inner loop. The `cios_mul` inner j-loop evaluates bounds checks on every iteration (`if j < b_len { b[j] } else { 0 }`). In the hot exp loop, both operands always have exactly n limbs, making these checks pure overhead. Also redundant sqr_buf clearing.
+
+**Result**:
+- Added `unsafe fn cios_mul_n()` — specialized CIOS with `get_unchecked` for guaranteed n-limb operands
+- Used in `mont_exp()` and `mont_exp_mont()` precomp table build + window multiply hot paths
+- Removed redundant `sqr_buf` clearing in exp loop (sqr_limbs already clears its output)
+- `sqr_limbs` clearing: iterator → `.fill(0)`
+- DH-4096: 35.50ms → 25.20ms (1.41× speedup), DH-2048: 4.58ms → 3.19ms (1.44×)
+- RSA-2048 sign: 1.37ms → 957µs (1.43×), mod_exp/4096: 35.64ms → 25.24ms (1.41×)
+- ~30% speedup across all Montgomery exponentiation workloads
+- All 3,534 tests pass, 21 ignored, 0 clippy warnings

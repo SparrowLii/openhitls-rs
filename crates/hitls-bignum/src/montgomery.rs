@@ -171,6 +171,61 @@ impl MontgomeryCtx {
         }
     }
 
+    /// Specialized CIOS for operands guaranteed to have exactly n limbs.
+    ///
+    /// Eliminates bounds checks and conditional zero-padding from the inner loop.
+    /// SAFETY: `a` and `b` must have at least `self.m_size` elements.
+    #[inline(always)]
+    unsafe fn cios_mul_n(&self, result: &mut [u64], a: &[u64], b: &[u64], scratch: &mut [u64]) {
+        let n = self.m_size;
+        let n_mod = self.modulus.limbs();
+        let np = self.n_prime;
+
+        // Clear accumulator
+        scratch[..n + 2].fill(0);
+
+        for i in 0..n {
+            let ai = *a.get_unchecked(i);
+
+            // Step 1: scratch += ai * b
+            let mut carry: u64 = 0;
+            for j in 0..n {
+                let prod = ai as DoubleLimb * *b.get_unchecked(j) as DoubleLimb
+                    + *scratch.get_unchecked(j) as DoubleLimb
+                    + carry as DoubleLimb;
+                *scratch.get_unchecked_mut(j) = prod as Limb;
+                carry = (prod >> LIMB_BITS) as u64;
+            }
+            let sum = *scratch.get_unchecked(n) as DoubleLimb + carry as DoubleLimb;
+            *scratch.get_unchecked_mut(n) = sum as Limb;
+            *scratch.get_unchecked_mut(n + 1) = (sum >> LIMB_BITS) as u64;
+
+            // Step 2: Montgomery reduction shift
+            let m = scratch.get_unchecked(0).wrapping_mul(np);
+
+            let prod0 = m as DoubleLimb * *n_mod.get_unchecked(0) as DoubleLimb
+                + *scratch.get_unchecked(0) as DoubleLimb;
+            carry = (prod0 >> LIMB_BITS) as u64;
+
+            for j in 1..n {
+                let prod = m as DoubleLimb * *n_mod.get_unchecked(j) as DoubleLimb
+                    + *scratch.get_unchecked(j) as DoubleLimb
+                    + carry as DoubleLimb;
+                *scratch.get_unchecked_mut(j - 1) = prod as Limb;
+                carry = (prod >> LIMB_BITS) as u64;
+            }
+            let sum = *scratch.get_unchecked(n) as DoubleLimb + carry as DoubleLimb;
+            *scratch.get_unchecked_mut(n - 1) = sum as Limb;
+            *scratch.get_unchecked_mut(n) =
+                *scratch.get_unchecked(n + 1) + (sum >> LIMB_BITS) as u64;
+        }
+
+        result[..n].copy_from_slice(&scratch[..n]);
+        if *scratch.get_unchecked(n) != 0 || limbs_ge(&result[..n], n_mod) {
+            limbs_sub_in_place(result, n_mod, n);
+        }
+    }
+
     /// Montgomery reduction (REDC) on a 2n-limb value stored in `work`.
     ///
     /// Computes `result = work * R^(-1) mod N` by cancelling the low n limbs.
@@ -265,7 +320,8 @@ impl MontgomeryCtx {
             let (left, right) = table.split_at_mut(i * n);
             let prev = &left[(i - 1) * n..];
             let cur = &mut right[..n];
-            self.cios_mul(cur, prev, &base_mont, &mut scratch);
+            // SAFETY: prev and base_mont both have exactly n limbs
+            unsafe { self.cios_mul_n(cur, prev, &base_mont, &mut scratch) };
         }
 
         // Main exponentiation loop
@@ -282,9 +338,6 @@ impl MontgomeryCtx {
 
             // Square window_bits times using dedicated sqr + redc (~33% fewer muls)
             for _ in 0..window_bits {
-                for x in sqr_buf.iter_mut() {
-                    *x = 0;
-                }
                 sqr_limbs(&result, n, &mut sqr_buf);
                 self.redc_limbs(&mut temp, &mut sqr_buf);
                 std::mem::swap(&mut result, &mut temp);
@@ -299,7 +352,8 @@ impl MontgomeryCtx {
             if window_val != 0 {
                 let idx = window_val as usize;
                 let table_entry = &table[idx * n..(idx + 1) * n];
-                self.cios_mul(&mut temp, &result, table_entry, &mut scratch);
+                // SAFETY: result and table_entry both have exactly n limbs
+                unsafe { self.cios_mul_n(&mut temp, &result, table_entry, &mut scratch) };
                 std::mem::swap(&mut result, &mut temp);
             }
         }
@@ -352,7 +406,8 @@ impl MontgomeryCtx {
             let (left, right) = table.split_at_mut(i * n);
             let prev = &left[(i - 1) * n..];
             let cur = &mut right[..n];
-            self.cios_mul(cur, prev, &base_mont, &mut scratch);
+            // SAFETY: prev and base_mont both have exactly n limbs
+            unsafe { self.cios_mul_n(cur, prev, &base_mont, &mut scratch) };
         }
 
         let mut result = vec![0u64; n];
@@ -366,9 +421,6 @@ impl MontgomeryCtx {
             i -= window_bits;
 
             for _ in 0..window_bits {
-                for x in sqr_buf.iter_mut() {
-                    *x = 0;
-                }
                 sqr_limbs(&result, n, &mut sqr_buf);
                 self.redc_limbs(&mut temp, &mut sqr_buf);
                 std::mem::swap(&mut result, &mut temp);
@@ -382,7 +434,8 @@ impl MontgomeryCtx {
             if window_val != 0 {
                 let idx = window_val as usize;
                 let table_entry = &table[idx * n..(idx + 1) * n];
-                self.cios_mul(&mut temp, &result, table_entry, &mut scratch);
+                // SAFETY: result and table_entry both have exactly n limbs
+                unsafe { self.cios_mul_n(&mut temp, &result, table_entry, &mut scratch) };
                 std::mem::swap(&mut result, &mut temp);
             }
         }
@@ -402,9 +455,7 @@ fn sqr_limbs(a: &[u64], n: usize, out: &mut [u64]) {
     debug_assert!(out.len() >= 2 * n + 2);
 
     // Clear output
-    for x in out[..2 * n + 2].iter_mut() {
-        *x = 0;
-    }
+    out[..2 * n + 2].fill(0);
 
     // SAFETY: a has at least n elements, out has at least 2n+2.
     // Cross products access out[i+j] where i+j < 2n.

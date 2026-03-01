@@ -219,6 +219,7 @@ Category summary:
 | 207 | P50 | Perf | ML-KEM Byte-Aligned Bit-Packing | 2026-03-01 |
 | 208 | P51 | Perf | SM9 Windowed Scalar Multiplication | 2026-03-01 |
 | 209 | P52 | Perf | ECC/EdDSA Windowed Scalar Multiplication | 2026-03-01 |
+| 210 | P53 | Perf | BigNum CIOS Inner Loop Optimization | 2026-03-01 |
 
 ---
 
@@ -11626,6 +11627,41 @@ Also added `Copy` derive to `GeExtended` (Ed25519 extended point) since all fiel
 - 3,534 total tests, 21 ignored, 0 clippy warnings
 
 ### Build Status (Post P52)
+- `cargo test --workspace --all-features`: 3,534 passed, 0 failed, 21 ignored
+- `RUSTFLAGS="-D warnings" cargo clippy`: 0 warnings
+- `cargo fmt --all -- --check`: clean
+
+## Phase P53 — BigNum CIOS Inner Loop Optimization (2026-03-01)
+
+### Summary
+Optimized the CIOS Montgomery multiplication inner loop in `hitls-bignum` by adding a specialized `cios_mul_n()` that eliminates bounds checks for n-limb operands, removing redundant `sqr_buf` clearing in the exponentiation loop, and using `.fill(0)` for `sqr_limbs` clearing.
+
+### Changes
+| File | Change |
+|------|--------|
+| `crates/hitls-bignum/src/montgomery.rs` | Added `unsafe fn cios_mul_n()` — specialized CIOS with `get_unchecked` for n-limb operands. Used in `mont_exp()` and `mont_exp_mont()` precomp table build + window multiply hot paths. Removed redundant `sqr_buf` clearing (sqr_limbs already clears). `sqr_limbs` clearing: iterator → `.fill(0)`. |
+
+### Implementation Details
+1. **`cios_mul_n()`**: Identical algorithm to `cios_mul()` but uses `get_unchecked`/`get_unchecked_mut` for all inner loop accesses. Eliminates `if i < a_len { a[i] } else { 0 }` and `if j < b_len { b[j] } else { 0 }` conditional branches from the O(n²) hot loop. Only called where both operands are guaranteed n-limb (precomp table entries, exponentiation result).
+2. **Redundant clearing removal**: `mont_exp`/`mont_exp_mont` cleared `sqr_buf` before every squaring call, but `sqr_limbs` immediately clears its output buffer. For DH-4096: 4096 squarings × 130 u64 writes = 532K unnecessary writes eliminated.
+3. **`sqr_limbs` fill**: `for x in out[..].iter_mut() { *x = 0; }` → `out[..].fill(0)` for potentially better SIMD memset codegen.
+
+### Benchmark Results (Apple M4, macOS 15.4)
+| Benchmark | Before (P52) | After (P53) | Speedup |
+|-----------|-------------|-------------|---------|
+| DH-4096 keygen | 35.50 ms | 25.20 ms | 1.41× |
+| DH-2048 keygen | 4.58 ms | 3.19 ms | 1.44× |
+| RSA-2048 sign (PSS) | 1.37 ms | 957 µs | 1.43× |
+| bignum/mod_exp/4096 | 35.64 ms | 25.24 ms | 1.41× |
+| bignum/mod_exp/2048 | 4.64 ms | 3.24 ms | 1.43× |
+
+~30% speedup across all Montgomery exponentiation workloads. DH-4096 gap to C narrowed from 10.3× to 7.3×.
+
+### Test Results
+- All 80 bignum tests pass
+- 3,534 total tests, 21 ignored, 0 clippy warnings
+
+### Build Status (Post P53)
 - `cargo test --workspace --all-features`: 3,534 passed, 0 failed, 21 ignored
 - `RUSTFLAGS="-D warnings" cargo clippy`: 0 warnings
 - `cargo fmt --all -- --check`: clean
