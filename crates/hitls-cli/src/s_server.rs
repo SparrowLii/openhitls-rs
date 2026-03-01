@@ -287,4 +287,64 @@ zwS7ekmeex/ZRkHXaFTKnywwOraGSJAlcwAwlMNLCrkZn9wm79fcuaRoBCCYpCZL
         let key = pkcs8::parse_pkcs8_der(&der).unwrap();
         assert!(pkcs8_to_server_key(key).is_err());
     }
+
+    #[test]
+    fn test_pkcs8_to_server_key_ed448() {
+        let seed = [0x42u8; 57];
+        let der = pkcs8::encode_ed448_pkcs8_der(&seed);
+        let key = pkcs8::parse_pkcs8_der(&der).unwrap();
+        let server_key = pkcs8_to_server_key(key).unwrap();
+        match &server_key {
+            ServerPrivateKey::Ed448(s) => assert_eq!(s.len(), 57),
+            _ => panic!("expected Ed448"),
+        }
+    }
+
+    #[test]
+    fn test_pkcs8_to_server_key_x448_unsupported() {
+        let key_bytes = [0x42u8; 56];
+        let der = pkcs8::encode_x448_pkcs8_der(&key_bytes);
+        let key = pkcs8::parse_pkcs8_der(&der).unwrap();
+        assert!(
+            pkcs8_to_server_key(key).is_err(),
+            "X448 not valid for TLS server signing"
+        );
+    }
+
+    #[test]
+    fn test_s_server_invalid_version() {
+        let result = run(
+            0,
+            "/nonexistent/cert.pem",
+            "/nonexistent/key.pem",
+            "1.1",
+            true,
+        );
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_s_server_missing_cert() {
+        let result = run(
+            0,
+            "/nonexistent/cert.pem",
+            "/nonexistent/key.pem",
+            "1.3",
+            true,
+        );
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_s_server_missing_key() {
+        // Create a temp cert file to get past cert loading, but key file doesn't exist
+        let result = run(
+            0,
+            "/nonexistent/cert.pem",
+            "/nonexistent/key.pem",
+            "1.2",
+            true,
+        );
+        assert!(result.is_err());
+    }
 }

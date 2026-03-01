@@ -142,3 +142,59 @@ pub trait KeyAgreement: Send + Sync {
     /// Compute the shared secret from the peer's public key.
     fn compute_shared_secret(&self, peer_public_key: &[u8]) -> Result<Vec<u8>, CryptoError>;
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Test HashAlgorithm::hash() default implementation via SHA-256.
+    #[test]
+    fn test_hash_algorithm_default_impl() {
+        use crate::sha2::Sha256;
+
+        struct Sha256Factory;
+        impl HashAlgorithm for Sha256Factory {
+            fn new_digest(&self) -> Box<dyn Digest> {
+                Box::new(Sha256::new())
+            }
+        }
+
+        let factory = Sha256Factory;
+        let result = factory.hash(b"abc").unwrap();
+        assert_eq!(result.len(), 32);
+        // NIST SHA-256("abc") known answer
+        assert_eq!(
+            &result[..4],
+            &[0xba, 0x78, 0x16, 0xbf],
+            "SHA-256(abc) prefix"
+        );
+    }
+
+    /// Test Digest trait output_size/block_size via SHA-256.
+    #[test]
+    fn test_digest_trait_output_size() {
+        use crate::sha2::Sha256;
+
+        let d: Box<dyn Digest> = Box::new(Sha256::new());
+        assert_eq!(d.output_size(), 32);
+        assert_eq!(d.block_size(), 64);
+    }
+
+    /// Test Digest reset+update+finish cycle.
+    #[test]
+    fn test_digest_trait_reset() {
+        use crate::sha2::Sha256;
+
+        let mut d: Box<dyn Digest> = Box::new(Sha256::new());
+        d.update(b"first").unwrap();
+        let mut out1 = [0u8; 32];
+        d.finish(&mut out1).unwrap();
+
+        d.reset();
+        d.update(b"first").unwrap();
+        let mut out2 = [0u8; 32];
+        d.finish(&mut out2).unwrap();
+
+        assert_eq!(out1, out2, "reset should produce same result");
+    }
+}

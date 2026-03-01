@@ -309,4 +309,40 @@ mod tests {
     fn test_run_all_kat() {
         run_all_kat().unwrap();
     }
+
+    /// Verify RCT threshold boundary — 4 same samples should pass, 5 should fail.
+    #[test]
+    fn test_kat_entropy_rct_boundary() {
+        use crate::entropy::health::RctTest;
+        let mut rct = RctTest::new(5);
+        // 4 repetitions should be OK
+        for _ in 0..4 {
+            rct.test(0x42).unwrap();
+        }
+        // 5th should fail
+        assert!(rct.test(0x42).is_err(), "5th repetition should trigger RCT");
+    }
+
+    /// Verify APT window boundary — within window, cutoff samples trigger failure.
+    #[test]
+    fn test_kat_entropy_apt_boundary() {
+        use crate::entropy::health::AptTest;
+        // window_size=10, cutoff=8 → 8 matches within 10 samples triggers failure
+        let mut apt = AptTest::new(10, 8);
+        let mut failed = false;
+        for _ in 0..10 {
+            if apt.test(0x42).is_err() {
+                failed = true;
+                break;
+            }
+        }
+        assert!(failed, "APT should detect biased source within window");
+    }
+
+    /// Verify run_all_kat() can be called consecutively.
+    #[test]
+    fn test_kat_run_all_consecutive() {
+        run_all_kat().unwrap();
+        run_all_kat().unwrap();
+    }
 }

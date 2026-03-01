@@ -134,4 +134,19 @@ mod tests {
     fn test_run_all_pct() {
         run_all_pct().unwrap();
     }
+
+    /// Run PCT twice to verify deterministic stability.
+    #[test]
+    fn test_pct_ecdsa_p256_deterministic() {
+        pct_ecdsa_p256().unwrap();
+        pct_ecdsa_p256().unwrap();
+    }
+
+    /// Full PCT chain runs without interference between subtests.
+    #[test]
+    fn test_pct_run_all_coverage() {
+        // Run all PCT tests multiple times to exercise all pct_* sub-functions
+        run_all_pct().unwrap();
+        run_all_pct().unwrap();
+    }
 }

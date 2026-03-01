@@ -3545,3 +3545,17 @@ Targeted coverage gaps in connection_info, handshake enums, lib.rs constants, co
 - RSA-2048 sign: 1.37ms → 957µs (1.43×), mod_exp/4096: 35.64ms → 25.24ms (1.41×)
 - ~30% speedup across all Montgomery exponentiation workloads
 - All 3,534 tests pass, 21 ignored, 0 clippy warnings
+
+---
+
+## Phase T65 — Test Coverage Enhancement (+66 tests, CI coverage infrastructure) (2026-03-01)
+
+**Prompt**: Implement Phase T65 — Test Coverage Enhancement. Switch CI from cargo-tarpaulin to cargo-llvm-cov with branch coverage. Add ~70 tests targeting low-coverage files: TLS 1.3 server, TLS 1.2 client/server, crypto primitives (DRBG, GCM, McEliece matrix, provider, DSA, ElGamal, FIPS KAT/PCT), and CLI commands (s_client, s_server, speed).
+
+**Result**:
+- CI coverage: cargo-tarpaulin → cargo-llvm-cov with `--branch --codecov`
+- +17 TLS integration tests (8 TLS 1.3 + 9 TLS 1.2): key_update, post-HS auth, EKM, session resumption, PSK, renegotiation
+- +28 crypto tests: DRBG counter (+3), provider traits (+3), McEliece matrix (+5), GCM nonce (+5), ElGamal errors (+4), DSA validation (+5), FIPS KAT/PCT (+5)
+- +5 TLS crate tests: DigestVariant SHA-1, CCM/CCM_8 suite params
+- +14 CLI tests: s_client parse (+4), s_server key conversion (+5), speed benchmarks (+5)
+- All 3,600 tests pass, 21 ignored, 0 clippy warnings

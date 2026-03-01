@@ -237,6 +237,36 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_connect_ipv6() {
+        // IPv6 address: [::1]:443 — rfind(':') finds the last colon after ']'
+        let (host, addr) = parse_connect("[::1]:443").unwrap();
+        assert_eq!(host, "[::1]");
+        assert_eq!(addr, "[::1]:443");
+    }
+
+    #[test]
+    fn test_parse_connect_empty() {
+        // Empty string: no colon → treated as hostname, gets ":443" appended
+        let (host, addr) = parse_connect("").unwrap();
+        assert_eq!(host, "");
+        assert_eq!(addr, ":443");
+    }
+
+    #[test]
+    fn test_parse_connect_port_only() {
+        let (host, addr) = parse_connect(":8080").unwrap();
+        assert_eq!(host, "");
+        assert_eq!(addr, ":8080");
+    }
+
+    #[test]
+    fn test_s_client_connection_refused() {
+        // Port 1 is almost certainly not listening
+        let result = run("127.0.0.1:1", None, "1.3", None, true, false, true);
+        assert!(result.is_err());
+    }
+
+    #[test]
     #[ignore] // Requires internet access
     fn test_s_client_tls12_with_alpn() {
         run(

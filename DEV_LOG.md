@@ -220,6 +220,7 @@ Category summary:
 | 208 | P51 | Perf | SM9 Windowed Scalar Multiplication | 2026-03-01 |
 | 209 | P52 | Perf | ECC/EdDSA Windowed Scalar Multiplication | 2026-03-01 |
 | 210 | P53 | Perf | BigNum CIOS Inner Loop Optimization | 2026-03-01 |
+| 211 | T65 | Test | Test Coverage Enhancement (+66 tests, CI coverage infra) | 2026-03-01 |
 
 ---
 
@@ -11663,5 +11664,54 @@ Optimized the CIOS Montgomery multiplication inner loop in `hitls-bignum` by add
 
 ### Build Status (Post P53)
 - `cargo test --workspace --all-features`: 3,534 passed, 0 failed, 21 ignored
+- `RUSTFLAGS="-D warnings" cargo clippy`: 0 warnings
+- `cargo fmt --all -- --check`: clean
+
+---
+
+## Phase T65 — Test Coverage Enhancement (+66 tests, CI coverage infrastructure) (2026-03-01)
+
+### Summary
+Enhance test coverage across TLS connection layer, cryptographic primitives, and CLI commands. Switch CI coverage from cargo-tarpaulin to cargo-llvm-cov with branch coverage enabled. Add 66 new tests targeting low-coverage files identified by llvm-cov analysis.
+
+### Changes
+
+| File | Status | Description |
+|------|--------|-------------|
+| `.github/workflows/ci.yml` | Modified | Switched coverage from cargo-tarpaulin to cargo-llvm-cov with `--branch --codecov` output |
+| `tests/interop/tests/tls13.rs` | Modified | +8 TLS 1.3 tests: key_update, post-HS auth, server accessors, EKM, shutdown |
+| `tests/interop/tests/tls12.rs` | Modified | +9 TLS 1.2 tests: EKM, abbreviated handshake, RSA KX, PSK, renegotiation, shutdown, mTLS, MFL, accessors |
+| `crates/hitls-crypto/src/drbg/mod.rs` | Modified | +3 tests: increment_counter no carry, carry propagation, HMAC-DRBG generate |
+| `crates/hitls-crypto/src/provider.rs` | Modified | +3 tests: HashAlgorithm default impl, Digest output_size/block_size, reset cycle |
+| `crates/hitls-crypto/src/mceliece/matrix.rs` | Modified | +5 tests: singular matrix, nontrivial reduction, extract_t, xor_row_masked, row_slice_mut |
+| `crates/hitls-crypto/src/modes/gcm.rs` | Modified | +5 tests: 7-byte/1-byte/64-byte nonce, precomputed GhashTable, tampered decrypt |
+| `crates/hitls-crypto/src/elgamal/mod.rs` | Modified | +4 tests: generate too small bits, p too small, ciphertext too short, c1_len overflow |
+| `crates/hitls-crypto/src/dsa/mod.rs` | Modified | +5 tests: empty params, q even, g≥p, invalid DER, x=0 rejection |
+| `crates/hitls-crypto/src/fips/pct.rs` | Modified | +2 tests: deterministic stability, run_all_pct consecutive |
+| `crates/hitls-crypto/src/fips/kat.rs` | Modified | +3 tests: RCT threshold boundary, APT window boundary, run_all_kat consecutive |
+| `crates/hitls-tls/src/crypt/mod.rs` | Modified | +5 tests: DigestVariant SHA-1, ECDHE-ECDSA CCM/CCM_8, RSA CCM, SHA-1 hash verify |
+| `crates/hitls-cli/src/s_client.rs` | Modified | +4 tests: IPv6 parse, empty/port-only connect, connection refused |
+| `crates/hitls-cli/src/s_server.rs` | Modified | +5 tests: Ed448/X448 key conversion, invalid version, missing cert/key |
+| `crates/hitls-cli/src/speed.rs` | Modified | +5 tests: AES-128-GCM, AES-256-GCM, ChaCha20, SM3, all dispatch |
+
+### CI Infrastructure
+
+- **Before**: cargo-tarpaulin (line coverage only, XML Cobertura)
+- **After**: cargo-llvm-cov with `--branch --codecov` (line + branch coverage, Codecov JSON)
+- `taiki-e/install-action@cargo-llvm-cov` for fast pre-built binary installation
+- `--ignore-filename-regex "tests/vectors/"` to exclude test vector data
+
+### Test Count Breakdown
+
+| Crate | Before | After | Delta |
+|-------|--------|-------|-------|
+| hitls-crypto | 1182 (14 ign) | 1210 (14 ign) | +28 |
+| hitls-tls | 1384 | 1389 | +5 |
+| hitls-cli | 117 (5 ign) | 131 (5 ign) | +14 |
+| hitls-integration-tests | 241 (2 ign) | 258 (2 ign) | +17 |
+| **Total** | **3534 (21 ign)** | **3600 (21 ign)** | **+66** |
+
+### Build Status (Post T65)
+- `cargo test --workspace --all-features`: 3,600 passed, 0 failed, 21 ignored
 - `RUSTFLAGS="-D warnings" cargo clippy`: 0 warnings
 - `cargo fmt --all -- --check`: clean

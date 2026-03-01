@@ -76,3 +76,35 @@ pub use sm4_ctr_drbg::Sm4CtrDrbg;
 
 pub mod hash_drbg;
 pub use hash_drbg::HashDrbg;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_increment_counter_no_carry() {
+        let mut v = [0u8; 16];
+        v[15] = 0x41;
+        increment_counter(&mut v);
+        assert_eq!(v[15], 0x42);
+        assert_eq!(v[14], 0);
+    }
+
+    #[test]
+    fn test_increment_counter_carry_propagation() {
+        // All 0xFF — should wrap to all zeros
+        let mut v = [0xFFu8; 16];
+        increment_counter(&mut v);
+        assert_eq!(v, [0u8; 16]);
+    }
+
+    #[test]
+    fn test_hmac_drbg_generate() {
+        let seed = [0x42u8; 48]; // entropy || nonce
+        let mut drbg = HmacDrbg::new(&seed).unwrap();
+        let mut out = [0u8; 32];
+        drbg.generate(&mut out, None).unwrap();
+        // Should not be all zeros
+        assert!(out.iter().any(|&b| b != 0));
+    }
+}

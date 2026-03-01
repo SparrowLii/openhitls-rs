@@ -597,6 +597,82 @@ mod tests {
         assert!(sm4_gcm_decrypt(&key, &nonce, &[], &ct).is_err());
     }
 
+    /// GCM with 8-byte nonce (non-standard, uses GHASH for J0).
+    #[test]
+    fn test_gcm_nonce_8_bytes() {
+        let key = hex("feffe9928665731c6d6a8f9467308308");
+        let nonce = hex("cafebabefacedb"); // 7 bytes
+        let pt = b"test data for short nonce";
+        let ct = gcm_encrypt(&key, &nonce, &[], pt).unwrap();
+        let recovered = gcm_decrypt(&key, &nonce, &[], &ct).unwrap();
+        assert_eq!(&recovered, pt);
+    }
+
+    /// GCM with 1-byte nonce boundary.
+    #[test]
+    fn test_gcm_nonce_1_byte() {
+        let key = hex("feffe9928665731c6d6a8f9467308308");
+        let nonce = vec![0x42u8]; // 1 byte
+        let pt = b"one byte nonce test";
+        let ct = gcm_encrypt(&key, &nonce, &[], pt).unwrap();
+        let recovered = gcm_decrypt(&key, &nonce, &[], &ct).unwrap();
+        assert_eq!(&recovered, pt);
+    }
+
+    /// GCM with 64-byte long nonce.
+    #[test]
+    fn test_gcm_nonce_64_bytes() {
+        let key = hex("feffe9928665731c6d6a8f9467308308");
+        let nonce = vec![0xAB; 64]; // 64 bytes
+        let pt = b"long nonce test";
+        let ct = gcm_encrypt(&key, &nonce, &[], pt).unwrap();
+        let recovered = gcm_decrypt(&key, &nonce, &[], &ct).unwrap();
+        assert_eq!(&recovered, pt);
+    }
+
+    /// GCM with precomputed GhashTable reuse.
+    #[test]
+    fn test_gcm_with_precomputed_table() {
+        use super::gcm_decrypt_with;
+        use super::gcm_encrypt_with;
+        use super::GhashTable;
+        use crate::aes::AesKey;
+
+        let key_bytes = hex("feffe9928665731c6d6a8f9467308308");
+        let aes_key = AesKey::new(&key_bytes).unwrap();
+
+        let table = GhashTable::from_cipher(&aes_key).unwrap();
+
+        let nonce = hex("cafebabefacedbaddecaf888");
+        let pt1 = b"first message";
+        let pt2 = b"second message";
+
+        // Encrypt two messages with the same key/table
+        let ct1 = gcm_encrypt_with(&aes_key, &table, &nonce, &[], pt1).unwrap();
+        let nonce2 = hex("cafebabefacedbaddecaf889");
+        let ct2 = gcm_encrypt_with(&aes_key, &table, &nonce2, &[], pt2).unwrap();
+
+        let r1 = gcm_decrypt_with(&aes_key, &table, &nonce, &[], &ct1).unwrap();
+        let r2 = gcm_decrypt_with(&aes_key, &table, &nonce2, &[], &ct2).unwrap();
+        assert_eq!(&r1, pt1);
+        assert_eq!(&r2, pt2);
+    }
+
+    /// GCM decrypt with tampered ciphertext → tag verification failure.
+    #[test]
+    fn test_gcm_decrypt_tampered() {
+        let key = hex("feffe9928665731c6d6a8f9467308308");
+        let nonce = hex("cafebabefacedbaddecaf888");
+        let pt = b"hello world";
+        let mut ct = gcm_encrypt(&key, &nonce, &[], pt).unwrap();
+        // Tamper with ciphertext byte (not tag)
+        ct[0] ^= 0x01;
+        assert!(matches!(
+            gcm_decrypt(&key, &nonce, &[], &ct),
+            Err(CryptoError::AeadTagVerifyFail)
+        ));
+    }
+
     mod proptests {
         use super::super::{gcm_decrypt, gcm_encrypt};
         use proptest::prelude::*;

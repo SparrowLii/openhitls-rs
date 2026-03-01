@@ -327,4 +327,41 @@ mod tests {
             "tampered ciphertext should decrypt to different value"
         );
     }
+
+    #[test]
+    fn test_elgamal_generate_too_small_bits() {
+        let result = ElGamalKeyPair::generate(16);
+        assert!(result.is_err(), "bits < 32 should fail");
+    }
+
+    #[test]
+    fn test_elgamal_from_params_p_too_small() {
+        let p = BigNum::from_u64(2);
+        let g = BigNum::from_u64(1);
+        let result = ElGamalKeyPair::from_params(&p, &g);
+        assert!(result.is_err(), "p <= 2 should fail");
+    }
+
+    #[test]
+    fn test_elgamal_decrypt_ciphertext_too_short() {
+        let p = BigNum::from_u64(23);
+        let g = BigNum::from_u64(5);
+        let x = BigNum::from_u64(7);
+        let kp = ElGamalKeyPair::from_private_key(&p, &g, &x).unwrap();
+
+        // 4 bytes exactly (just length field, no data)
+        assert!(kp.decrypt(&[0, 0, 0, 1]).is_err());
+    }
+
+    #[test]
+    fn test_elgamal_decrypt_c1_len_exceeds_data() {
+        let p = BigNum::from_u64(23);
+        let g = BigNum::from_u64(5);
+        let x = BigNum::from_u64(7);
+        let kp = ElGamalKeyPair::from_private_key(&p, &g, &x).unwrap();
+
+        // c1_len=100 but only 2 bytes follow
+        let bad = vec![0, 0, 0, 100, 0xAB, 0xCD];
+        assert!(kp.decrypt(&bad).is_err());
+    }
 }

@@ -138,4 +138,29 @@ mod tests {
     fn test_cli_speed_invalid_algorithm() {
         assert!(run("invalid", 1).is_err());
     }
+
+    #[test]
+    fn test_cli_speed_aes128_gcm() {
+        run("aes-128-gcm", 1).unwrap();
+    }
+
+    #[test]
+    fn test_cli_speed_aes256_gcm() {
+        run("aes-256-gcm", 1).unwrap();
+    }
+
+    #[test]
+    fn test_cli_speed_chacha20() {
+        run("chacha20-poly1305", 1).unwrap();
+    }
+
+    #[test]
+    fn test_cli_speed_sm3() {
+        run("sm3", 1).unwrap();
+    }
+
+    #[test]
+    fn test_cli_speed_all() {
+        run("all", 1).unwrap();
+    }
 }

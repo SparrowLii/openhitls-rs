@@ -1887,6 +1887,54 @@ mod tests_cipher_suite_params {
     }
 
     #[test]
+    fn test_digest_variant_sha1() {
+        let hasher = DigestVariant::new(HashAlgId::Sha1);
+        assert_eq!(hasher.output_size(), 20);
+        assert_eq!(DigestVariant::output_size_for(HashAlgId::Sha1), 20);
+    }
+
+    #[test]
+    fn test_tls12_ecdhe_ecdsa_ccm_params() {
+        let p = Tls12CipherSuiteParams::from_suite(CipherSuite::TLS_ECDHE_ECDSA_WITH_AES_128_CCM)
+            .unwrap();
+        assert!(!p.is_cbc);
+        assert_eq!(p.kx_alg, KeyExchangeAlg::Ecdhe);
+        assert_eq!(p.auth_alg, AuthAlg::Ecdsa);
+        assert_eq!(p.key_len, 16);
+        assert_eq!(p.tag_len, 16);
+    }
+
+    #[test]
+    fn test_tls12_ecdhe_ecdsa_ccm8_params() {
+        let p = Tls12CipherSuiteParams::from_suite(CipherSuite::TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8)
+            .unwrap();
+        assert!(!p.is_cbc);
+        assert_eq!(p.tag_len, 8); // CCM_8 uses 8-byte tag
+    }
+
+    #[test]
+    fn test_tls12_rsa_ccm_params() {
+        let p = Tls12CipherSuiteParams::from_suite(CipherSuite::TLS_RSA_WITH_AES_128_CCM).unwrap();
+        assert!(!p.is_cbc);
+        assert_eq!(p.kx_alg, KeyExchangeAlg::Rsa);
+        assert_eq!(p.auth_alg, AuthAlg::Rsa);
+        assert_eq!(p.key_len, 16);
+        assert_eq!(p.tag_len, 16);
+    }
+
+    #[test]
+    fn test_digest_variant_sha1_hash_update_finish() {
+        let mut hasher = DigestVariant::new(HashAlgId::Sha1);
+        hasher.update(b"abc").unwrap();
+        let mut out = vec![0u8; 20];
+        hasher.finish(&mut out).unwrap();
+        // SHA-1("abc") = a9993e364706816aba3e25717850c26c9cd0d89d
+        let expected = "a9993e364706816aba3e25717850c26c9cd0d89d";
+        let got: String = out.iter().map(|b| format!("{b:02x}")).collect();
+        assert_eq!(got, expected);
+    }
+
+    #[test]
     fn test_digest_variant_produces_correct_output_size() {
         let params = CipherSuiteParams::from_suite(CipherSuite::TLS_AES_128_GCM_SHA256).unwrap();
         let mut hasher = DigestVariant::new(params.hash_alg_id());

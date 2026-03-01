@@ -493,4 +493,127 @@ mod tests {
         assert_eq!(same_mask(5, 10), 0);
         assert_eq!(same_mask(u32::MAX, 0), 0);
     }
+
+    /// Singular matrix → error from reduce_to_systematic.
+    #[test]
+    fn test_reduce_to_systematic_singular() {
+        // 4x8 matrix where row 0 and row 1 are identical → singular
+        let mut m = BitMatrix::new(4, 8);
+        m.set_bit(0, 0, 1);
+        m.set_bit(0, 4, 1);
+        m.set_bit(1, 0, 1); // same pivot as row 0
+        m.set_bit(1, 4, 1);
+        m.set_bit(2, 2, 1);
+        m.set_bit(3, 3, 1);
+        // After pivot for col 0, rows 0 and 1 will XOR to zero on col 0.
+        // Then pivot for col 1 is missing → McElieceKeygenFail.
+        let result = reduce_to_systematic(&mut m);
+        assert!(result.is_err(), "singular matrix should fail");
+    }
+
+    /// Reduce a nontrivial matrix that requires row swapping.
+    #[test]
+    fn test_reduce_to_systematic_nontrivial() {
+        // 3×6 matrix (rows=3, cols=6, cols_bytes=1)
+        // Row 0: 010 110 = bits [1,4,5] set
+        // Row 1: 100 010 = bits [0,4] set  (but after XOR becomes pivot row 0)
+        // Row 2: 001 001 = bits [2,5] set
+        // After elimination, left 3×3 should be identity
+        let mut m = BitMatrix::new(3, 6);
+        // Row 0: bits 1,4,5
+        m.set_bit(0, 1, 1);
+        m.set_bit(0, 4, 1);
+        m.set_bit(0, 5, 1);
+        // Row 1: bits 0,4
+        m.set_bit(1, 0, 1);
+        m.set_bit(1, 4, 1);
+        // Row 2: bits 2,5
+        m.set_bit(2, 2, 1);
+        m.set_bit(2, 5, 1);
+
+        let result = reduce_to_systematic(&mut m);
+        assert!(result.is_ok(), "nontrivial matrix should succeed");
+        // Left 3×3 should be identity
+        for i in 0..3 {
+            for j in 0..3 {
+                let expected = if i == j { 1 } else { 0 };
+                assert_eq!(m.get_bit(i, j), expected, "({i},{j})");
+            }
+        }
+    }
+
+    /// Test extract_t from systematic form.
+    #[test]
+    fn test_extract_t_from_systematic() {
+        use super::super::params::McElieceParams;
+        // Create a small "systematic" 4×8 matrix [I_4 | T]
+        // with T = [[1,1,0,0],[0,1,1,0],[0,0,1,1],[1,0,0,1]]
+        let mut m = BitMatrix::new(4, 8);
+        // Identity part
+        for i in 0..4 {
+            m.set_bit(i, i, 1);
+        }
+        // T part (cols 4..8)
+        m.set_bit(0, 4, 1);
+        m.set_bit(0, 5, 1);
+        m.set_bit(1, 5, 1);
+        m.set_bit(1, 6, 1);
+        m.set_bit(2, 6, 1);
+        m.set_bit(2, 7, 1);
+        m.set_bit(3, 4, 1);
+        m.set_bit(3, 7, 1);
+
+        // Use a minimal params struct that has n=8, mt=4
+        let params = McElieceParams {
+            n: 8,
+            t: 4,
+            m: 1,
+            mt: 4,
+            k: 4,
+            n_bytes: 1,
+            mt_bytes: 1,
+            k_bytes: 1,
+            private_key_bytes: 0,
+            public_key_bytes: 0,
+            cipher_bytes: 0,
+            shared_key_bytes: 0,
+            semi: false,
+            pc: false,
+        };
+        let t_data = extract_t(&m, &params);
+        // T submatrix: k=4 columns, 4 rows
+        // Row 0: bits 4→0, 5→1 → 0b11 = 0x03
+        // Row 1: bits 5→1, 6→2 → 0b110 = 0x06
+        // Row 2: bits 6→2, 7→3 → 0b1100 = 0x0C
+        // Row 3: bits 4→0, 7→3 → 0b1001 = 0x09
+        assert_eq!(t_data[0], 0x03, "T row 0");
+        assert_eq!(t_data[1], 0x06, "T row 1");
+        assert_eq!(t_data[2], 0x0C, "T row 2");
+        assert_eq!(t_data[3], 0x09, "T row 3");
+    }
+
+    /// Test xor_row_masked with partial byte mask.
+    #[test]
+    fn test_xor_row_masked_partial_byte() {
+        // 2×2 matrix (2 bytes per row)
+        let mut data = vec![0b11001100u8, 0xFF, 0b10101010, 0xAA];
+        // XOR row 0 with row 1 from byte_idx=0, bit_in_byte=4
+        // lo_mask = 0x0F, so only bits 4..7 of byte 0 get XORed
+        xor_row_masked(&mut data, 0, 1, 0, 4, 2);
+        // Byte 0 of row 0: 0b11001100 ^ (0b10101010 & 0xF0) = 0b11001100 ^ 0b10100000 = 0b01101100
+        assert_eq!(data[0], 0b01101100);
+        // Byte 1 of row 0: 0xFF ^ 0xAA = 0x55
+        assert_eq!(data[1], 0x55);
+    }
+
+    /// Test mutable row slice access.
+    #[test]
+    fn test_bitmatrix_row_slice_mut() {
+        let mut m = BitMatrix::new(2, 16);
+        let row1 = m.row_slice_mut(1);
+        row1[0] = 0xAB;
+        row1[1] = 0xCD;
+        assert_eq!(m.row_slice(1), &[0xAB, 0xCD]);
+        assert_eq!(m.row_slice(0), &[0x00, 0x00]);
+    }
 }

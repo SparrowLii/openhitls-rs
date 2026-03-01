@@ -400,4 +400,41 @@ mod tests {
         let result = kp.verify(&digest2, &sig).unwrap();
         assert!(!result, "signature should not verify with different digest");
     }
+
+    #[test]
+    fn test_dsa_params_empty_fields() {
+        assert!(DsaParams::new(&[], &[3], &[2]).is_err(), "empty p");
+        assert!(DsaParams::new(&[23], &[], &[2]).is_err(), "empty q");
+        assert!(DsaParams::new(&[23], &[11], &[]).is_err(), "empty g");
+    }
+
+    #[test]
+    fn test_dsa_params_q_even() {
+        // q = 4 (even) should fail
+        assert!(DsaParams::new(&[23], &[4], &[2]).is_err(), "q even");
+    }
+
+    #[test]
+    fn test_dsa_params_g_ge_p() {
+        // g = 23 >= p = 23 should fail
+        assert!(DsaParams::new(&[23], &[11], &[23]).is_err(), "g >= p");
+        // g = 24 > p = 23
+        assert!(DsaParams::new(&[23], &[11], &[24]).is_err(), "g > p");
+    }
+
+    #[test]
+    fn test_dsa_decode_invalid_der() {
+        // Invalid DER: not a valid sequence
+        let bad_der = vec![0x00, 0x01, 0x02];
+        let result = decode_der_signature(&bad_der);
+        assert!(result.is_err(), "invalid DER should fail");
+    }
+
+    #[test]
+    fn test_dsa_from_private_key_x_zero() {
+        let params = small_params();
+        // x = 0 is rejected by from_private_key (x must be in [1, q-1])
+        let result = DsaKeyPair::from_private_key(params, &[0]);
+        assert!(result.is_err(), "x=0 should be rejected");
+    }
 }

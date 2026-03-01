@@ -111,14 +111,13 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - name: Install cargo-tarpaulin
-        run: cargo install cargo-tarpaulin --locked
+      - uses: taiki-e/install-action@cargo-llvm-cov
       - name: Generate coverage
-        run: cargo tarpaulin --workspace --all-features --out xml --output-dir coverage/ --timeout 900 --exclude-files "tests/vectors/*"
+        run: cargo llvm-cov --workspace --all-features --branch --codecov --output-path coverage/codecov.json --ignore-filename-regex "tests/vectors/"
       - name: Upload to Codecov
         uses: codecov/codecov-action@v4
         with:
-          files: coverage/cobertura.xml
+          files: coverage/codecov.json
           fail_ci_if_error: false
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
