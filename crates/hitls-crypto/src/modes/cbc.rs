@@ -13,10 +13,13 @@ pub fn cbc_encrypt(key: &[u8], iv: &[u8], plaintext: &[u8]) -> Result<Vec<u8>, C
     }
     let cipher = AesKey::new(key)?;
 
-    // PKCS#7 padding
+    // PKCS#7 padding (stack array, no heap allocation for padding bytes)
     let pad_len = AES_BLOCK_SIZE - (plaintext.len() % AES_BLOCK_SIZE);
-    let mut data = plaintext.to_vec();
-    data.extend(vec![pad_len as u8; pad_len]);
+    let mut data = Vec::with_capacity(plaintext.len() + pad_len);
+    data.extend_from_slice(plaintext);
+    let mut pad_buf = [0u8; AES_BLOCK_SIZE];
+    pad_buf[..pad_len].fill(pad_len as u8);
+    data.extend_from_slice(&pad_buf[..pad_len]);
 
     let mut prev = [0u8; AES_BLOCK_SIZE];
     prev.copy_from_slice(iv);
@@ -84,10 +87,13 @@ pub fn cbc_encrypt_with<C: BlockCipher>(
         return Err(CryptoError::InvalidIvLength);
     }
 
-    // PKCS#7 padding
+    // PKCS#7 padding (stack array, no heap allocation for padding bytes)
     let pad_len = bs - (plaintext.len() % bs);
-    let mut data = plaintext.to_vec();
-    data.extend(vec![pad_len as u8; pad_len]);
+    let mut data = Vec::with_capacity(plaintext.len() + pad_len);
+    data.extend_from_slice(plaintext);
+    let mut pad_buf = [0u8; 16];
+    pad_buf[..pad_len].fill(pad_len as u8);
+    data.extend_from_slice(&pad_buf[..pad_len]);
 
     let mut prev = [0u8; 16];
     prev[..bs].copy_from_slice(iv);
