@@ -102,13 +102,15 @@ pub(crate) fn activate_tlcp_write(
         CipherSuite::ECDHE_SM4_CBC_SM3 | CipherSuite::ECC_SM4_CBC_SM3
     );
     if is_cbc {
-        rl.activate_write_encryption_tlcp(TlcpEncryptor::Cbc(
-            RecordEncryptorTlcpCbc::new(enc_key.to_vec(), mac_key.to_vec())?,
-        ));
+        rl.activate_write_encryption_tlcp(TlcpEncryptor::Cbc(RecordEncryptorTlcpCbc::new(
+            enc_key.to_vec(),
+            mac_key.to_vec(),
+        )?));
     } else {
-        rl.activate_write_encryption_tlcp(TlcpEncryptor::Gcm(
-            RecordEncryptorTlcpGcm::new(enc_key, iv.to_vec())?,
-        ));
+        rl.activate_write_encryption_tlcp(TlcpEncryptor::Gcm(RecordEncryptorTlcpGcm::new(
+            enc_key,
+            iv.to_vec(),
+        )?));
     }
     Ok(())
 }
@@ -125,13 +127,15 @@ pub(crate) fn activate_tlcp_read(
         CipherSuite::ECDHE_SM4_CBC_SM3 | CipherSuite::ECC_SM4_CBC_SM3
     );
     if is_cbc {
-        rl.activate_read_decryption_tlcp(TlcpDecryptor::Cbc(
-            RecordDecryptorTlcpCbc::new(enc_key.to_vec(), mac_key.to_vec())?,
-        ));
+        rl.activate_read_decryption_tlcp(TlcpDecryptor::Cbc(RecordDecryptorTlcpCbc::new(
+            enc_key.to_vec(),
+            mac_key.to_vec(),
+        )?));
     } else {
-        rl.activate_read_decryption_tlcp(TlcpDecryptor::Gcm(
-            RecordDecryptorTlcpGcm::new(enc_key, iv.to_vec())?,
-        ));
+        rl.activate_read_decryption_tlcp(TlcpDecryptor::Gcm(RecordDecryptorTlcpGcm::new(
+            enc_key,
+            iv.to_vec(),
+        )?));
     }
     Ok(())
 }

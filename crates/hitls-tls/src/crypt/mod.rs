@@ -1950,6 +1950,174 @@ mod tests_cipher_suite_params {
         hasher384.finish(&mut out384).unwrap();
         assert_eq!(out384.len(), 48);
     }
+
+    #[test]
+    fn test_digest_variant_block_size_all() {
+        assert_eq!(DigestVariant::new(HashAlgId::Sha256).block_size(), 64);
+        assert_eq!(DigestVariant::new(HashAlgId::Sha384).block_size(), 128);
+        assert_eq!(DigestVariant::new(HashAlgId::Sha1).block_size(), 64);
+    }
+
+    #[test]
+    fn test_digest_variant_output_size_for_all() {
+        assert_eq!(DigestVariant::output_size_for(HashAlgId::Sha256), 32);
+        assert_eq!(DigestVariant::output_size_for(HashAlgId::Sha384), 48);
+        assert_eq!(DigestVariant::output_size_for(HashAlgId::Sha1), 20);
+    }
+
+    #[test]
+    fn test_digest_variant_reset_produces_same_output() {
+        let mut hasher = DigestVariant::new(HashAlgId::Sha256);
+        hasher.update(b"first").unwrap();
+        let mut out1 = vec![0u8; 32];
+        hasher.finish(&mut out1).unwrap();
+
+        hasher.reset();
+        hasher.update(b"first").unwrap();
+        let mut out2 = vec![0u8; 32];
+        hasher.finish(&mut out2).unwrap();
+        assert_eq!(out1, out2);
+    }
+
+    #[test]
+    fn test_is_tls12_suite_valid() {
+        assert!(is_tls12_suite(
+            CipherSuite::TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+        ));
+        assert!(is_tls12_suite(
+            CipherSuite::TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA
+        ));
+        assert!(is_tls12_suite(
+            CipherSuite::TLS_DHE_RSA_WITH_AES_128_GCM_SHA256
+        ));
+        assert!(is_tls12_suite(CipherSuite::TLS_PSK_WITH_AES_128_GCM_SHA256));
+        assert!(is_tls12_suite(
+            CipherSuite::TLS_DH_ANON_WITH_AES_128_GCM_SHA256
+        ));
+    }
+
+    #[test]
+    fn test_is_tls12_suite_invalid() {
+        assert!(!is_tls12_suite(CipherSuite::TLS_AES_128_GCM_SHA256));
+        assert!(!is_tls12_suite(CipherSuite::TLS_AES_256_GCM_SHA384));
+        assert!(!is_tls12_suite(CipherSuite::TLS_CHACHA20_POLY1305_SHA256));
+    }
+
+    #[test]
+    fn test_is_tls13_suite_valid() {
+        assert!(is_tls13_suite(CipherSuite::TLS_AES_128_GCM_SHA256));
+        assert!(is_tls13_suite(CipherSuite::TLS_AES_256_GCM_SHA384));
+        assert!(is_tls13_suite(CipherSuite::TLS_CHACHA20_POLY1305_SHA256));
+        assert!(is_tls13_suite(CipherSuite::TLS_AES_128_CCM_8_SHA256));
+    }
+
+    #[test]
+    fn test_is_tls13_suite_invalid() {
+        assert!(!is_tls13_suite(
+            CipherSuite::TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+        ));
+        assert!(!is_tls13_suite(
+            CipherSuite::TLS_PSK_WITH_AES_128_GCM_SHA256
+        ));
+    }
+
+    #[test]
+    fn test_tls12_key_block_len_gcm() {
+        // GCM: 2*key + 2*fixed_iv = 2*16+2*4 = 40
+        let p =
+            Tls12CipherSuiteParams::from_suite(CipherSuite::TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256)
+                .unwrap();
+        assert_eq!(p.key_block_len(), 40);
+    }
+
+    #[test]
+    fn test_tls12_key_block_len_cbc() {
+        // CBC: 2*mac_key + 2*key + 2*iv = 2*20+2*16+2*16 = 104
+        let p = Tls12CipherSuiteParams::from_suite(CipherSuite::TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA)
+            .unwrap();
+        assert_eq!(p.key_block_len(), 104);
+    }
+
+    #[test]
+    fn test_tls12_key_block_len_aes256_gcm() {
+        // GCM-256: 2*32+2*4 = 72
+        let p =
+            Tls12CipherSuiteParams::from_suite(CipherSuite::TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384)
+                .unwrap();
+        assert_eq!(p.key_block_len(), 72);
+    }
+
+    #[test]
+    fn test_tls12_dh_anon_suite_params() {
+        let p =
+            Tls12CipherSuiteParams::from_suite(CipherSuite::TLS_DH_ANON_WITH_AES_128_GCM_SHA256)
+                .unwrap();
+        assert_eq!(p.kx_alg, KeyExchangeAlg::DheAnon);
+        assert_eq!(p.auth_alg, AuthAlg::Anon);
+        assert!(!p.kx_alg.requires_certificate());
+    }
+
+    #[test]
+    fn test_tls12_ecdh_anon_suite_params() {
+        let p = Tls12CipherSuiteParams::from_suite(CipherSuite::TLS_ECDH_ANON_WITH_AES_128_CBC_SHA)
+            .unwrap();
+        assert_eq!(p.kx_alg, KeyExchangeAlg::EcdheAnon);
+        assert_eq!(p.auth_alg, AuthAlg::Anon);
+        assert!(p.is_cbc);
+    }
+
+    #[test]
+    fn test_tls12_dhe_dss_suite_params() {
+        let p =
+            Tls12CipherSuiteParams::from_suite(CipherSuite::TLS_DHE_DSS_WITH_AES_128_GCM_SHA256)
+                .unwrap();
+        assert_eq!(p.kx_alg, KeyExchangeAlg::Dhe);
+        assert_eq!(p.auth_alg, AuthAlg::Dsa);
+    }
+
+    #[test]
+    fn test_tls12_chacha20_poly1305_params() {
+        let p = Tls12CipherSuiteParams::from_suite(
+            CipherSuite::TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
+        )
+        .unwrap();
+        assert!(!p.is_cbc);
+        assert_eq!(p.key_len, 32);
+        assert_eq!(p.fixed_iv_len, 4);
+        assert_eq!(p.record_iv_len, 8);
+        assert_eq!(p.tag_len, 16);
+    }
+
+    #[test]
+    fn test_tls12_cbc_sha256_params() {
+        let p =
+            Tls12CipherSuiteParams::from_suite(CipherSuite::TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256)
+                .unwrap();
+        assert!(p.is_cbc);
+        assert_eq!(p.mac_key_len, 32); // HMAC-SHA-256
+        assert_eq!(p.mac_len, 32);
+    }
+
+    #[test]
+    fn test_tls12_rsa_psk_suite_params() {
+        let p =
+            Tls12CipherSuiteParams::from_suite(CipherSuite::TLS_RSA_PSK_WITH_AES_128_GCM_SHA256)
+                .unwrap();
+        assert_eq!(p.kx_alg, KeyExchangeAlg::RsaPsk);
+        assert_eq!(p.auth_alg, AuthAlg::Rsa);
+        assert!(p.kx_alg.requires_certificate());
+        assert!(p.kx_alg.is_psk());
+    }
+
+    #[test]
+    fn test_tls12_ecdhe_psk_suite_params() {
+        let p =
+            Tls12CipherSuiteParams::from_suite(CipherSuite::TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256)
+                .unwrap();
+        assert_eq!(p.kx_alg, KeyExchangeAlg::EcdhePsk);
+        assert_eq!(p.auth_alg, AuthAlg::Psk);
+        assert!(!p.kx_alg.requires_certificate());
+    }
 }
 
 #[cfg(test)]

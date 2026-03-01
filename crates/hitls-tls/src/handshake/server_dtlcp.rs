@@ -535,14 +535,11 @@ impl DtlcpServerHandshake {
             &self.cookie_secret,
         )
         .map_err(TlsError::CryptoError)?;
-        mac.update(&ch.random)
-            .map_err(TlsError::CryptoError)?;
-        mac.update(&suite_bytes)
-            .map_err(TlsError::CryptoError)?;
+        mac.update(&ch.random).map_err(TlsError::CryptoError)?;
+        mac.update(&suite_bytes).map_err(TlsError::CryptoError)?;
 
         let mut out = vec![0u8; 32];
-        mac.finish(&mut out)
-            .map_err(TlsError::CryptoError)?;
+        mac.finish(&mut out).map_err(TlsError::CryptoError)?;
         // Truncate to 16 bytes for cookie (sufficient for DoS protection)
         out.truncate(16);
         Ok(out)

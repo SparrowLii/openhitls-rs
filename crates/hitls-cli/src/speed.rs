@@ -163,4 +163,14 @@ mod tests {
     fn test_cli_speed_all() {
         run("all", 1).unwrap();
     }
+
+    #[test]
+    fn test_cli_speed_sha384() {
+        run("sha384", 1).unwrap();
+    }
+
+    #[test]
+    fn test_cli_speed_sha512() {
+        run("sha512", 1).unwrap();
+    }
 }
