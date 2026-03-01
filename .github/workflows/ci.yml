@@ -116,11 +116,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@nightly
       - uses: Swatinem/rust-cache@v2
       - uses: taiki-e/install-action@cargo-llvm-cov
       - name: Generate coverage
-        run: cargo llvm-cov --workspace --all-features --branch --codecov --output-path coverage/codecov.json --ignore-filename-regex "tests/vectors/"
+        run: cargo +nightly llvm-cov --workspace --all-features --branch --codecov --output-path coverage/codecov.json --ignore-filename-regex "tests/vectors/"
       - name: Upload to Codecov
         uses: codecov/codecov-action@v4
         with:

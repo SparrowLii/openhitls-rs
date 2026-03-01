@@ -1745,6 +1745,11 @@ fn test_tls13_key_update_server_initiated() {
         let n = conn.read(&mut buf).unwrap();
         assert_eq!(&buf[..n], b"after key update");
         conn.write(b"ack2").unwrap();
+
+        // Wait for client "done" before shutting down to avoid Windows
+        // WSAECONNRESET (OS error 10054) race condition.
+        let n = conn.read(&mut buf).unwrap();
+        assert_eq!(&buf[..n], b"done");
         let _ = conn.shutdown();
     });
 
@@ -1767,6 +1772,9 @@ fn test_tls13_key_update_server_initiated() {
     conn.write(b"after key update").unwrap();
     let n = conn.read(&mut buf).unwrap();
     assert_eq!(&buf[..n], b"ack2");
+
+    // Signal server that client is done reading
+    conn.write(b"done").unwrap();
     let _ = conn.shutdown();
     server_handle.join().unwrap();
 }

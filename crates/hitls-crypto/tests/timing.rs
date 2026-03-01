@@ -170,37 +170,40 @@ fn test_aes_gcm_tag_verify_constant_time() {
 }
 
 // ============================================================
-// Test 3: ECDSA verify — valid vs invalid signature
+// Test 3: ECDSA verify — different message digests, same signature
 // ============================================================
+// Note: We test constant-time behavior w.r.t. the message digest (which
+// feeds into scalar multiplication as a secret-adjacent value), NOT w.r.t.
+// the signature itself. Corrupted DER signatures legitimately fail early
+// at the parse stage, so comparing valid-vs-invalid-signature timings
+// produces false positives and is not a meaningful security property.
 #[test]
 #[ignore]
 fn test_ecdsa_verify_constant_time() {
     use hitls_crypto::ecdsa::EcdsaKeyPair;
-    use hitls_crypto::sha2::Sha256;
     use hitls_types::EccCurveId;
 
     let kp = EcdsaKeyPair::generate(EccCurveId::NistP256).unwrap();
-    let msg = [0x55u8; 32];
-    let mut hasher = Sha256::new();
-    hasher.update(&msg).unwrap();
-    let digest = hasher.finish().unwrap();
-    let valid_sig = kp.sign(&digest).unwrap();
+    let digest_a = [0x55u8; 32];
+    let sig = kp.sign(&digest_a).unwrap();
 
     let t = timing_t_test(
-        // Class A: valid signature
-        |_| valid_sig.clone(),
-        // Class B: invalid signature (corrupted s-value)
+        // Class A: digest with many high bits
         |i| {
-            let mut bad = valid_sig.clone();
-            let offset = 6 + (i % (bad.len().saturating_sub(7)));
-            if offset < bad.len() {
-                bad[offset] ^= 0x01;
-            }
-            bad
+            let mut d = [0xFFu8; 32];
+            d[0] = (i & 0xFF) as u8;
+            d
         },
-        // Operation: ECDSA verify
-        |sig| {
-            let _ = black_box(kp.verify(&digest, sig));
+        // Class B: digest with many low bits
+        |i| {
+            let mut d = [0x01u8; 32];
+            d[0] = (i & 0xFF) as u8;
+            d
+        },
+        // Operation: ECDSA verify (both classes will fail since sig was
+        // made for digest_a, but the full EC computation still runs)
+        |digest| {
+            let _ = black_box(kp.verify(digest, &sig));
         },
     );
 
