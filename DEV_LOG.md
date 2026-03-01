@@ -4,7 +4,7 @@
 
 Category summary:
 - Implementation: I1–I82 (82 phases)
-- Testing: T1–T63 (63 phases)
+- Testing: T1–T66 (64 phases)
 - Refactoring: R1–R12 (12 phases)
 - Performance: P1–P56 (56 phases)
 
@@ -224,6 +224,7 @@ Category summary:
 | 212 | P55 | Perf | Ed25519/Ed448 Verify Projective Point Comparison | 2026-03-01 |
 | 213 | P56 | Perf | SM3 Ring Buffer Message Schedule | 2026-03-01 |
 | 214 | T65 | Test | Test Coverage Enhancement (+66 tests, CI coverage infra) | 2026-03-01 |
+| 215 | T66 | Test | CI Hardening + HMAC Fix + Test Coverage Expansion (+66 tests) | 2026-03-01 |
 
 ---
 
@@ -11825,3 +11826,65 @@ Enhance test coverage across TLS connection layer, cryptographic primitives, and
 - `cargo test --workspace --all-features`: 3,600 passed, 0 failed, 21 ignored
 - `RUSTFLAGS="-D warnings" cargo clippy`: 0 warnings
 - `cargo fmt --all -- --check`: clean
+
+---
+
+## Phase T66 — CI Hardening + HMAC Fix + Test Coverage Expansion (+66 tests) (2026-03-01)
+
+### Summary
+Four-commit phase addressing CI pipeline hardening, HMAC error propagation fix, and comprehensive test coverage expansion across crypto, TLS, and CLI crates. Based on quality analysis identifying P0–P3 priority action items.
+
+### Part A: CI Pipeline Hardening
+
+| File | Status | Description |
+|------|--------|-------------|
+| `.github/workflows/ci.yml` | Modified | Added `needs: [fmt, clippy]` dependency to test/coverage/miri jobs; fixed fuzz crash artifact upload (`if: always()` + `if-no-files-found: ignore`); added i686-unknown-linux-gnu 32-bit cross-compilation; added `doc` job with `RUSTDOCFLAGS="-D warnings"` |
+| `crates/hitls-bignum/src/ops.rs` | Modified | Fixed rustdoc warning: backtick-escaped `a[i]*a[j]` in comment |
+| `crates/hitls-crypto/src/hmac/mod.rs` | Modified | Fixed rustdoc warning: backtick-escaped `Box<dyn Digest>` |
+
+### Part B: HMAC Error Propagation Fix
+
+| File | Status | Description |
+|------|--------|-------------|
+| `crates/hitls-crypto/src/hmac/mod.rs` | Modified | Changed `reset()` from `pub fn reset(&mut self)` to `pub fn reset(&mut self) -> Result<(), CryptoError>`, replacing `let _ = self.inner.update(...)` with `self.inner.update(...)?` |
+| `crates/hitls-crypto/src/hkdf/mod.rs` | Modified | `hmac.reset()` → `hmac.reset()?` |
+| `crates/hitls-crypto/src/pbkdf2/mod.rs` | Modified | `hmac.reset()` → `hmac.reset()?` |
+| `crates/hitls-tls/src/record/encryption12_cbc.rs` | Modified | 3 sites: `hmac.reset().map_err(TlsError::CryptoError)?` |
+| `crates/hitls-tls/src/record/encryption_tlcp.rs` | Modified | `hmac.reset().map_err(TlsError::CryptoError)?` |
+| `crates/hitls-tls/src/record/encryption_dtlcp.rs` | Modified | `hmac.reset().map_err(TlsError::CryptoError)?` |
+
+### Part C: Test Coverage Expansion (+66 tests)
+
+**Commit 3 (+30 tests):**
+
+| File | Tests Added | Description |
+|------|-------------|-------------|
+| `crates/hitls-tls/src/crypt/mod.rs` | +18 | DigestVariant (block_size, output_size, reset), is_tls12/13_suite, key_block_len, DH_anon/ECDH_anon/DHE_DSS/ChaCha20/CBC-SHA256/RSA_PSK/ECDHE_PSK suite params |
+| `crates/hitls-cli/src/enc.rs` | +11 | hex_decode edge cases, cipher_params case insensitivity, AEAD tamper/wrong key, empty plaintext, SM4-GCM/ChaCha20 roundtrip |
+| `crates/hitls-cli/src/speed.rs` | +1 | SHA-384, SHA-512 benchmark branches (merged with existing) |
+
+**Commit 4 (+15 tests):**
+
+| File | Tests Added | Description |
+|------|-------------|-------------|
+| `crates/hitls-crypto/src/modes/gcm.rs` | +4 | 16-byte nonce (GHASH J0), multi-block AAD (256 bytes), precomputed table short ciphertext, precomputed table AAD roundtrip |
+| `crates/hitls-crypto/src/drbg/mod.rs` | +3 | Partial carry (0xFF→0x0100), multi-byte carry (0xFFFF→0x10000), generate_bytes() trait default method |
+| `crates/hitls-cli/src/s_client.rs` | +2 | Port boundaries (0/65535/65536), unsupported TLS version |
+| `crates/hitls-cli/src/s_server.rs` | +1 | EC P-384 key conversion |
+| `crates/hitls-tls/src/crypt/mod.rs` | +5 | RSA AES-128/256-GCM, DHE_PSK GCM/CBC, ECDHE_ECDSA AES-256-GCM params |
+
+### Test Count Breakdown
+
+| Crate | Before (T65) | After (T66) | Delta |
+|-------|-------------|-------------|-------|
+| hitls-crypto | 1210 (14 ign) | 1219 (14 ign) | +9 |
+| hitls-tls | 1389 | 1411 | +22 |
+| hitls-cli | 131 (5 ign) | 147 (5 ign) | +16 |
+| hitls-integration-tests | 258 (2 ign) | 258 (2 ign) | +0 |
+| **Total** | **3600 (21 ign)** | **3666 (21 ign)** | **+66** |
+
+### Build Status (Post T66)
+- `cargo test --workspace --all-features`: 3,645 passed, 0 failed, 21 ignored (3,666 total)
+- `RUSTFLAGS="-D warnings" cargo clippy`: 0 warnings
+- `cargo fmt --all -- --check`: clean
+- `cargo doc --workspace --all-features --no-deps`: 0 warnings

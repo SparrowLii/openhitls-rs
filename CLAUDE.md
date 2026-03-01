@@ -8,7 +8,7 @@ openHiTLS-rs is a pure Rust rewrite of [openHiTLS](https://gitee.com/openhitls/o
 
 - **Language**: Rust (MSRV 1.75, edition 2021)
 - **License**: MulanPSL-2.0
-- **Status**: Phases I1–I82, T1–T65, R1–R12, P1–P56 complete (3621 tests, 21 ignored)
+- **Status**: Phases I1–I82, T1–T66, R1–R12, P1–P56 complete (3666 tests, 21 ignored)
 
 ## Workspace Structure
 
@@ -18,11 +18,11 @@ openhitls-rs/
 │   ├── hitls-types/     # Shared types: algorithm IDs, error enums
 │   ├── hitls-utils/     # Hex, ASN.1, Base64, PEM, OID utilities
 │   ├── hitls-bignum/    # Big number arithmetic (CIOS Montgomery, Miller-Rabin) (80 tests)
-│   ├── hitls-crypto/    # Cryptographic algorithms (feature-gated): AES, SM4, ChaCha20, SHA-2/3, SM3, HMAC, RSA, ECC, Ed25519/448, X25519/448, DH, DSA, SM2, SM9, PQC (ML-KEM/ML-DSA/SLH-DSA/XMSS/FrodoKEM/McEliece), HybridKEM (12 variants), DRBG, FIPS/CMVP, entropy health, hardware AES/SHA-2/GHASH/ChaCha20, P-256 fast path, SM2 fast path, ML-KEM NEON NTT, ML-DSA NEON NTT, SM4 T-table, SHA-512 HW accel, Ed25519 precomputed table, Keccak SHA-3 HW accel, P-256 scalar field (1226 tests, 14 ignored)
-│   ├── hitls-tls/       # TLS 1.3/1.2 (91 cipher suites), DTLS 1.2, TLCP, DTLCP; 10 connection types (5 sync + 5 async via tokio); 15 TLS extensions; 10 callbacks; session cache, hostname verification, renegotiation, GREASE, custom extensions, NSS key logging, middlebox compat (1389 tests)
+│   ├── hitls-crypto/    # Cryptographic algorithms (feature-gated): AES, SM4, ChaCha20, SHA-2/3, SM3, HMAC, RSA, ECC, Ed25519/448, X25519/448, DH, DSA, SM2, SM9, PQC (ML-KEM/ML-DSA/SLH-DSA/XMSS/FrodoKEM/McEliece), HybridKEM (12 variants), DRBG, FIPS/CMVP, entropy health, hardware AES/SHA-2/GHASH/ChaCha20, P-256 fast path, SM2 fast path, ML-KEM NEON NTT, ML-DSA NEON NTT, SM4 T-table, SHA-512 HW accel, Ed25519 precomputed table, Keccak SHA-3 HW accel, P-256 scalar field (1233 tests, 14 ignored)
+│   ├── hitls-tls/       # TLS 1.3/1.2 (91 cipher suites), DTLS 1.2, TLCP, DTLCP; 10 connection types (5 sync + 5 async via tokio); 15 TLS extensions; 10 callbacks; session cache, hostname verification, renegotiation, GREASE, custom extensions, NSS key logging, middlebox compat (1411 tests)
 │   ├── hitls-pki/       # X.509, PKCS#8 (incl. Encrypted PBES2), PKCS#12, CMS (SignedData/EnvelopedData/EncryptedData/DigestedData/AuthenticatedData), CRL builder, hostname verification (405 tests)
 │   ├── hitls-auth/      # HOTP/TOTP, SPAKE2+, Privacy Pass (33 tests)
-│   └── hitls-cli/       # CLI tool: dgst, genpkey, x509, verify, enc, pkey, crl, req, s-client, s-server, list, rand, pkeyutl, speed, pkcs12, mac (136 tests, 5 ignored)
+│   └── hitls-cli/       # CLI tool: dgst, genpkey, x509, verify, enc, pkey, crl, req, s-client, s-server, list, rand, pkeyutl, speed, pkcs12, mac (152 tests, 5 ignored)
 ├── tests/interop/       # Integration tests (260 cross-crate tests) — 14 test files + helper lib
 ├── tests/vectors/       # Standard test vectors (NIST, Wycheproof, GM/T)
 ├── fuzz/                # Fuzz targets (cargo-fuzz, 40 targets, 286 corpus seeds)
@@ -34,18 +34,18 @@ openhitls-rs/
 # Build
 cargo build --workspace --all-features
 
-# Run all tests (3621 tests, 21 ignored)
+# Run all tests (3666 tests, 21 ignored)
 cargo test --workspace --all-features
 
 # Run tests for a specific crate
-cargo test -p hitls-crypto --all-features   # 1226 tests (14 ignored)
-cargo test -p hitls-tls --all-features      # 1389 tests
+cargo test -p hitls-crypto --all-features   # 1233 tests (14 ignored)
+cargo test -p hitls-tls --all-features      # 1411 tests
 
 cargo test -p hitls-pki --all-features      # 405 tests
 cargo test -p hitls-bignum                  # 80 tests
 cargo test -p hitls-utils                   # 66 tests
 cargo test -p hitls-auth --all-features     # 33 tests
-cargo test -p hitls-cli --all-features      # 136 tests (5 ignored)
+cargo test -p hitls-cli --all-features      # 152 tests (5 ignored)
 cargo test -p hitls-integration-tests       # 260 tests (2 ignored)
 
 # Lint (must pass with zero warnings)
@@ -132,7 +132,7 @@ The original C implementation is at `/Users/dongqiu/Dev/code/openhitls/`:
 
 ## Migration Roadmap
 
-Phases I1–I82, T1–T65, R1–R12, P1–P56 complete (3621 tests, 21 ignored). **100% C→Rust feature parity achieved. Architecture refactoring complete. Performance optimization and quality improvement complete.**
+Phases I1–I82, T1–T66, R1–R12, P1–P56 complete (3666 tests, 21 ignored). **100% C→Rust feature parity achieved. Architecture refactoring complete. Performance optimization and quality improvement complete.**
 
 ### Completed Phases (Summary)
 
@@ -210,5 +210,6 @@ Key milestones:
 - Phase T59–T62: Test optimization & deep defense — RSA OAEP/PKCS1v15 constant-time fix (timing side-channel elimination), CBC/GCM buffer zeroize on error, RSA timing tests (+2 ignored), unit tests (+2), crypto semantic fuzz targets (+6: RSA/ECDSA/HKDF/SM2/CCM/TLS PRF), TLS 1.3/1.2 state machine fuzz (+2), corpus enrichment (+40 seeds), cargo-deny supply-chain policy, CI hardening (miri blocking, feature combos, cargo-deny job), subtle version unification. Total: +4 tests, 18→26 fuzz targets, 118→158 corpus, defense model B+→A-.
 - Phase T63: PQC fuzz + signature sign fuzz — ML-KEM encap/decap, ML-DSA sign/verify, SLH-DSA sign/verify (fast variants), RSA sign (PKCS1v15/PSS), ECDSA sign (P-256/P-384/P-521), Ed25519 full coverage, SM2 sign/encrypt/decrypt, DSA sign (small params). Total: +8 fuzz targets (26→34), +80 corpus seeds (158→238), PQC coverage 0→3/6, sign-path coverage 0→5/7.
 - Phase T65: Test coverage enhancement — CI switched from cargo-tarpaulin to cargo-llvm-cov with `--branch` coverage, +66 tests across TLS connection layer (+17 integration), crypto low-coverage files (+28), CLI commands (+14), TLS crate (+5). Coverage targets: GCM non-standard nonce, McEliece matrix ops, DRBG counter, DSA edge cases, FIPS KAT/PCT boundaries, ElGamal error paths, DigestVariant SHA-1, CLI s_client/s_server/speed.
+- Phase T66: CI hardening + HMAC fix + test coverage expansion — CI pipeline: `needs: [fmt, clippy]` job dependency graph, fuzz crash artifact fix, i686 32-bit cross-compilation, `cargo doc` CI with `-D warnings`. HMAC: `reset()` now fallible (`Result<(), CryptoError>`), proper error propagation in 6 callers. Tests: +66 across GCM (non-standard nonce, multi-block AAD, precomputed table), DRBG (carry propagation, generate_bytes), TLS cipher suite params (RSA/DHE_PSK/ECDHE_ECDSA), CLI (hex decode, cipher roundtrips, port boundaries, EC P-384). Total: 3666 tests (21 ignored).
 
 See `DEV_LOG.md` for detailed phase tables (including test, refactoring, and performance phases) and `PROMPT_LOG.md` for prompt/response log.

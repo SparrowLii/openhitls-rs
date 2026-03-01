@@ -3604,3 +3604,17 @@ Targeted coverage gaps in connection_info, handshake enums, lib.rs constants, co
 - +5 TLS crate tests: DigestVariant SHA-1, CCM/CCM_8 suite params
 - +14 CLI tests: s_client parse (+4), s_server key conversion (+5), speed benchmarks (+5)
 - All 3,600 tests pass, 21 ignored, 0 clippy warnings
+
+---
+
+## Phase T66 — CI Hardening + HMAC Fix + Test Coverage Expansion (+66 tests) (2026-03-01)
+
+**Prompt**: 请按照优先行动建议，分阶段执行优化方案，每阶段完成后提交修改的代码 (Follow priority action recommendations from quality analysis, execute step by step with commits after each phase).
+
+**Result**:
+- **CI hardening** (commit 1): `needs: [fmt, clippy]` job dependency graph, fuzz crash artifact fix (`if: always()` + `if-no-files-found: ignore`), i686-unknown-linux-gnu 32-bit cross-compilation, `cargo doc` CI job with `RUSTDOCFLAGS="-D warnings"`, 2 rustdoc warnings fixed
+- **HMAC fix** (commit 2): `Hmac::reset()` now returns `Result<(), CryptoError>`, 6 callers updated from `let _ =` to proper `?` propagation
+- **+30 tests** (commit 3): crypt/mod.rs (+18 cipher suite params), enc.rs (+11 AEAD roundtrip/hex), speed.rs (+1 SHA branch)
+- **+15 tests** (commit 4): gcm.rs (+4 nonce/AAD/table edge cases), drbg/mod.rs (+3 carry/generate_bytes), s_client.rs (+2 port/version), s_server.rs (+1 EC P-384), crypt/mod.rs (+5 RSA/DHE_PSK/ECDSA params)
+- **+21 doc updates** (commit 5): DEV_LOG.md, CLAUDE.md, README.md, PROMPT_LOG.md
+- All 3,666 tests pass, 21 ignored, 0 clippy/fmt/doc warnings
