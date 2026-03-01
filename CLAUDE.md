@@ -62,7 +62,22 @@ cargo fmt --all -- --check
 - `rustfmt.toml`: max_width=100, use_field_init_shorthand, use_try_shorthand
 - `clippy.toml`: cognitive-complexity-threshold=30
 - Always run `cargo fmt` before committing
-- **Sync before task**: Before starting any implementation task, always pull the latest remote main branch first (`git pull origin main`) to ensure the local codebase is up to date
+- **Sync before task**: Before starting any implementation task, always sync the remote main branch first (`git fetch origin main && git rebase origin/main`) to ensure the local codebase is up to date
+
+### Git Branching Model
+- **Trunk-based development**: The remote repository has **only one branch: `main`**. Never create or push branches to the remote
+- **Local worktrees for parallel development**: 4 persistent worktrees under `worktrees/`, each on a dedicated local branch:
+  - `worktrees/perf-enhanced` → `perf` (performance optimization)
+  - `worktrees/bug-fix` → `bug-fix` (defect fixes)
+  - `worktrees/refactoring` → `refactoring` (code restructuring)
+  - `worktrees/test-enhanced` → `testing` (test coverage improvement)
+- **Worktree workflow**:
+  1. Develop in worktree: `cd worktrees/perf-enhanced` → commit changes
+  2. Rebase onto main: `git rebase main` (in worktree branch)
+  3. Fast-forward merge: `cd <root>` → `git checkout main` → `git merge perf --ff-only`
+  4. Sync & push: `git fetch origin main && git rebase origin/main` → `git push origin main`
+- **Merge policy**: always `--ff-only` (fast-forward only) to keep linear history; if conflicts, rebase the worktree branch first
+- Push command: always `git push origin main`
 
 ### Error Handling
 - Use `hitls_types::CryptoError` for all crypto errors (thiserror-based)
