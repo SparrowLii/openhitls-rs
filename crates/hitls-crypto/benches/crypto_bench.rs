@@ -1126,14 +1126,8 @@ fn bench_hybridkem(c: &mut Criterion) {
 
     for (param_id, label) in [
         (HybridKemParamId::X25519MlKem768, "x25519-mlkem768"),
-        (
-            HybridKemParamId::EcdhNistP256MlKem768,
-            "p256-mlkem768",
-        ),
-        (
-            HybridKemParamId::EcdhNistP384MlKem768,
-            "p384-mlkem768",
-        ),
+        (HybridKemParamId::EcdhNistP256MlKem768, "p256-mlkem768"),
+        (HybridKemParamId::EcdhNistP384MlKem768, "p384-mlkem768"),
     ] {
         let kp = HybridKemKeyPair::generate(param_id).unwrap();
 
@@ -1513,8 +1507,7 @@ fn bench_hpke(c: &mut Criterion) {
 
     group.bench_function("setup+open", |b| {
         b.iter(|| {
-            let mut ctx =
-                HpkeCtx::setup_recipient(&sk_bytes, &enc, info).unwrap();
+            let mut ctx = HpkeCtx::setup_recipient(&sk_bytes, &enc, info).unwrap();
             ctx.open(aad, &ct).unwrap()
         });
     });
@@ -1588,18 +1581,14 @@ fn bench_gmac(c: &mut Criterion) {
         let iv = [0u8; 12];
         let data = vec![0u8; size];
 
-        group.bench_with_input(
-            BenchmarkId::new("aes-128/compute", size),
-            &size,
-            |b, _| {
-                b.iter(|| {
-                    let mut mac = Gmac::new(&key, &iv).unwrap();
-                    mac.update(&data).unwrap();
-                    let mut tag = [0u8; 16];
-                    mac.finish(&mut tag).unwrap();
-                });
-            },
-        );
+        group.bench_with_input(BenchmarkId::new("aes-128/compute", size), &size, |b, _| {
+            b.iter(|| {
+                let mut mac = Gmac::new(&key, &iv).unwrap();
+                mac.update(&data).unwrap();
+                let mut tag = [0u8; 16];
+                mac.finish(&mut tag).unwrap();
+            });
+        });
     }
 
     group.finish();
@@ -1779,8 +1768,7 @@ fn bench_drbg_extra(c: &mut Criterion) {
     let mut group = c.benchmark_group("drbg-extra");
 
     group.bench_function("hash-drbg-sha256/generate_32B", |b| {
-        let mut drbg =
-            HashDrbg::new(HashDrbgType::Sha256, &[0x42u8; 55]).unwrap();
+        let mut drbg = HashDrbg::new(HashDrbgType::Sha256, &[0x42u8; 55]).unwrap();
         let mut out = [0u8; 32];
         b.iter(|| drbg.generate(&mut out, None).unwrap());
     });
