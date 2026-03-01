@@ -211,6 +211,7 @@ Category summary:
 | 199 | P43 | Perf | ML-DSA Hint Encoding Stack Array | 2026-03-01 |
 | 200 | P44 | Perf | SM2/SM9 In-Place XOR | 2026-03-01 |
 | 201 | I82 | Impl | CRL Builder (CrlBuilder + RevokedCertBuilder) | 2026-03-01 |
+| 202 | P45 | Perf | ML-DSA Signing Loop Heap Elimination | 2026-03-01 |
 
 ---
 
@@ -11399,5 +11400,38 @@ Added CRL generation capability (CrlBuilder + RevokedCertBuilder) to hitls-pki, 
 ### Build Status (Post I82)
 - `cargo test --workspace --all-features`: 3,534 passed, 0 failed, 21 ignored
 - `cargo test -p hitls-pki --all-features`: 405 passed (+10)
+- `RUSTFLAGS="-D warnings" cargo clippy`: 0 warnings
+- `cargo fmt --all -- --check`: clean
+
+---
+
+## Phase P45 — ML-DSA Signing Loop Heap Elimination (2026-03-01)
+
+### Summary
+Replaced per-iteration heap allocations in ML-DSA sign/verify with stack arrays and zero-copy `_into` variants. Key changes: `sample_mask_poly` uses `squeeze_into` with a `[0u8; 640]` stack buffer instead of `squeeze()` → `Vec`; `hash_h`/`hash_h2` → `hash_h_into`/`hash_h2_into` writing directly to caller's `[u8; 64]`/`[u8; 128]` stack buffers; `pack_w1_into`/`pack_z_into` write directly into pre-allocated output buffers; signing loop pre-allocates `hash_input` Vec once before the loop (was cloned per iteration); `decode_sk` returns `[u8; 64]` for `tr` instead of `Vec<u8>`.
+
+### Changes
+| File | Change |
+|------|--------|
+| `crates/hitls-crypto/src/mldsa/poly.rs` | `sample_mask_poly`: `squeeze_into` with `[0u8; 640]` stack buffer. New `pack_w1_into`/`pack_z_into` zero-copy variants, originals delegate to them. `hash_h` → `hash_h_into`, `hash_h2` → `hash_h2_into` writing to caller buffer |
+| `crates/hitls-crypto/src/mldsa/mod.rs` | `mldsa_keygen`: stack arrays for `expanded`/`tr`. `mldsa_sign`: stack arrays for `mu`/`rho_prime`/`c_tilde`, pre-allocated `hash_input` Vec with `pack_w1_into` direct writes. `mldsa_verify`: stack arrays for `tr`/`mu`/`c_tilde_prime`, `pack_w1_into` direct writes. `encode_sig`: `pack_z_into` direct writes. `decode_sk`: returns `[u8; 64]` for tr. Test helper `mldsa_keygen_from_seed` updated |
+
+### Allocation Savings (per sign loop iteration, ML-DSA-65: k=6, l=5)
+| Before | After |
+|--------|-------|
+| 5× `sample_mask_poly` → 5× 640-byte Vec | 5× `[0u8; 640]` stack buffer |
+| 1× `mu.clone()` → 64-byte Vec | Pre-allocated, written once |
+| 6× `pack_w1()` → 6× 128-byte Vec | `pack_w1_into` into pre-allocated buffer |
+| 1× `hash_h()` → ct_len Vec | `hash_h_into` to `[0u8; 64]` stack |
+| 1× `hash_h2()` μ → 64-byte Vec | `hash_h2_into` to `[0u8; 64]` stack |
+| 1× `hash_h2()` ρ' → 64-byte Vec | `hash_h2_into` to `[0u8; 64]` stack |
+| Total: ~14 heap allocs/iter | 1 pre-allocated Vec (reused) + stack arrays |
+
+### Test Results
+- All 42 ML-DSA tests pass
+- 3,534 total tests, 21 ignored, 0 clippy warnings
+
+### Build Status (Post P45)
+- `cargo test --workspace --all-features`: 3,534 passed, 0 failed, 21 ignored
 - `RUSTFLAGS="-D warnings" cargo clippy`: 0 warnings
 - `cargo fmt --all -- --check`: clean
