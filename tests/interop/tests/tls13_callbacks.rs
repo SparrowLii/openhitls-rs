@@ -40,7 +40,6 @@ fn test_tls13_cert_verify_callback_accept() {
         let mut buf = [0u8; 8];
         let _ = conn.read(&mut buf);
         conn.write(b"ok").unwrap();
-        let _ = conn.shutdown();
     });
 
     let cb: CertVerifyCallback = Arc::new(|_info| Ok(()));
@@ -174,7 +173,6 @@ fn test_tls13_key_log_callback_invoked() {
         let mut buf = [0u8; 8];
         let _ = conn.read(&mut buf);
         conn.write(b"ok").unwrap();
-        let _ = conn.shutdown();
     });
 
     let cb: KeyLogCallback = Arc::new(move |line: &str| {
@@ -865,7 +863,6 @@ fn test_tls13_msg_callback() {
         conn.handshake().unwrap();
         let mut buf = [0u8; 32];
         let _ = conn.read(&mut buf);
-        let _ = conn.shutdown();
     });
 
     let client_config = TlsConfig::builder()
@@ -938,7 +935,6 @@ fn test_tls13_info_callback() {
         conn.handshake().unwrap();
         let mut buf = [0u8; 32];
         let _ = conn.read(&mut buf);
-        let _ = conn.shutdown();
     });
 
     let client_config = TlsConfig::builder()
@@ -1017,7 +1013,6 @@ fn test_tls13_client_hello_callback() {
         conn.handshake().unwrap();
         let mut buf = [0u8; 32];
         let _ = conn.read(&mut buf);
-        let _ = conn.shutdown();
     });
 
     let client_config = TlsConfig::builder()
@@ -1099,7 +1094,6 @@ fn test_tls13_record_padding_callback() {
         let n = conn.read(&mut buf).unwrap();
         assert_eq!(&buf[..n], b"padded data");
         conn.write(b"ok").unwrap();
-        let _ = conn.shutdown();
     });
 
     let client_config = TlsConfig::builder()

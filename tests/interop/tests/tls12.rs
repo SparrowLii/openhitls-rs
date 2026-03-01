@@ -829,7 +829,6 @@ fn test_concurrent_tls12_connections() {
                     let mut buf = [0u8; 64];
                     let n = conn.read(&mut buf).unwrap();
                     conn.write(&buf[..n]).unwrap();
-                    let _ = conn.shutdown();
                 })
             })
             .collect();
@@ -930,7 +929,6 @@ fn test_tls12_large_64kb_payload() {
             received.extend_from_slice(&buf[..n]);
         }
         tx.send(received).unwrap();
-        let _ = conn.shutdown();
     });
 
     let client_config = TlsConfig::builder()
@@ -1012,7 +1010,6 @@ fn test_tls12_connection_info_fields() {
         let mut buf = [0u8; 8];
         let n = conn.read(&mut buf).unwrap();
         conn.write(&buf[..n]).unwrap();
-        let _ = conn.shutdown();
     });
 
     let client_config = TlsConfig::builder()
@@ -1257,7 +1254,6 @@ fn test_tls12_empty_write() {
         let mut buf = [0u8; 16];
         let _ = conn.read(&mut buf);
         conn.write(b"ok").unwrap();
-        let _ = conn.shutdown();
     });
 
     let client_config = TlsConfig::builder()
@@ -1338,7 +1334,6 @@ fn test_tls12_export_keying_material_client_server_match() {
         tx.send(ekm).unwrap();
         let mut buf = [0u8; 8];
         let _ = conn.read(&mut buf);
-        let _ = conn.shutdown();
     });
 
     let client_config = TlsConfig::builder()
@@ -1433,7 +1428,6 @@ fn test_tls12_session_cache_store_and_resume() {
         let mut buf = [0u8; 8];
         let _ = conn.read(&mut buf);
         conn.write(b"ok").unwrap();
-        let _ = conn.shutdown();
     });
 
     let client_cache_clone = client_cache.clone();
@@ -1509,7 +1503,6 @@ fn test_tls12_session_cache_store_and_resume() {
         let mut buf = [0u8; 8];
         let _ = conn.read(&mut buf);
         conn.write(b"ok").unwrap();
-        let _ = conn.shutdown();
     });
 
     let client_cache_clone2 = client_cache.clone();
@@ -1602,7 +1595,6 @@ fn test_tls12_renegotiation_server_initiated() {
         let n = conn.read(&mut buf).unwrap();
         assert_eq!(&buf[..n], b"after renego");
         conn.write(b"ack2").unwrap();
-        let _ = conn.shutdown();
     });
 
     let client_config = TlsConfig::builder()
@@ -1684,7 +1676,6 @@ fn test_tls12_cert_verify_callback_accept() {
         let mut buf = [0u8; 8];
         let _ = conn.read(&mut buf);
         conn.write(b"ok").unwrap();
-        let _ = conn.shutdown();
     });
 
     let cb: CertVerifyCallback = Arc::new(|_info| Ok(()));
@@ -1763,7 +1754,6 @@ fn test_tls12_key_log_callback_invoked() {
         let mut buf = [0u8; 8];
         let _ = conn.read(&mut buf);
         conn.write(b"ok").unwrap();
-        let _ = conn.shutdown();
     });
 
     let cb: KeyLogCallback = Arc::new(move |line: &str| {
@@ -2130,7 +2120,6 @@ fn test_tls12_msg_callback() {
         conn.handshake().unwrap();
         let mut buf = [0u8; 32];
         let _ = conn.read(&mut buf);
-        let _ = conn.shutdown();
     });
 
     let client_config = TlsConfig::builder()
@@ -2243,7 +2232,6 @@ fn test_tls12_client_abbreviated_handshake() {
         conn.handshake().unwrap();
         let mut buf = [0u8; 32];
         let _ = conn.read(&mut buf);
-        let _ = conn.shutdown();
     });
 
     let cc = TlsConfig::builder()
@@ -2307,7 +2295,6 @@ fn test_tls12_client_abbreviated_handshake() {
         conn.handshake().unwrap();
         let mut buf = [0u8; 32];
         let _ = conn.read(&mut buf);
-        let _ = conn.shutdown();
     });
 
     let cc = TlsConfig::builder()
@@ -2383,7 +2370,6 @@ fn test_tls12_client_rsa_kx_no_ske() {
         let n = conn.read(&mut buf).unwrap();
         assert_eq!(&buf[..n], b"rsa kx test");
         conn.write(b"ok").unwrap();
-        let _ = conn.shutdown();
     });
 
     let client_config = TlsConfig::builder()
@@ -2483,7 +2469,6 @@ fn test_tls12_server_renegotiation_data_exchange() {
         let n = conn.read(&mut buf).unwrap();
         assert_eq!(&buf[..n], b"final");
         conn.write(b"done").unwrap();
-        let _ = conn.shutdown();
     });
 
     let client_config = TlsConfig::builder()
@@ -2570,7 +2555,6 @@ fn test_tls12_client_shutdown() {
         let mut buf = [0u8; 64];
         let n = conn.read(&mut buf).unwrap();
         assert_eq!(n, 0, "should get EOF after client shutdown");
-        let _ = conn.shutdown();
     });
 
     let client_config = TlsConfig::builder()
@@ -2687,7 +2671,6 @@ fn test_tls12_server_abbreviated_handshake() {
         assert!(!conn.is_session_resumed(), "first should be full");
         let mut buf = [0u8; 32];
         let _ = conn.read(&mut buf);
-        let _ = conn.shutdown();
     });
 
     let cc = TlsConfig::builder()
@@ -2747,7 +2730,6 @@ fn test_tls12_server_abbreviated_handshake() {
         assert!(conn.is_session_resumed(), "server should detect resumed");
         let mut buf = [0u8; 32];
         let _ = conn.read(&mut buf);
-        let _ = conn.shutdown();
     });
 
     let cc = TlsConfig::builder()
@@ -2821,7 +2803,6 @@ fn test_tls12_server_max_fragment_length() {
         let mut buf = [0u8; 64];
         let n = conn.read(&mut buf).unwrap();
         conn.write(&buf[..n]).unwrap();
-        let _ = conn.shutdown();
     });
 
     let client_config = TlsConfig::builder()
@@ -2905,7 +2886,6 @@ fn test_tls12_server_accessors() {
 
         let mut buf = [0u8; 16];
         let _ = conn.read(&mut buf);
-        let _ = conn.shutdown();
     });
 
     let client_config = TlsConfig::builder()

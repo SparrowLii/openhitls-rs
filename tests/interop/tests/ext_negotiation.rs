@@ -54,7 +54,6 @@ fn test_tls13_alpn_no_common_protocol() {
         let mut buf = [0u8; 32];
         let n = conn.read(&mut buf).unwrap();
         conn.write(&buf[..n]).unwrap();
-        let _ = conn.shutdown();
     });
 
     let client_config = TlsConfig::builder()
@@ -129,7 +128,6 @@ fn test_tls12_alpn_server_selects_first_match() {
         let mut buf = [0u8; 32];
         let n = conn.read(&mut buf).unwrap();
         conn.write(&buf[..n]).unwrap();
-        let _ = conn.shutdown();
     });
 
     let client_config = TlsConfig::builder()
@@ -215,7 +213,6 @@ fn test_tls12_alpn_no_common_protocol() {
         let mut buf = [0u8; 32];
         let n = conn.read(&mut buf).unwrap();
         conn.write(&buf[..n]).unwrap();
-        let _ = conn.shutdown();
     });
 
     let client_config = TlsConfig::builder()
@@ -289,7 +286,6 @@ fn test_tls13_sni_propagated_to_both_sides() {
         let mut buf = [0u8; 32];
         let n = conn.read(&mut buf).unwrap();
         conn.write(&buf[..n]).unwrap();
-        let _ = conn.shutdown();
     });
 
     let client_config = TlsConfig::builder()
@@ -371,7 +367,6 @@ fn test_tls12_sni_visible_on_server() {
         let mut buf = [0u8; 32];
         let n = conn.read(&mut buf).unwrap();
         conn.write(&buf[..n]).unwrap();
-        let _ = conn.shutdown();
     });
 
     let client_config = TlsConfig::builder()
@@ -455,7 +450,6 @@ fn test_tls13_group_server_preference() {
         let mut buf = [0u8; 32];
         let n = conn.read(&mut buf).unwrap();
         conn.write(&buf[..n]).unwrap();
-        let _ = conn.shutdown();
     });
 
     let client_config = TlsConfig::builder()
@@ -528,7 +522,6 @@ fn test_tls13_group_mismatch_triggers_hrr() {
         let mut buf = [0u8; 32];
         let n = conn.read(&mut buf).unwrap();
         conn.write(&buf[..n]).unwrap();
-        let _ = conn.shutdown();
     });
 
     // Client: supported_groups has P256 first (generates key_share for it) + X25519
@@ -665,7 +658,6 @@ fn test_tls12_max_fragment_length_e2e() {
         let mut buf = [0u8; 256];
         let n = conn.read(&mut buf).unwrap();
         conn.write(&buf[..n]).unwrap();
-        let _ = conn.shutdown();
     });
 
     let client_config = TlsConfig::builder()
@@ -731,7 +723,6 @@ fn test_tls13_record_size_limit_e2e() {
         let mut buf = [0u8; 256];
         let n = conn.read(&mut buf).unwrap();
         conn.write(&buf[..n]).unwrap();
-        let _ = conn.shutdown();
     });
 
     let client_config = TlsConfig::builder()
@@ -805,7 +796,6 @@ fn test_tls12_record_size_limit_e2e() {
         let mut buf = [0u8; 256];
         let n = conn.read(&mut buf).unwrap();
         conn.write(&buf[..n]).unwrap();
-        let _ = conn.shutdown();
     });
 
     let client_config = TlsConfig::builder()
@@ -878,7 +868,6 @@ fn test_tls13_multiple_extensions_combined() {
         let mut buf = [0u8; 32];
         let n = conn.read(&mut buf).unwrap();
         conn.write(&buf[..n]).unwrap();
-        let _ = conn.shutdown();
     });
 
     let client_config = TlsConfig::builder()
@@ -978,7 +967,6 @@ fn test_tls13_status_request_ocsp_staple() {
         let mut buf = [0u8; 64];
         let n = conn.read(&mut buf).unwrap();
         conn.write(&buf[..n]).unwrap();
-        let _ = conn.shutdown();
     });
 
     let client_config = TlsConfig::builder()
@@ -1045,7 +1033,6 @@ fn test_tls13_status_request_no_staple() {
         let mut buf = [0u8; 64];
         let n = conn.read(&mut buf).unwrap();
         conn.write(&buf[..n]).unwrap();
-        let _ = conn.shutdown();
     });
 
     let client_config = TlsConfig::builder()
@@ -1118,7 +1105,6 @@ fn test_tls13_early_data_max_size_negotiation() {
         let mut buf = [0u8; 64];
         let n = conn.read(&mut buf).unwrap();
         conn.write(&buf[..n]).unwrap();
-        let _ = conn.shutdown();
     });
 
     let client_config = TlsConfig::builder()
@@ -1181,7 +1167,6 @@ fn test_tls13_early_data_max_size_negotiation() {
         let mut buf = [0u8; 128];
         let n = conn.read(&mut buf).unwrap();
         conn.write(&buf[..n]).unwrap();
-        let _ = conn.shutdown();
     });
 
     let client_config2 = TlsConfig::builder()
@@ -1256,7 +1241,6 @@ fn test_tls13_early_data_rejected_no_ticket() {
         let mut buf = [0u8; 64];
         let n = conn.read(&mut buf).unwrap();
         conn.write(&buf[..n]).unwrap();
-        let _ = conn.shutdown();
     });
 
     // Client without any resumption session — cannot offer early data
@@ -1339,7 +1323,6 @@ fn test_tls13_compress_certificate_zlib() {
         let mut buf = [0u8; 64];
         let n = conn.read(&mut buf).unwrap();
         conn.write(&buf[..n]).unwrap();
-        let _ = conn.shutdown();
     });
 
     let client_config = TlsConfig::builder()
@@ -1406,7 +1389,6 @@ fn test_tls13_compress_certificate_unsupported_algorithm() {
         let mut buf = [0u8; 64];
         let n = conn.read(&mut buf).unwrap();
         conn.write(&buf[..n]).unwrap();
-        let _ = conn.shutdown();
     });
 
     // Client offers ZLIB but server doesn't support it — should fall back
@@ -1479,7 +1461,6 @@ fn test_tls13_sct_extension_roundtrip() {
         let mut buf = [0u8; 64];
         let n = conn.read(&mut buf).unwrap();
         conn.write(&buf[..n]).unwrap();
-        let _ = conn.shutdown();
     });
 
     let client_config = TlsConfig::builder()
@@ -1557,7 +1538,6 @@ fn test_tls12_extended_master_secret_standalone() {
         let mut buf = [0u8; 64];
         let n = conn.read(&mut buf).unwrap();
         conn.write(&buf[..n]).unwrap();
-        let _ = conn.shutdown();
     });
 
     let client_config = TlsConfig::builder()

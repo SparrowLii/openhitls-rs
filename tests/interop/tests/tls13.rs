@@ -380,8 +380,6 @@ fn test_tls13_post_hs_auth_not_offered() {
             result.is_err(),
             "should fail when client didn't offer post-hs auth"
         );
-
-        let _ = conn.shutdown();
     });
 
     let stream = TcpStream::connect_timeout(&addr, Duration::from_secs(5)).unwrap();
@@ -464,7 +462,6 @@ fn test_tcp_tls13_rsa_server_cert() {
         let mut buf = [0u8; 32];
         let n = conn.read(&mut buf).unwrap();
         conn.write(&buf[..n]).unwrap();
-        let _ = conn.shutdown();
     });
 
     let stream = std::net::TcpStream::connect_timeout(&addr, Duration::from_secs(5)).unwrap();
@@ -535,7 +532,6 @@ fn test_tls13_alpn_overlap_negotiated() {
         let mut buf = [0u8; 8];
         let n = conn.read(&mut buf).unwrap();
         conn.write(&buf[..n]).unwrap();
-        let _ = conn.shutdown();
     });
 
     let client_config = TlsConfig::builder()
@@ -613,7 +609,6 @@ fn test_tls13_alpn_client_only_no_server_alpn() {
         let mut buf = [0u8; 8];
         let n = conn.read(&mut buf).unwrap();
         conn.write(&buf[..n]).unwrap();
-        let _ = conn.shutdown();
     });
 
     // Client offers ALPN, server ignores it
@@ -683,7 +678,6 @@ fn test_concurrent_tls13_connections() {
                     let mut buf = [0u8; 64];
                     let n = conn.read(&mut buf).unwrap();
                     conn.write(&buf[..n]).unwrap();
-                    let _ = conn.shutdown();
                 })
             })
             .collect();
@@ -771,7 +765,6 @@ fn test_tls13_large_64kb_payload() {
             received.extend_from_slice(&buf[..n]);
         }
         tx.send(received).unwrap();
-        let _ = conn.shutdown();
     });
 
     let client_config = TlsConfig::builder()
@@ -846,7 +839,6 @@ fn test_tls13_connection_info_fields() {
         let mut buf = [0u8; 8];
         let n = conn.read(&mut buf).unwrap();
         conn.write(&buf[..n]).unwrap();
-        let _ = conn.shutdown();
     });
 
     let client_config = TlsConfig::builder()
@@ -933,7 +925,6 @@ fn test_tls13_first_connection_not_resumed() {
         let mut buf = [0u8; 8];
         let n = conn.read(&mut buf).unwrap();
         conn.write(&buf[..n]).unwrap();
-        let _ = conn.shutdown();
     });
 
     let client_config = TlsConfig::builder()
@@ -1014,7 +1005,6 @@ fn test_tls13_multi_suite_negotiation() {
         let mut buf = [0u8; 8];
         let n = conn.read(&mut buf).unwrap();
         conn.write(&buf[..n]).unwrap();
-        let _ = conn.shutdown();
     });
 
     let client_config = TlsConfig::builder()
@@ -1092,7 +1082,6 @@ fn test_tls13_session_take_after_handshake() {
         let mut buf = [0u8; 8];
         let n = conn.read(&mut buf).unwrap();
         conn.write(&buf[..n]).unwrap();
-        let _ = conn.shutdown();
     });
 
     let client_config = TlsConfig::builder()
@@ -1161,7 +1150,6 @@ fn test_tls13_certificate_authorities_config_handshake() {
         let mut buf = [0u8; 8];
         let _ = conn.read(&mut buf);
         conn.write(b"ok").unwrap();
-        let _ = conn.shutdown();
     });
 
     // Client sends certificate_authorities extension with two fake DER-encoded DNs
@@ -1229,7 +1217,6 @@ fn test_tls13_certificate_authorities_empty_config() {
         let mut buf = [0u8; 8];
         let _ = conn.read(&mut buf);
         conn.write(b"ok").unwrap();
-        let _ = conn.shutdown();
     });
 
     // Empty certificate_authorities (equivalent to not setting it)
@@ -1300,7 +1287,6 @@ fn test_tls13_export_keying_material_client_server_match() {
         tx.send(ekm).unwrap();
         let mut buf = [0u8; 8];
         let _ = conn.read(&mut buf);
-        let _ = conn.shutdown();
     });
 
     let client_config = TlsConfig::builder()
@@ -1373,7 +1359,6 @@ fn test_tls13_export_keying_material_different_labels() {
         conn.handshake().unwrap();
         let mut buf = [0u8; 8];
         let _ = conn.read(&mut buf);
-        let _ = conn.shutdown();
     });
 
     let client_config = TlsConfig::builder()
@@ -1482,7 +1467,6 @@ fn test_tls13_export_early_keying_material_no_psk() {
         assert!(res.is_err(), "server: early export must fail without PSK");
         let mut buf = [0u8; 8];
         let _ = conn.read(&mut buf);
-        let _ = conn.shutdown();
     });
 
     let client_config = TlsConfig::builder()
@@ -1555,7 +1539,6 @@ fn test_tls13_export_keying_material_various_lengths() {
         conn.handshake().unwrap();
         let mut buf = [0u8; 8];
         let _ = conn.read(&mut buf);
-        let _ = conn.shutdown();
     });
 
     let client_config = TlsConfig::builder()
@@ -1638,7 +1621,6 @@ fn test_tls13_export_keying_material_server_side() {
         tx.send((ekm_with_ctx, ekm_no_ctx)).unwrap();
         let mut buf = [0u8; 8];
         let _ = conn.read(&mut buf);
-        let _ = conn.shutdown();
     });
 
     let client_config = TlsConfig::builder()
@@ -1745,12 +1727,6 @@ fn test_tls13_key_update_server_initiated() {
         let n = conn.read(&mut buf).unwrap();
         assert_eq!(&buf[..n], b"after key update");
         conn.write(b"ack2").unwrap();
-
-        // Wait for client "done" before shutting down to avoid Windows
-        // WSAECONNRESET (OS error 10054) race condition.
-        let n = conn.read(&mut buf).unwrap();
-        assert_eq!(&buf[..n], b"done");
-        let _ = conn.shutdown();
     });
 
     let stream = TcpStream::connect_timeout(&addr, Duration::from_secs(5)).unwrap();
@@ -1773,8 +1749,6 @@ fn test_tls13_key_update_server_initiated() {
     let n = conn.read(&mut buf).unwrap();
     assert_eq!(&buf[..n], b"ack2");
 
-    // Signal server that client is done reading
-    conn.write(b"done").unwrap();
     let _ = conn.shutdown();
     server_handle.join().unwrap();
 }
@@ -1829,7 +1803,6 @@ fn test_tls13_key_update_no_response() {
         let mut buf = [0u8; 64];
         let n = conn.read(&mut buf).unwrap();
         assert_eq!(&buf[..n], b"client ok");
-        let _ = conn.shutdown();
     });
 
     let stream = TcpStream::connect_timeout(&addr, Duration::from_secs(5)).unwrap();
@@ -1965,7 +1938,6 @@ fn test_tls13_server_accessors() {
 
         let mut buf = [0u8; 16];
         let _ = conn.read(&mut buf);
-        let _ = conn.shutdown();
     });
 
     let client_config = TlsConfig::builder()
@@ -2043,7 +2015,6 @@ fn test_tls13_server_export_keying_material() {
 
         let mut buf = [0u8; 16];
         let _ = conn.read(&mut buf);
-        let _ = conn.shutdown();
     });
 
     let client_config = TlsConfig::builder()
