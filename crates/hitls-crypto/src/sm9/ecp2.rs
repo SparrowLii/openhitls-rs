@@ -127,26 +127,65 @@ impl EcPointG2 {
         })
     }
 
-    /// Scalar multiplication [k]Q.
+    /// Scalar multiplication [k]Q using w=4 fixed-window method.
+    ///
+    /// Precomputes [0Q, 1Q, 2Q, ..., 15Q], then processes scalar 4 bits at a time.
+    /// Reduces point additions from ~256 (binary) to ~64 (windowed) for 256-bit scalars.
     pub fn scalar_mul(&self, k: &BigNum) -> Result<Self, CryptoError> {
-        let bits = k.to_bytes_be();
+        let bytes = k.to_bytes_be();
+        if bytes.is_empty() || bytes.iter().all(|&b| b == 0) {
+            return Ok(Self::infinity());
+        }
+
+        // Precompute table: table[i] = i * Q for i = 0..16
+        let mut table = Vec::with_capacity(16);
+        table.push(Self::infinity()); // 0Q
+        table.push(self.clone()); // 1Q
+        let p2 = self.double()?; // 2Q
+        table.push(p2.clone());
+        for i in 3..16u32 {
+            table.push(table[(i - 1) as usize].add(self)?);
+        }
+
         let mut result = Self::infinity();
         let mut started = false;
-        for byte in &bits {
-            for bit in (0..8).rev() {
+
+        for &byte in &bytes {
+            // Process high nibble (bits 7-4)
+            let hi = (byte >> 4) & 0xF;
+            if started {
+                result = result.double()?;
+                result = result.double()?;
+                result = result.double()?;
+                result = result.double()?;
+            }
+            if hi != 0 {
                 if started {
-                    result = result.double()?;
+                    result = result.add(&table[hi as usize])?;
+                } else {
+                    result = table[hi as usize].clone();
+                    started = true;
                 }
-                if (byte >> bit) & 1 == 1 {
-                    if started {
-                        result = result.add(self)?;
-                    } else {
-                        result = self.clone();
-                        started = true;
-                    }
+            }
+
+            // Process low nibble (bits 3-0)
+            let lo = byte & 0xF;
+            if started {
+                result = result.double()?;
+                result = result.double()?;
+                result = result.double()?;
+                result = result.double()?;
+            }
+            if lo != 0 {
+                if started {
+                    result = result.add(&table[lo as usize])?;
+                } else {
+                    result = table[lo as usize].clone();
+                    started = true;
                 }
             }
         }
+
         Ok(result)
     }
 
