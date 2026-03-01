@@ -3435,3 +3435,16 @@ Targeted coverage gaps in connection_info, handshake enums, lib.rs constants, co
 - kpke_keygen: pre-sized ek/dk Vecs with direct slice writes
 - kpke_encrypt: pre-sized ct Vec, prf_into stack reuse
 - All 41 ML-KEM tests pass, 3,534 total tests, 21 ignored, 0 clippy warnings
+
+---
+
+## Phase P47 — TranscriptHash Stack-Allocated Output (2026-03-01)
+
+**Prompt**: Continue performance optimizations. TranscriptHash::current_hash() returns Vec<u8> and is called ~47 times across 12 handshake files, allocating 32/48 bytes per call.
+
+**Result**:
+- New `HashOutput` struct: `[u8; 64]` + len, with `Deref<Target=[u8]>`, `PartialEq`, `Debug`
+- `current_hash()` and `empty_hash()` return `HashOutput` instead of `Vec<u8>`
+- Zero caller changes needed — Rust deref coercion handles `&HashOutput` → `&[u8]` automatically
+- Eliminates 5–15 heap allocations per TLS handshake
+- All 3,534 tests pass, 21 ignored, 0 clippy warnings
