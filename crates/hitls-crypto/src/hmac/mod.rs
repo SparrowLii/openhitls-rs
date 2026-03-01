@@ -108,7 +108,7 @@ impl Hmac {
 
     /// Reset the HMAC state for reuse with the same key.
     /// Uses `Digest::reset()` to avoid `Box<dyn Digest>` re-allocation.
-    pub fn reset(&mut self) {
+    pub fn reset(&mut self) -> Result<(), CryptoError> {
         let bs = self.block_size;
 
         self.inner.reset();
@@ -119,15 +119,17 @@ impl Hmac {
         for (dst, &src) in ipad_key[..bs].iter_mut().zip(&self.key_block[..bs]) {
             *dst = src ^ 0x36;
         }
-        let _ = self.inner.update(&ipad_key[..bs]);
+        self.inner.update(&ipad_key[..bs])?;
         ipad_key.zeroize();
 
         let mut opad_key = [0u8; MAX_BLOCK_SIZE];
         for (dst, &src) in opad_key[..bs].iter_mut().zip(&self.key_block[..bs]) {
             *dst = src ^ 0x5c;
         }
-        let _ = self.outer.update(&opad_key[..bs]);
+        self.outer.update(&opad_key[..bs])?;
         opad_key.zeroize();
+
+        Ok(())
     }
 
     /// One-shot HMAC computation.
@@ -243,7 +245,7 @@ mod tests {
         assert_eq!(to_hex(&out1), expected);
 
         // Reset and compute again
-        ctx.reset();
+        ctx.reset().unwrap();
         ctx.update(data).unwrap();
         let mut out2 = vec![0u8; 32];
         ctx.finish(&mut out2).unwrap();

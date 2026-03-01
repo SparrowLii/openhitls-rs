@@ -56,7 +56,7 @@ fn compute_cbc_mac_with(
     fragment: &[u8],
     out: &mut [u8],
 ) -> Result<(), TlsError> {
-    hmac.reset();
+    hmac.reset().map_err(TlsError::CryptoError)?;
     hmac.update(&seq.to_be_bytes())
         .map_err(TlsError::CryptoError)?;
     hmac.update(&[content_type as u8])
@@ -376,7 +376,7 @@ impl RecordEncryptor12EtM {
 
         // Compute MAC over: seq(8) || type(1) || version(2) || length(2) || IV || ciphertext
         let adjusted_len = (AES_BLOCK_SIZE + encrypt_data.len()) as u16;
-        self.hmac.reset();
+        self.hmac.reset().map_err(TlsError::CryptoError)?;
         self.hmac
             .update(&self.seq.to_be_bytes())
             .map_err(TlsError::CryptoError)?;
@@ -469,7 +469,7 @@ impl RecordDecryptor12EtM {
 
         // Verify MAC FIRST (this is the key security property of ETM)
         let adjusted_len = (AES_BLOCK_SIZE + ciphertext.len()) as u16;
-        self.hmac.reset();
+        self.hmac.reset().map_err(TlsError::CryptoError)?;
         self.hmac
             .update(&self.seq.to_be_bytes())
             .map_err(TlsError::CryptoError)?;

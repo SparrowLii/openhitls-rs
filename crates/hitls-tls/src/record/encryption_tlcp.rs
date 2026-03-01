@@ -40,7 +40,7 @@ fn compute_cbc_mac_with(
     fragment: &[u8],
     out: &mut [u8; SM3_MAC_SIZE],
 ) -> Result<(), TlsError> {
-    hmac.reset();
+    hmac.reset().map_err(TlsError::CryptoError)?;
     hmac.update(&seq.to_be_bytes())
         .map_err(TlsError::CryptoError)?;
     hmac.update(&[content_type as u8])

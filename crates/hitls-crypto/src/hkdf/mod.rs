@@ -60,7 +60,7 @@ impl Hkdf {
 
         for i in 1..=n {
             if i > 1 {
-                hmac.reset();
+                hmac.reset()?;
             }
             if t_len > 0 {
                 hmac.update(&t[..t_len])?;

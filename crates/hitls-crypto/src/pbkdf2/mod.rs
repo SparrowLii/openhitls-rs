@@ -38,7 +38,7 @@ pub fn pbkdf2(
 
         // U2..Uc — reuse single stack buffer for all iterations
         for _ in 1..iterations {
-            hmac.reset();
+            hmac.reset()?;
             hmac.update(&u)?;
             hmac.finish(&mut u)?; // Overwrite u in-place, no u_next allocation
             for (tj, &uj) in t.iter_mut().zip(u.iter()) {
