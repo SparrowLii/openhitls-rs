@@ -5,6 +5,8 @@ on:
     branches: [main, develop]
   pull_request:
     branches: [main, develop]
+  schedule:
+    - cron: '0 3 * * 1'  # Weekly Monday 03:00 UTC
 
 env:
   CARGO_TERM_COLOR: always
@@ -148,3 +150,29 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - run: cargo bench --no-run
+
+  fuzz-run:
+    name: Scheduled Fuzzing
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+      - uses: Swatinem/rust-cache@v2
+        with:
+          prefix-key: fuzz
+      - name: Install cargo-fuzz
+        run: cargo install cargo-fuzz --locked
+      - name: Run fuzz targets (60s each)
+        run: |
+          cd fuzz
+          for target in $(cargo fuzz list); do
+            echo "=== Fuzzing $target ==="
+            cargo fuzz run "$target" -- -max_total_time=60 -jobs=2 || true
+          done
+      - name: Upload crash artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-crashes
+          path: fuzz/artifacts/
