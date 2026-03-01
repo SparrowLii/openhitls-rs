@@ -93,6 +93,7 @@ jobs:
           components: miri
       - run: cargo miri test -p hitls-bignum
       - run: cargo miri test -p hitls-utils -- --skip prop_
+      - run: cargo miri test -p hitls-crypto --all-features -- mceliece::benes
 
   fuzz-check:
     name: Fuzz Build Check

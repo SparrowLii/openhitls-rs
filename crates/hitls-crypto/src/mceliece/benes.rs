@@ -139,12 +139,13 @@ fn benes_controlbits(
     }
 
     let nu = n as usize;
-    // SAFETY: `temp` is allocated as `vec![0i32; 2*n]`, guaranteeing at least `2*nu` elements.
-    // `i32` and `u32` have identical size (4 bytes) and alignment (4 bytes).
-    // `area_a` covers `temp[0..nu]`, `area_b` covers `temp[nu..2*nu]` — no overlap.
-    let area_a = unsafe { std::slice::from_raw_parts_mut(temp.as_mut_ptr() as *mut u32, nu) };
-    let area_b =
-        unsafe { std::slice::from_raw_parts_mut(temp.as_mut_ptr().add(nu) as *mut u32, nu) };
+    // Split into two non-overlapping halves, then cast i32 → u32 in-place.
+    // SAFETY: `i32` and `u32` have identical size (4 bytes) and alignment (4 bytes).
+    let (half_a, half_b) = temp.split_at_mut(nu);
+    let area_a: &mut [u32] =
+        unsafe { std::slice::from_raw_parts_mut(half_a.as_mut_ptr() as *mut u32, nu) };
+    let area_b: &mut [u32] =
+        unsafe { std::slice::from_raw_parts_mut(half_b.as_mut_ptr() as *mut u32, nu) };
 
     // Build 32-bit keys
     for i in 0..nu {
