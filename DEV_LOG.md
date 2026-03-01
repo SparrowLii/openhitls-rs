@@ -6,7 +6,7 @@ Category summary:
 - Implementation: I1–I82 (82 phases)
 - Testing: T1–T63 (63 phases)
 - Refactoring: R1–R12 (12 phases)
-- Performance: P1–P54 (54 phases)
+- Performance: P1–P55 (55 phases)
 
 | # | Phase | Type | Title | Date |
 |---|-------|------|-------|------|
@@ -221,7 +221,8 @@ Category summary:
 | 209 | P52 | Perf | ECC/EdDSA Windowed Scalar Multiplication | 2026-03-01 |
 | 210 | P53 | Perf | BigNum CIOS Inner Loop Optimization | 2026-03-01 |
 | 211 | P54 | Perf | ECDSA P-256 Verify Scalar Field Fast Path | 2026-03-01 |
-| 212 | T65 | Test | Test Coverage Enhancement (+66 tests, CI coverage infra) | 2026-03-01 |
+| 212 | P55 | Perf | Ed25519/Ed448 Verify Projective Point Comparison | 2026-03-01 |
+| 213 | T65 | Test | Test Coverage Enhancement (+66 tests, CI coverage infra) | 2026-03-01 |
 
 ---
 
@@ -11699,6 +11700,43 @@ Added P-256 fast path dispatch in ECDSA verify for scalar field operations. The 
 - 3,600 total tests, 21 ignored, 0 clippy warnings
 
 ### Build Status (Post P54)
+- `cargo test --workspace --all-features`: 3,600 passed, 0 failed, 21 ignored
+- `RUSTFLAGS="-D warnings" cargo clippy`: 0 warnings
+- `cargo fmt --all -- --check`: clean
+
+---
+
+## Phase P55 — Ed25519/Ed448 Verify Projective Point Comparison (2026-03-01)
+
+### Summary
+Replaced `to_bytes().ct_eq()` point comparison in Ed25519 and Ed448 verify with projective cross-product comparison (`X1·Z2 == X2·Z1 AND Y1·Z2 == Y2·Z1`). Eliminates 2 field inversions per verify (~530 field operations) in favor of 4 field multiplications.
+
+### Changes
+| File | Change |
+|------|--------|
+| `crates/hitls-crypto/src/curve25519/edwards.rs` | Added `points_equal_ct()` — projective point equality via cross-product (4 field muls, no inversions). |
+| `crates/hitls-crypto/src/curve448/edwards.rs` | Added `points_equal_ct()` — same projective comparison for Ed448/Goldilocks. |
+| `crates/hitls-crypto/src/ed25519/mod.rs` | `verify()`: replaced `sb.to_bytes().ct_eq(&rka.to_bytes())` with `points_equal_ct(&sb, &rka)`. Removed unused `subtle::ConstantTimeEq` import. |
+| `crates/hitls-crypto/src/ed448/mod.rs` | Both `verify()` and `verify_ph_internal()`: same replacement. Removed unused `subtle::ConstantTimeEq` import. |
+
+### Implementation Details
+1. **Projective equality**: Two points `(X1,Y1,Z1)` and `(X2,Y2,Z2)` are equal iff `X1·Z2 = X2·Z1` and `Y1·Z2 = Y2·Z1`. This costs 4 field multiplications + 4 field element reductions.
+2. **Old approach**: `GeExtended::to_bytes()` normalizes to affine by computing `Z.invert()` (Fermat: a^(p-2), ~265 field ops for Fe25519, ~447 for Fe448), then encodes. Two `to_bytes()` calls = 2 inversions ≈ 530+ field ops.
+3. **Constant-time**: Both approaches use `subtle::ConstantTimeEq` on byte arrays — secure for signature verification.
+
+### Benchmark Results (Apple M4, macOS 15.4)
+| Benchmark | Before (P54) | After (P55) | Speedup |
+|-----------|-------------|-------------|---------|
+| ed25519 verify | ~44 µs | 35.8 µs | 1.23× |
+| ed25519 sign | ~12 µs | 10.1 µs | — (noise) |
+
+~19% verify speedup from eliminating 2 field inversions in the comparison step.
+
+### Test Results
+- All Ed25519/Ed448 tests pass (including Wycheproof Ed25519 vectors)
+- 3,600 total tests, 21 ignored, 0 clippy warnings
+
+### Build Status (Post P55)
 - `cargo test --workspace --all-features`: 3,600 passed, 0 failed, 21 ignored
 - `RUSTFLAGS="-D warnings" cargo clippy`: 0 warnings
 - `cargo fmt --all -- --check`: clean

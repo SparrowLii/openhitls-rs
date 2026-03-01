@@ -6,10 +6,11 @@
 
 use hitls_bignum::BigNum;
 use hitls_types::CryptoError;
-use subtle::ConstantTimeEq;
 use zeroize::Zeroize;
 
-use crate::curve25519::edwards::{point_add, scalar_mul, scalar_mul_base, GeExtended};
+use crate::curve25519::edwards::{
+    point_add, points_equal_ct, scalar_mul, scalar_mul_base, GeExtended,
+};
 use crate::sha2::Sha512;
 
 /// Ed25519 key size in bytes.
@@ -191,7 +192,7 @@ impl Ed25519KeyPair {
         let ka = scalar_mul(&k_scalar, &a_point);
         let rka = point_add(&r_point, &ka);
 
-        Ok(sb.to_bytes().ct_eq(&rka.to_bytes()).into())
+        Ok(points_equal_ct(&sb, &rka).into())
     }
 
     /// Return the 32-byte public key.

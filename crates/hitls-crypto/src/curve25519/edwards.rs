@@ -6,6 +6,7 @@
 use std::sync::OnceLock;
 
 use hitls_types::CryptoError;
+use subtle::ConstantTimeEq;
 
 use super::field::Fe25519;
 
@@ -270,6 +271,18 @@ fn point_add_niels(a: &GeExtended, b: &NielsPoint) -> GeExtended {
         z: f.mul(&g), // Z3 = F·G
         t: e.mul(&h), // T3 = E·H
     }
+}
+
+/// Constant-time projective point equality: a == b without field inversions.
+///
+/// Checks X1·Z2 == X2·Z1 AND Y1·Z2 == Y2·Z1 using 4 field multiplications
+/// instead of 2 field inversions (~530 field ops saved).
+pub(crate) fn points_equal_ct(a: &GeExtended, b: &GeExtended) -> subtle::Choice {
+    let lx = a.x.mul(&b.z);
+    let rx = b.x.mul(&a.z);
+    let ly = a.y.mul(&b.z);
+    let ry = b.y.mul(&a.z);
+    lx.to_bytes().ct_eq(&rx.to_bytes()) & ly.to_bytes().ct_eq(&ry.to_bytes())
 }
 
 /// Constant-time table lookup: select table[index] for index in 0..16.

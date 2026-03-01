@@ -3562,6 +3562,21 @@ Targeted coverage gaps in connection_info, handshake enums, lib.rs constants, co
 
 ---
 
+## Phase P55 — Ed25519/Ed448 Verify Projective Point Comparison (2026-03-01)
+
+**Prompt**: Replace `to_bytes().ct_eq()` point comparison in Ed25519/Ed448 verify with projective cross-product comparison. Eliminates 2 field inversions per verify (~530 field operations for Ed25519, ~894 for Ed448) in favor of 4 field multiplications.
+
+**Result**:
+- Added `points_equal_ct()` to `curve25519/edwards.rs` and `curve448/edwards.rs` — projective equality via X1·Z2==X2·Z1, Y1·Z2==Y2·Z1
+- Ed25519 verify: `sb.to_bytes().ct_eq(&rka.to_bytes())` → `points_equal_ct(&sb, &rka)`
+- Ed448 verify (2 call sites): same replacement
+- Removed unused `subtle::ConstantTimeEq` imports from ed25519/mod.rs and ed448/mod.rs
+- Ed25519 verify: ~44µs → 35.8µs (19% speedup, 1.23×)
+- All Ed25519/Ed448 tests pass (including Wycheproof vectors)
+- All 3,600 tests pass, 21 ignored, 0 clippy warnings
+
+---
+
 ## Phase T65 — Test Coverage Enhancement (+66 tests, CI coverage infrastructure) (2026-03-01)
 
 **Prompt**: Implement Phase T65 — Test Coverage Enhancement. Switch CI from cargo-tarpaulin to cargo-llvm-cov with branch coverage. Add ~70 tests targeting low-coverage files: TLS 1.3 server, TLS 1.2 client/server, crypto primitives (DRBG, GCM, McEliece matrix, provider, DSA, ElGamal, FIPS KAT/PCT), and CLI commands (s_client, s_server, speed).

@@ -5,10 +5,11 @@
 
 use hitls_bignum::BigNum;
 use hitls_types::CryptoError;
-use subtle::ConstantTimeEq;
 use zeroize::Zeroize;
 
-use crate::curve448::edwards::{point_add, scalar_mul, scalar_mul_base, GeExtended448, L_BYTES_LE};
+use crate::curve448::edwards::{
+    point_add, points_equal_ct, scalar_mul, scalar_mul_base, GeExtended448, L_BYTES_LE,
+};
 use crate::sha3::Shake256;
 
 /// Ed448 key size in bytes (57-byte public key, 57-byte seed).
@@ -215,7 +216,7 @@ impl Ed448KeyPair {
         let ka = scalar_mul(&k_scalar, &a_point);
         let rka = point_add(&r_point, &ka);
 
-        Ok(sb.to_bytes().ct_eq(&rka.to_bytes()).into())
+        Ok(points_equal_ct(&sb, &rka).into())
     }
 
     /// Sign a message using Ed448ph (prehashed variant).
@@ -329,7 +330,7 @@ impl Ed448KeyPair {
         let ka = scalar_mul(&k_scalar, &a_point);
         let rka = point_add(&r_point, &ka);
 
-        Ok(sb.to_bytes().ct_eq(&rka.to_bytes()).into())
+        Ok(points_equal_ct(&sb, &rka).into())
     }
 
     /// Return the 57-byte public key.
