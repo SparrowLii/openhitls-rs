@@ -56,7 +56,7 @@ const BASE_X: Fe25519 = Fe25519([
 
 /// A point on the twisted Edwards curve in extended coordinates.
 /// Represents the affine point (X/Z, Y/Z) with T = XY/Z.
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub(crate) struct GeExtended {
     pub x: Fe25519,
     pub y: Fe25519,
@@ -86,6 +86,7 @@ impl GeExtended {
     }
 
     /// Encode a point to 32 bytes: the y-coordinate with the sign of x in the top bit.
+    #[allow(clippy::wrong_self_convention)]
     pub fn to_bytes(&self) -> [u8; 32] {
         let z_inv = self.z.invert();
         let x = self.x.mul(&z_inv);
@@ -302,7 +303,7 @@ fn base_table() -> &'static [[NielsPoint; 16]; 64] {
             let mut group = Vec::with_capacity(16);
             group.push(NielsPoint::identity()); // 0·Bi
 
-            let mut accum = bi.clone();
+            let mut accum = bi;
             group.push(NielsPoint::from_extended(&accum)); // 1·Bi
 
             for _j in 2..16 {
@@ -325,19 +326,56 @@ fn base_table() -> &'static [[NielsPoint; 16]; 64] {
     })
 }
 
-/// Scalar multiplication: R = scalar * point using double-and-add (MSB to LSB).
+/// Scalar multiplication: R = scalar * point using w=4 fixed-window method.
 ///
 /// The scalar is a 256-bit little-endian byte array.
+/// Precomputes [0P, 1P, ..., 15P], processes 4 bits at a time (64 windows).
 pub(crate) fn scalar_mul(scalar: &[u8; 32], point: &GeExtended) -> GeExtended {
-    let mut result = GeExtended::identity();
+    // Precompute table: table[i] = i * P for i = 0..16
+    let mut table = [GeExtended::identity(); 16];
+    table[1] = *point;
+    table[2] = point_double(point);
+    for i in 3..16usize {
+        table[i] = point_add(&table[i - 1], point);
+    }
 
-    // Iterate from the most significant bit to the least significant bit
-    for i in (0..256).rev() {
-        result = point_double(&result);
-        let byte_idx = i / 8;
-        let bit_idx = i % 8;
-        if (scalar[byte_idx] >> bit_idx) & 1 == 1 {
-            result = point_add(&result, point);
+    let mut result = GeExtended::identity();
+    let mut started = false;
+
+    // Process from MSB to LSB: scalar is little-endian, so iterate bytes in reverse
+    for &byte in scalar.iter().rev() {
+        // High nibble first (MSB)
+        let hi = (byte >> 4) & 0xF;
+        if started {
+            result = point_double(&result);
+            result = point_double(&result);
+            result = point_double(&result);
+            result = point_double(&result);
+        }
+        if hi != 0 {
+            if started {
+                result = point_add(&result, &table[hi as usize]);
+            } else {
+                result = table[hi as usize];
+                started = true;
+            }
+        }
+
+        // Low nibble (LSB of this byte)
+        let lo = byte & 0xF;
+        if started {
+            result = point_double(&result);
+            result = point_double(&result);
+            result = point_double(&result);
+            result = point_double(&result);
+        }
+        if lo != 0 {
+            if started {
+                result = point_add(&result, &table[lo as usize]);
+            } else {
+                result = table[lo as usize];
+                started = true;
+            }
         }
     }
 

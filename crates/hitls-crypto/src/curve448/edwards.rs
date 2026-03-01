@@ -248,20 +248,57 @@ pub(crate) fn point_double(a: &GeExtended448) -> GeExtended448 {
     }
 }
 
-/// Scalar multiplication: R = scalar * point using double-and-add (MSB to LSB).
+/// Scalar multiplication: R = scalar * point using w=4 fixed-window method.
 ///
-/// The scalar is a 57-byte little-endian byte array (446 effective bits).
+/// The scalar is a little-endian byte array (57 bytes for Ed448).
+/// Precomputes [0P, 1P, ..., 15P], processes 4 bits at a time.
 pub(crate) fn scalar_mul(scalar: &[u8], point: &GeExtended448) -> GeExtended448 {
-    let mut result = GeExtended448::identity();
-    let num_bits = scalar.len() * 8;
+    // Precompute table: table[i] = i * P for i = 0..16
+    let mut table = Vec::with_capacity(16);
+    table.push(GeExtended448::identity()); // 0P
+    table.push(point.clone()); // 1P
+    table.push(point_double(point)); // 2P
+    for i in 3..16usize {
+        table.push(point_add(&table[i - 1], point));
+    }
 
-    // Iterate from the most significant bit to the least significant bit
-    for i in (0..num_bits).rev() {
-        result = point_double(&result);
-        let byte_idx = i / 8;
-        let bit_idx = i % 8;
-        if byte_idx < scalar.len() && (scalar[byte_idx] >> bit_idx) & 1 == 1 {
-            result = point_add(&result, point);
+    let mut result = GeExtended448::identity();
+    let mut started = false;
+
+    // Process from MSB to LSB: scalar is little-endian, so iterate bytes in reverse
+    for &byte in scalar.iter().rev() {
+        // High nibble (MSB of this byte)
+        let hi = (byte >> 4) & 0xF;
+        if started {
+            result = point_double(&result);
+            result = point_double(&result);
+            result = point_double(&result);
+            result = point_double(&result);
+        }
+        if hi != 0 {
+            if started {
+                result = point_add(&result, &table[hi as usize]);
+            } else {
+                result = table[hi as usize].clone();
+                started = true;
+            }
+        }
+
+        // Low nibble (LSB of this byte)
+        let lo = byte & 0xF;
+        if started {
+            result = point_double(&result);
+            result = point_double(&result);
+            result = point_double(&result);
+            result = point_double(&result);
+        }
+        if lo != 0 {
+            if started {
+                result = point_add(&result, &table[lo as usize]);
+            } else {
+                result = table[lo as usize].clone();
+                started = true;
+            }
         }
     }
 

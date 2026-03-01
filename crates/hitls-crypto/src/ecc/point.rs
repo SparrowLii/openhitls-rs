@@ -189,7 +189,10 @@ pub(crate) fn point_double(
     })
 }
 
-/// Scalar multiplication: R = k * P using double-and-add (MSB to LSB).
+/// Scalar multiplication: R = k * P using w=4 fixed-window method.
+///
+/// Precomputes [0P, 1P, 2P, ..., 15P], then processes scalar 4 bits at a time.
+/// For 384-bit scalar: 96 windows × (4 doubles + 1 add) vs 383 doubles + ~192 adds.
 pub(crate) fn scalar_mul(
     k: &BigNum,
     point: &JacobianPoint,
@@ -199,13 +202,53 @@ pub(crate) fn scalar_mul(
         return Ok(JacobianPoint::infinity());
     }
 
-    let bits = k.bit_len();
-    let mut result = JacobianPoint::infinity();
+    // Precompute table: table[i] = i * P for i = 0..16
+    let mut table = Vec::with_capacity(16);
+    table.push(JacobianPoint::infinity()); // 0P
+    table.push(point.clone()); // 1P
+    table.push(point_double(point, params)?); // 2P
+    for i in 3..16usize {
+        table.push(point_add(&table[i - 1], point, params)?);
+    }
 
-    for i in (0..bits).rev() {
-        result = point_double(&result, params)?;
-        if k.get_bit(i) != 0 {
-            result = point_add(&result, point, params)?;
+    // Process scalar bytes from MSB to LSB, 4 bits (one nibble) at a time
+    let bytes = k.to_bytes_be();
+    let mut result = JacobianPoint::infinity();
+    let mut started = false;
+
+    for &byte in &bytes {
+        // High nibble
+        let hi = (byte >> 4) & 0xF;
+        if started {
+            result = point_double(&result, params)?;
+            result = point_double(&result, params)?;
+            result = point_double(&result, params)?;
+            result = point_double(&result, params)?;
+        }
+        if hi != 0 {
+            if started {
+                result = point_add(&result, &table[hi as usize], params)?;
+            } else {
+                result = table[hi as usize].clone();
+                started = true;
+            }
+        }
+
+        // Low nibble
+        let lo = byte & 0xF;
+        if started {
+            result = point_double(&result, params)?;
+            result = point_double(&result, params)?;
+            result = point_double(&result, params)?;
+            result = point_double(&result, params)?;
+        }
+        if lo != 0 {
+            if started {
+                result = point_add(&result, &table[lo as usize], params)?;
+            } else {
+                result = table[lo as usize].clone();
+                started = true;
+            }
         }
     }
 

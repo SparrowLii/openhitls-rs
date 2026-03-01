@@ -218,6 +218,7 @@ Category summary:
 | 206 | P49 | Perf | CBC Padding Vec Elimination | 2026-03-01 |
 | 207 | P50 | Perf | ML-KEM Byte-Aligned Bit-Packing | 2026-03-01 |
 | 208 | P51 | Perf | SM9 Windowed Scalar Multiplication | 2026-03-01 |
+| 209 | P52 | Perf | ECC/EdDSA Windowed Scalar Multiplication | 2026-03-01 |
 
 ---
 
@@ -11593,6 +11594,38 @@ Replaced binary (double-and-add) scalar multiplication in SM9 G1 and G2 points w
 - 3,534 total tests, 21 ignored, 0 clippy warnings
 
 ### Build Status (Post P51)
+- `cargo test --workspace --all-features`: 3,534 passed, 0 failed, 21 ignored
+- `RUSTFLAGS="-D warnings" cargo clippy`: 0 warnings
+- `cargo fmt --all -- --check`: clean
+
+## Phase P52 — ECC/EdDSA Windowed Scalar Multiplication (2026-03-01)
+
+### Summary
+Applied w=4 fixed-window scalar multiplication to three independent scalar_mul implementations:
+1. **Generic ECC** (`ecc/point.rs`): Affects P-384, P-521, Brainpool curves (P-256 and SM2 already have specialized fast paths)
+2. **Ed25519** (`curve25519/edwards.rs`): Generic point multiplication (base point already uses comb table)
+3. **Ed448** (`curve448/edwards.rs`): Both generic and base point multiplication
+
+Also added `Copy` derive to `GeExtended` (Ed25519 extended point) since all fields are `Copy` (`Fe25519` is `[u64; 5]`), enabling stack array precomputation table.
+
+### Changes
+| File | Change |
+|------|--------|
+| `crates/hitls-crypto/src/ecc/point.rs` | `scalar_mul`: binary → w=4 window with 16-entry precompute table |
+| `crates/hitls-crypto/src/curve25519/edwards.rs` | `scalar_mul`: binary → w=4 window (LE byte order). `GeExtended`: added `Copy` derive. `to_bytes`: added `#[allow(clippy::wrong_self_convention)]` |
+| `crates/hitls-crypto/src/curve448/edwards.rs` | `scalar_mul`: binary → w=4 window (LE byte order) |
+
+### Impact
+- Generic ECC (P-384): ~384 doubles + ~192 adds → ~384 doubles + ~96 adds (w=4)
+- Ed25519 generic: ~256 doubles + ~128 adds → ~256 doubles + ~64 adds
+- Ed448 generic: ~448 doubles + ~224 adds → ~448 doubles + ~112 adds
+- Estimated 1.5-2.5× speedup per scalar_mul for affected curves
+
+### Test Results
+- All 168 ECC tests, 12 Ed25519 tests, 8 Ed448 tests pass
+- 3,534 total tests, 21 ignored, 0 clippy warnings
+
+### Build Status (Post P52)
 - `cargo test --workspace --all-features`: 3,534 passed, 0 failed, 21 ignored
 - `RUSTFLAGS="-D warnings" cargo clippy`: 0 warnings
 - `cargo fmt --all -- --check`: clean
