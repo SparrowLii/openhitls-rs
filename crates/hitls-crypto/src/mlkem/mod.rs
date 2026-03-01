@@ -13,7 +13,7 @@ pub(crate) mod poly;
 use hitls_types::CryptoError;
 use zeroize::Zeroize;
 
-use ntt::{Poly, N};
+use ntt::N;
 use poly::*;
 
 /// ML-KEM parameter set.
@@ -115,23 +115,22 @@ fn kpke_keygen(d: &[u8; 32], params: &MlKemParams) -> Result<(Vec<u8>, Vec<u8>),
         e.push(sample_cbd(&prf_buf[..prf_len], params.eta1)?);
     }
 
-    // NTT(s), NTT(e)
-    let mut s_hat: Vec<Poly> = s.clone();
-    let mut e_hat: Vec<Poly> = e.clone();
-    for poly in s_hat.iter_mut() {
+    // NTT in-place — originals are never used in non-NTT form
+    for poly in s.iter_mut() {
         ntt::ntt(poly);
     }
-    for poly in e_hat.iter_mut() {
+    for poly in e.iter_mut() {
         ntt::ntt(poly);
     }
+    // s and e are now in NTT domain (s_hat, e_hat)
 
     // t_hat = A_hat * s_hat + e_hat
-    let mut t_hat = matvec_mul(&a_hat, &s_hat, k);
+    let mut t_hat = matvec_mul(&a_hat, &s, k);
     for i in 0..k {
         // basemul introduces R^{-1}; to_mont multiplies by R to cancel it
         ntt::to_mont(&mut t_hat[i]);
         for j in 0..N {
-            t_hat[i][j] += e_hat[i][j];
+            t_hat[i][j] += e[i][j];
         }
         ntt::reduce_poly(&mut t_hat[i]);
     }
@@ -146,7 +145,7 @@ fn kpke_keygen(d: &[u8; 32], params: &MlKemParams) -> Result<(Vec<u8>, Vec<u8>),
 
     // Encode decapsulation key: dk = ByteEncode_12(s_hat)
     let mut dk = vec![0u8; k * poly_bytes];
-    for (i, poly) in s_hat.iter().enumerate() {
+    for (i, poly) in s.iter().enumerate() {
         byte_encode_into(poly, 12, &mut dk[i * poly_bytes..(i + 1) * poly_bytes]);
     }
 
@@ -190,14 +189,14 @@ fn kpke_encrypt(
     prf_into(randomness, (2 * k) as u8, &mut prf_buf[..prf_len2]);
     let e2 = sample_cbd(&prf_buf[..prf_len2], params.eta2)?;
 
-    // NTT(r)
-    let mut r_hat: Vec<Poly> = r_vec.clone();
-    for poly in r_hat.iter_mut() {
+    // NTT r in-place — original r_vec is never used in non-NTT form
+    for poly in r_vec.iter_mut() {
         ntt::ntt(poly);
     }
+    // r_vec is now in NTT domain (r_hat)
 
     // u = INTT(A^T * r_hat) + e1
-    let mut u = matvec_mul_t(&a_hat, &r_hat, k);
+    let mut u = matvec_mul_t(&a_hat, &r_vec, k);
     for poly in u.iter_mut() {
         ntt::invntt(poly);
     }
@@ -209,7 +208,7 @@ fn kpke_encrypt(
     }
 
     // v = INTT(t_hat^T * r_hat) + e2 + Decompress(m, 1)
-    let mut v = inner_product(&t_hat, &r_hat);
+    let mut v = inner_product(&t_hat, &r_vec);
     ntt::invntt(&mut v);
     let m_poly = msg_to_poly(msg);
     let mut v_tmp = v;
@@ -287,9 +286,6 @@ impl MlKemKeyPair {
 
         let (ek_pke, dk_pke) = kpke_keygen(&d, &params)?;
 
-        // ek = ek_pke
-        let ek = ek_pke.clone();
-
         // dk = dk_pke || ek || H(ek) || z
         let h_ek = hash_h(&ek_pke);
         let mut dk = dk_pke;
@@ -297,8 +293,9 @@ impl MlKemKeyPair {
         dk.extend_from_slice(&h_ek);
         dk.extend_from_slice(&z);
 
+        // ek = ek_pke (move, no clone)
         Ok(MlKemKeyPair {
-            encapsulation_key: ek,
+            encapsulation_key: ek_pke,
             decapsulation_key: dk,
             parameter_set,
         })
@@ -379,12 +376,13 @@ impl MlKemKeyPair {
         if ciphertext.ct_eq(&ct_prime).unwrap_u8() == 1 {
             Ok(k_prime)
         } else {
-            // Implicit rejection: return J(z || ct)
-            let mut j_input = Vec::with_capacity(z.len() + ciphertext.len());
-            j_input.extend_from_slice(z);
-            j_input.extend_from_slice(ciphertext);
+            // Implicit rejection: return J(z || ct) — stack buffer
+            let j_len = z.len() + ciphertext.len();
+            let mut j_buf = [0u8; 32 + 1568]; // max: 32 + ML-KEM-1024 ct_len
+            j_buf[..32].copy_from_slice(z);
+            j_buf[32..j_len].copy_from_slice(ciphertext);
             let mut j_out = [0u8; 32];
-            hash_j_into(&j_input, &mut j_out);
+            hash_j_into(&j_buf[..j_len], &mut j_out);
             Ok(j_out.to_vec())
         }
     }
@@ -406,14 +404,13 @@ impl MlKemKeyPair {
     ) -> Result<Self, CryptoError> {
         let params = get_params(parameter_set)?;
         let (ek_pke, dk_pke) = kpke_keygen(d, &params)?;
-        let ek = ek_pke.clone();
         let h_ek = hash_h(&ek_pke);
         let mut dk = dk_pke;
         dk.extend_from_slice(&ek_pke);
         dk.extend_from_slice(&h_ek);
         dk.extend_from_slice(z);
         Ok(MlKemKeyPair {
-            encapsulation_key: ek,
+            encapsulation_key: ek_pke,
             decapsulation_key: dk,
             parameter_set,
         })

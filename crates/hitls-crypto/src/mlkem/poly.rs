@@ -448,9 +448,12 @@ pub(crate) fn matvec_mul(a_hat: &[Vec<Poly>], s_hat: &[Poly], k: usize) -> Vec<P
 /// Transpose matrix-vector product in NTT domain: r = A_hat^T * s_hat.
 pub(crate) fn matvec_mul_t(a_hat: &[Vec<Poly>], s_hat: &[Poly], k: usize) -> Vec<Poly> {
     let mut r = vec![[0i16; N]; k];
+    let mut col = vec![[0i16; N]; k]; // Pre-allocate column buffer once
     for i in 0..k {
-        // Column i of A^T = row i of A
-        let col: Vec<Poly> = (0..k).map(|j| a_hat[j][i]).collect();
+        // Column i of A^T = row i transposed
+        for j in 0..k {
+            col[j] = a_hat[j][i];
+        }
         ntt::basemul_acc(&mut r[i], &col, s_hat);
     }
     r
