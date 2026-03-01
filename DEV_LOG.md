@@ -217,6 +217,7 @@ Category summary:
 | 205 | P48 | Perf | ML-KEM g_input Stack Arrays | 2026-03-01 |
 | 206 | P49 | Perf | CBC Padding Vec Elimination | 2026-03-01 |
 | 207 | P50 | Perf | ML-KEM Byte-Aligned Bit-Packing | 2026-03-01 |
+| 208 | P51 | Perf | SM9 Windowed Scalar Multiplication | 2026-03-01 |
 
 ---
 
@@ -11566,6 +11567,32 @@ Replaced bit-by-bit polynomial compression/decompression and encoding/decoding i
 - 3,534 total tests, 21 ignored, 0 clippy warnings
 
 ### Build Status (Post P50)
+- `cargo test --workspace --all-features`: 3,534 passed, 0 failed, 21 ignored
+- `RUSTFLAGS="-D warnings" cargo clippy`: 0 warnings
+- `cargo fmt --all -- --check`: clean
+
+## Phase P51 — SM9 Windowed Scalar Multiplication (2026-03-01)
+
+### Summary
+Replaced binary (double-and-add) scalar multiplication in SM9 G1 and G2 points with w=4 fixed-window method. Precomputes [0P, 1P, ..., 15P] (15 point additions), then processes the 256-bit scalar 4 bits at a time (64 doubles + up to 64 additions vs 256 doubles + ~128 additions). Applied to both `EcPointG1::scalar_mul` and `EcPointG2::scalar_mul`.
+
+### Changes
+| File | Change |
+|------|--------|
+| `crates/hitls-crypto/src/sm9/ecp.rs` | `scalar_mul`: binary → w=4 window. Precompute 16-entry table, process high/low nibble per byte |
+| `crates/hitls-crypto/src/sm9/ecp2.rs` | `scalar_mul`: same w=4 window optimization for G2 twist points |
+
+### Impact
+- Binary: ~256 doubles + ~128 additions (for 256-bit scalar with ~50% set bits)
+- Windowed: 15 precompute additions + ~256 doubles + ~64 additions
+- Net: ~64 fewer point additions per scalar mul (each involves multiple field multiplications)
+- SM9 sign/verify/encrypt/decrypt all call scalar_mul on G1 and/or G2
+
+### Test Results
+- All 89 SM9 tests pass (including scalar_mul_by_order_gives_infinity, scalar_mul_small_values)
+- 3,534 total tests, 21 ignored, 0 clippy warnings
+
+### Build Status (Post P51)
 - `cargo test --workspace --all-features`: 3,534 passed, 0 failed, 21 ignored
 - `RUSTFLAGS="-D warnings" cargo clippy`: 0 warnings
 - `cargo fmt --all -- --check`: clean

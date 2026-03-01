@@ -3502,3 +3502,16 @@ Targeted coverage gaps in connection_info, handshake enums, lib.rs constants, co
 - Eliminates per-bit branching: d=12 goes from 3072 branches → 128 3-byte writes
 - Generic bit-by-bit fallback retained for unsupported d values
 - All 3,534 tests pass, 21 ignored, 0 clippy warnings
+
+---
+
+## Phase P51 — SM9 Windowed Scalar Multiplication (2026-03-01)
+
+**Prompt**: Continue performance optimizations. SM9 G1/G2 scalar_mul uses binary double-and-add (bit-by-bit), ~256 doubles + ~128 additions for 256-bit scalars.
+
+**Result**:
+- `EcPointG1::scalar_mul`: w=4 fixed-window — precompute [0P..15P], process 4 bits/nibble per byte
+- `EcPointG2::scalar_mul`: same w=4 window optimization for twist points
+- Reduces point additions: ~128 → ~64 per scalar mul (saves ~64 expensive field multiply chains)
+- Precompute cost: 15 point additions (amortized over 64 window lookups)
+- All 89 SM9 tests pass, 3,534 total tests, 21 ignored, 0 clippy warnings
