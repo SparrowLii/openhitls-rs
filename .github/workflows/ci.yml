@@ -143,6 +143,16 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo check --workspace --all-features --target aarch64-unknown-linux-gnu
 
+  ignored-tests:
+    name: Slow & Ignored Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      # Timing side-channel tests + zeroize verification + slow keygen
+      - run: cargo test -p hitls-crypto --all-features -- --ignored --skip test_openssl --skip test_s_client
+
   bench:
     name: Benchmark Check
     runs-on: ubuntu-latest
