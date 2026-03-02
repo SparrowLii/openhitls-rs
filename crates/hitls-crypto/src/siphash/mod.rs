@@ -279,4 +279,42 @@ mod tests {
 
         assert_eq!(oneshot, split);
     }
+
+    mod proptests {
+        use super::*;
+        use proptest::prelude::*;
+
+        proptest! {
+            #![proptest_config(ProptestConfig::with_cases(20))]
+
+            #[test]
+            fn prop_siphash_incremental_equiv(
+                data in prop::collection::vec(any::<u8>(), 0..256),
+                split in 0usize..256,
+            ) {
+                let key: Vec<u8> = (0..16).collect();
+                let split = split.min(data.len());
+
+                let oneshot = SipHash::hash(&key, &data).unwrap();
+
+                let mut ctx = SipHash::new(&key).unwrap();
+                ctx.update(&data[..split]).unwrap();
+                ctx.update(&data[split..]).unwrap();
+                let incremental = ctx.finish().unwrap();
+
+                prop_assert_eq!(oneshot, incremental);
+            }
+
+            #[test]
+            fn prop_siphash_different_keys_different_hashes(
+                data in prop::collection::vec(any::<u8>(), 1..64),
+            ) {
+                let key1 = [0u8; 16];
+                let key2 = [1u8; 16];
+                let h1 = SipHash::hash(&key1, &data).unwrap();
+                let h2 = SipHash::hash(&key2, &data).unwrap();
+                prop_assert_ne!(h1, h2);
+            }
+        }
+    }
 }

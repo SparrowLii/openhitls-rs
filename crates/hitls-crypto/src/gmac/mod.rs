@@ -307,4 +307,61 @@ mod tests {
         let mut small_buf = [0u8; 8];
         assert!(gmac.finish(&mut small_buf).is_err());
     }
+
+    mod proptests {
+        use super::*;
+        use proptest::prelude::*;
+
+        proptest! {
+            #![proptest_config(ProptestConfig::with_cases(20))]
+
+            // GMAC uses GHASH which processes 16-byte blocks, so incremental
+            // splits must be on block boundaries for equivalence.
+            #[test]
+            fn prop_gmac_block_aligned_split(
+                blocks in 1usize..8,
+                split_block in 0usize..8,
+            ) {
+                let key = [0x42u8; 16];
+                let nonce = [0x01u8; 12];
+                let data: Vec<u8> = (0..blocks * 16).map(|i| i as u8).collect();
+                let split = split_block.min(blocks) * 16;
+
+                // One-shot
+                let mut g1 = Gmac::new(&key, &nonce).unwrap();
+                g1.update(&data).unwrap();
+                let mut tag1 = [0u8; 16];
+                g1.finish(&mut tag1).unwrap();
+
+                // Two-part at block boundary
+                let mut g2 = Gmac::new(&key, &nonce).unwrap();
+                g2.update(&data[..split]).unwrap();
+                g2.update(&data[split..]).unwrap();
+                let mut tag2 = [0u8; 16];
+                g2.finish(&mut tag2).unwrap();
+
+                prop_assert_eq!(tag1, tag2);
+            }
+
+            #[test]
+            fn prop_gmac_deterministic(
+                data in prop::collection::vec(any::<u8>(), 0..128),
+            ) {
+                let key = [0x42u8; 16];
+                let nonce = [0x01u8; 12];
+
+                let mut g1 = Gmac::new(&key, &nonce).unwrap();
+                g1.update(&data).unwrap();
+                let mut tag1 = [0u8; 16];
+                g1.finish(&mut tag1).unwrap();
+
+                let mut g2 = Gmac::new(&key, &nonce).unwrap();
+                g2.update(&data).unwrap();
+                let mut tag2 = [0u8; 16];
+                g2.finish(&mut tag2).unwrap();
+
+                prop_assert_eq!(tag1, tag2);
+            }
+        }
+    }
 }
