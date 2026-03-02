@@ -13,11 +13,12 @@ coverage:
         target: 70%
         threshold: 5%
 
-  # Exclude test vector data files from coverage
+  # Exclude test vector data files and non-source directories from coverage
   ignore:
     - "tests/vectors/**"
     - "fuzz/**"
     - "benches/**"
+    - "**/proptest-regressions/**"
 
 # Component-level coverage tracking
 component_management:

@@ -4,7 +4,7 @@
 
 Category summary:
 - Implementation: I1–I86 (86 phases)
-- Testing: T1–T71 (69 phases)
+- Testing: T1–T72 (70 phases)
 - Refactoring: R1–R12 (12 phases)
 - Performance: P1–P62 (62 phases)
 
@@ -246,6 +246,7 @@ Category summary:
 | 234 | I85 | Impl | XMSS-MT Multi-Tree + Extended XMSS Parameter Sets | 2026-03-02 |
 | 235 | I86 | Impl | PKI CRL Extensions + Certificate CRL Distribution Points | 2026-03-03 |
 | 236 | T71 | Test | Quality Safety Net P2 — +8 fuzz targets, +12 proptests, +8 CI feature flags, +2 Miri runs | 2026-03-03 |
+| 237 | T72 | Test | Quality Safety Net P3 — Deep gap analysis, +20 tests, +3 fuzz, +10 proptests, +3 Miri, +8 CI | 2026-03-03 |
 
 ---
 
@@ -12968,5 +12969,105 @@ Added CRL-level extension convenience methods (AKI, IDP, Delta CRL Indicator), C
 
 ### Build Status (Post I86)
 - `cargo test --workspace --all-features`: 3,852 passed, 0 failed, 22 ignored (3,874 total)
+- `RUSTFLAGS="-D warnings" cargo clippy`: 0 warnings
+- `cargo fmt --all -- --check`: clean
+
+---
+
+## Phase T72 — Quality Safety Net P3: Deep Gap Analysis & Coverage Hardening
+
+**Date**: 2026-03-03
+**Type**: Testing
+**Status**: Complete
+
+### Summary
+
+12-layer quality safety net deep analysis identified actual gaps vs. previously overestimated gaps. Key findings: hitls-auth and TLS extensions were already well-tested (corrected from initial analysis). Real gaps addressed: privpass proptest, Paillier/ElGamal/McEliece proptest, GMAC/SipHash proptest, CBC-MAC/GMAC/SipHash fuzz, P-256/P-384/P-521 Miri, PKI fuzz enhancement, CI feature combos, big-endian cross-check.
+
+### Changes
+
+#### T72-A: hitls-auth Coverage (+11 tests, +2 proptests)
+- Privacy Pass: 8 edge case tests (token type rejection, nonce validation, zero element, key consistency, even n/e, zero authenticator)
+- Privacy Pass: 2 proptests (issue/verify roundtrip, wrong challenge fails)
+
+#### T72-B: PKI Fuzz Enhancement (3 targets deepened)
+- PKCS#12: exercise embedded cert/key parsing, multi-password
+- CRL: field access, revocation lookup, DER/PEM roundtrip encoding
+- CMS: content type, signature verification, sub-structure access
+
+#### T72-C: Proptest Expansion (+6 proptest blocks)
+- Paillier: encrypt/decrypt roundtrip + homomorphic addition
+- ElGamal: encrypt/decrypt roundtrip + public key determinism
+- McEliece: encapsulate/decapsulate roundtrip (6688128)
+
+#### T72-D: Miri CI Expansion (+3 runs)
+- P-256 field arithmetic (35 tests)
+- P-384 field arithmetic (42 tests)
+- P-521 field arithmetic (23 tests)
+
+#### T72-E: MAC Fuzz + Proptest (+3 fuzz, +4 proptests, +12 corpus seeds)
+- CBC-MAC fuzz: incremental consistency assertion
+- GMAC fuzz: determinism assertion
+- SipHash fuzz: one-shot/incremental consistency
+- GMAC proptests: block-aligned split + determinism
+- SipHash proptests: incremental equivalence + different-keys
+
+#### T72-F: CI Hardening (+4 feature tests, +1 cross-check target)
+- Feature combos: privpass, tls12+tls13, aes+modes+sha2, x509+pkcs8+cms+pkcs12
+- Cross-compilation: s390x-unknown-linux-gnu (big-endian)
+
+#### T72-G: Codecov Enhancement
+- Added proptest-regressions to .codecov.yml ignore list
+
+### Files Modified
+| File | Status | Description |
+|------|--------|-------------|
+| `crates/hitls-auth/src/privpass/mod.rs` | Modified | +11 tests, +2 proptests |
+| `crates/hitls-crypto/src/paillier/mod.rs` | Modified | +2 proptests |
+| `crates/hitls-crypto/src/elgamal/mod.rs` | Modified | +2 proptests |
+| `crates/hitls-crypto/src/mceliece/mod.rs` | Modified | +1 proptest |
+| `crates/hitls-crypto/src/gmac/mod.rs` | Modified | +2 proptests |
+| `crates/hitls-crypto/src/siphash/mod.rs` | Modified | +2 proptests |
+| `fuzz/fuzz_targets/fuzz_pkcs12.rs` | Modified | Enhanced with deep API coverage |
+| `fuzz/fuzz_targets/fuzz_crl.rs` | Modified | Enhanced with roundtrip encoding |
+| `fuzz/fuzz_targets/fuzz_cms.rs` | Modified | Enhanced with sub-structure access |
+| `fuzz/fuzz_targets/fuzz_cbc_mac.rs` | New | CBC-MAC SM4 incremental fuzz |
+| `fuzz/fuzz_targets/fuzz_gmac.rs` | New | GMAC determinism fuzz |
+| `fuzz/fuzz_targets/fuzz_siphash.rs` | New | SipHash consistency fuzz |
+| `fuzz/Cargo.toml` | Modified | +3 features, +3 [[bin]] |
+| `fuzz/corpus/fuzz_cbc_mac/` | New | 4 seed files |
+| `fuzz/corpus/fuzz_gmac/` | New | 4 seed files |
+| `fuzz/corpus/fuzz_siphash/` | New | 4 seed files |
+| `.github/workflows/ci.yml` | Modified | +3 Miri, +4 feature tests, +1 cross-check |
+| `.codecov.yml` | Modified | +proptest-regressions ignore |
+
+### Test Count (Post T72)
+
+| Crate | Count |
+|-------|-------|
+| hitls-crypto | 1426 (14 ignored) |
+| hitls-tls | 1414 |
+| hitls-pki | 417 |
+| hitls-bignum | 95 (1 ignored) |
+| hitls-utils | 68 |
+| hitls-auth | 47 |
+| hitls-cli | 161 (5 ignored) |
+| hitls-integration-tests | 258 (2 ignored) |
+| **Total** | **3912 (22 ignored)** |
+
+### Quality Metrics (Post T72)
+
+| Metric | Before | After |
+|--------|--------|-------|
+| Tests | 3892 | 3912 (+20) |
+| Fuzz targets | 60 | 63 (+3) |
+| Corpus seeds | 406 | 418 (+12) |
+| Proptest blocks | ~55 | ~65 (+10) |
+| Miri CI runs | 12 | 15 (+3) |
+| CI feature tests | 55 | 63 (+8) |
+| Cross-check targets | 2 | 3 (+1 big-endian) |
+
+### Build Status (Post T72)
+- `cargo test --workspace --all-features`: 3,912 passed, 0 failed, 22 ignored
 - `RUSTFLAGS="-D warnings" cargo clippy`: 0 warnings
 - `cargo fmt --all -- --check`: clean

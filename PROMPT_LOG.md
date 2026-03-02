@@ -3840,3 +3840,20 @@ Targeted coverage gaps in connection_info, handshake enums, lib.rs constants, co
 - T71-C: +8 CI feature flag tests — xmss, gmac, cbc-mac, siphash, elgamal, paillier, otp, spake2plus; total 47→55 combos
 - T71-D: +2 Miri runs — sm3::tests, sm4::tests (pure software paths); total 9→11 runs
 - All 3,870 tests pass (3,892 total), 22 ignored, 0 clippy/fmt warnings
+
+---
+
+## Phase T72 — Quality Safety Net P3: Deep 12-Layer Analysis Remediation (2026-03-03)
+
+**Prompt**: Deep 12-layer quality safety net analysis followed by priority-ordered task completion. Analyze each layer (static analysis, unit tests, integration tests, test vectors, proptest, fuzz, Miri, CI feature flags, coverage, security patterns, supply chain, cross-platform), identify gaps, then remediate P0→P1→P2→P3 with commits after each task.
+
+**Result**:
+- P0-1: +11 hitls-auth privpass edge case tests + 2 proptests (issue/verify roundtrip, wrong challenge); auth 36→47 tests
+- P0-2: Enhanced PKCS#12/CRL/CMS fuzz targets with deeper API coverage (field access, roundtrip, sub-structure parsing)
+- P1-1: +3 proptests — Paillier encrypt/decrypt roundtrip + homomorphic add, ElGamal encrypt/decrypt + pubkey determinism, McEliece encap/decap roundtrip
+- P1-2: +3 Miri CI runs — P-256/P-384/P-521 specialized field arithmetic tests (11→14 runs)
+- P1-3: TLS extensions already had 106 tests — gap analysis was inaccurate, skipped
+- P2-1: +3 fuzz targets (CBC-MAC/GMAC/SipHash) with 12 corpus seeds (60→63 targets, 406→418 corpus), +4 proptests (GMAC block-aligned split + determinism, SipHash incremental + different-keys). Fixed GMAC proptest: GHASH processes 16-byte blocks so incremental splits must be block-aligned
+- P2-2: +4 CI feature combos (privpass, tls12+tls13, aes+modes+sha2, x509+pkcs8+cms+pkcs12), s390x big-endian cross-check
+- P3: Codecov proptest-regressions ignore, documentation updates (DEV_LOG, CLAUDE.md, README.md, PROMPT_LOG)
+- All 3,890 tests pass (3,912 total), 22 ignored, 0 clippy/fmt warnings
