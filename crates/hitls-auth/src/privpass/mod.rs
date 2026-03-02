@@ -559,4 +559,133 @@ mod tests {
         assert!(TokenType::from_wire(&[0x00, 0x03]).is_err());
         assert!(TokenType::from_wire(&[0x00]).is_err());
     }
+
+    #[test]
+    fn test_privpass_issue_rejects_privately_verifiable() {
+        let (n, e, d) = test_key_1024();
+        let issuer = Issuer::new(&n, &d, &e).unwrap();
+        let request = TokenRequest {
+            token_type: TokenType::PrivatelyVerifiable,
+            blinded_element: vec![1u8; 128],
+        };
+        assert!(issuer.issue(&request).is_err());
+    }
+
+    #[test]
+    fn test_privpass_verify_rejects_privately_verifiable() {
+        let (n, e, _d) = test_key_1024();
+        let token = Token {
+            token_type: TokenType::PrivatelyVerifiable,
+            nonce: vec![0u8; 32],
+            authenticator: vec![1u8; 128],
+        };
+        assert!(verify_token(&token, &n, &e, b"challenge").is_err());
+    }
+
+    #[test]
+    fn test_privpass_verify_rejects_bad_nonce_length() {
+        let (n, e, _d) = test_key_1024();
+        let token = Token {
+            token_type: TokenType::PubliclyVerifiable,
+            nonce: vec![0u8; 16], // wrong length, should be 32
+            authenticator: vec![1u8; 128],
+        };
+        assert!(verify_token(&token, &n, &e, b"challenge").is_err());
+    }
+
+    #[test]
+    fn test_privpass_issue_rejects_zero_blinded_element() {
+        let (n, e, d) = test_key_1024();
+        let issuer = Issuer::new(&n, &d, &e).unwrap();
+        let request = TokenRequest {
+            token_type: TokenType::PubliclyVerifiable,
+            blinded_element: vec![0u8; 128],
+        };
+        assert!(issuer.issue(&request).is_err());
+    }
+
+    #[test]
+    fn test_privpass_finalize_rejects_zero_blind_sig() {
+        let (n, e, _d) = test_key_1024();
+        let client = Client::new(&n, &e).unwrap();
+        let (_request, state) = client.create_token_request(b"challenge").unwrap();
+        let response = TokenResponse {
+            blind_sig: vec![0u8; 128],
+        };
+        assert!(client.finalize_token(&response, state).is_err());
+    }
+
+    #[test]
+    fn test_privpass_token_key_id_consistency() {
+        let (n, e, d) = test_key_1024();
+        let issuer = Issuer::new(&n, &d, &e).unwrap();
+        let client = Client::new(&n, &e).unwrap();
+        // Issuer and client with same key should produce the same token_key_id
+        assert_eq!(issuer.token_key_id(), &client.token_key_id);
+    }
+
+    #[test]
+    fn test_privpass_even_n_rejected() {
+        // Even n should be rejected (not a valid RSA modulus)
+        assert!(Issuer::new(&[4], &[1], &[3]).is_err());
+        assert!(Client::new(&[4], &[3]).is_err());
+    }
+
+    #[test]
+    fn test_privpass_even_e_rejected() {
+        // Even e should be rejected
+        assert!(Issuer::new(&[15], &[1], &[4]).is_err());
+        assert!(Client::new(&[15], &[4]).is_err());
+    }
+
+    #[test]
+    fn test_privpass_verify_zero_authenticator() {
+        let (n, e, _d) = test_key_1024();
+        let token = Token {
+            token_type: TokenType::PubliclyVerifiable,
+            nonce: vec![0u8; 32],
+            authenticator: vec![0u8; 128],
+        };
+        let result = verify_token(&token, &n, &e, b"challenge").unwrap();
+        assert!(!result, "Zero authenticator should not verify");
+    }
+
+    mod proptests {
+        use super::*;
+        use proptest::prelude::*;
+
+        proptest! {
+            #![proptest_config(ProptestConfig::with_cases(3))]
+
+            #[test]
+            fn prop_privpass_issue_verify_roundtrip(
+                challenge in prop::collection::vec(any::<u8>(), 1..64),
+            ) {
+                let (n, e, d) = test_key_1024();
+                let issuer = Issuer::new(&n, &d, &e).unwrap();
+                let client = Client::new(&n, &e).unwrap();
+                let (request, state) = client.create_token_request(&challenge).unwrap();
+                let response = issuer.issue(&request).unwrap();
+                let token = client.finalize_token(&response, state).unwrap();
+                let valid = verify_token(&token, &n, &e, &challenge).unwrap();
+                prop_assert!(valid, "Token should verify for any challenge");
+            }
+
+            #[test]
+            fn prop_privpass_wrong_challenge_fails(
+                challenge1 in prop::collection::vec(any::<u8>(), 1..64),
+                challenge2 in prop::collection::vec(any::<u8>(), 1..64),
+            ) {
+                prop_assume!(challenge1 != challenge2);
+                let (n, e, d) = test_key_1024();
+                let issuer = Issuer::new(&n, &d, &e).unwrap();
+                let client = Client::new(&n, &e).unwrap();
+                let (request, state) = client.create_token_request(&challenge1).unwrap();
+                let response = issuer.issue(&request).unwrap();
+                let token = client.finalize_token(&response, state).unwrap();
+                let valid = verify_token(&token, &n, &e, &challenge2).unwrap();
+                prop_assert!(!valid, "Token should NOT verify with wrong challenge");
+            }
+        }
+    }
 }
