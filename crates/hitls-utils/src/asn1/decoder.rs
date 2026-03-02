@@ -458,4 +458,46 @@ mod tests {
         assert!(dec.read_integer().is_ok());
         assert!(dec.read_integer().is_err());
     }
+
+    mod proptests {
+        use super::*;
+        use crate::asn1::encoder::Encoder;
+        use proptest::prelude::*;
+
+        proptest! {
+            #![proptest_config(ProptestConfig::with_cases(20))]
+
+            #[test]
+            fn prop_asn1_integer_roundtrip(
+                val in prop::collection::vec(any::<u8>(), 1..64),
+            ) {
+                let mut enc = Encoder::new();
+                enc.write_integer(&val);
+                let der = enc.finish();
+                let mut dec = Decoder::new(&der);
+                let decoded = dec.read_integer().unwrap();
+                // Encoder adds leading 0x00 if high bit set; decoder returns raw value
+                // So decoded may have one extra leading zero compared to input
+                if !val.is_empty() && (val[0] & 0x80) != 0 {
+                    // Encoder added a leading zero
+                    prop_assert_eq!(decoded[0], 0x00);
+                    prop_assert_eq!(&decoded[1..], val.as_slice());
+                } else {
+                    prop_assert_eq!(decoded, val.as_slice());
+                }
+            }
+
+            #[test]
+            fn prop_asn1_octet_string_roundtrip(
+                val in prop::collection::vec(any::<u8>(), 0..128),
+            ) {
+                let mut enc = Encoder::new();
+                enc.write_octet_string(&val);
+                let der = enc.finish();
+                let mut dec = Decoder::new(&der);
+                let decoded = dec.read_octet_string().unwrap();
+                prop_assert_eq!(decoded, val.as_slice());
+            }
+        }
+    }
 }

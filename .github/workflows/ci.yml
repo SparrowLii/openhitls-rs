@@ -111,6 +111,17 @@ jobs:
       - run: cargo test -p hitls-pki --no-default-features
       - run: cargo test -p hitls-pki --no-default-features --features x509,pkcs8
       - run: cargo test -p hitls-auth --all-features
+      # TLS protocol feature isolation
+      - run: cargo test -p hitls-tls --no-default-features --features sm_tls13
+      - run: cargo test -p hitls-tls --no-default-features --features dtlcp
+      - run: cargo test -p hitls-tls --no-default-features --features tls13,async
+      - run: cargo test -p hitls-tls --no-default-features --features cert-compression
+      # PKI feature isolation
+      - run: cargo test -p hitls-pki --no-default-features --features cms
+      - run: cargo test -p hitls-pki --no-default-features --features pkcs12
+      # Crypto advanced feature isolation
+      - run: cargo test -p hitls-crypto --no-default-features --features hybridkem
+      - run: cargo test -p hitls-crypto --no-default-features --features hpke
 
   audit:
     name: Security Audit
@@ -138,6 +149,12 @@ jobs:
       - run: cargo miri test -p hitls-crypto --all-features -- mlkem::ntt::tests --skip neon
       - run: cargo miri test -p hitls-crypto --all-features -- mldsa::ntt::tests --skip neon
       - run: cargo miri test -p hitls-crypto --all-features -- modes::gcm
+      # SHA-2 software path (skip HW cross-validation tests using SIMD)
+      - run: cargo miri test -p hitls-crypto --all-features -- sha2::tests --skip compress_soft_vs_dispatch --skip multi_block_consistency
+      # SHA-3 software path (HW tests are cfg-gated on aarch64, auto-skipped)
+      - run: cargo miri test -p hitls-crypto --all-features -- sha3::tests
+      # ChaCha20 software path (skip HW cross-validation tests using SIMD)
+      - run: cargo miri test -p hitls-crypto --all-features -- chacha20::tests --skip soft_vs_dispatch_stress --skip keystream_256_bytes_consistency
 
   fuzz-check:
     name: Fuzz Build Check

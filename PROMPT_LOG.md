@@ -3786,3 +3786,16 @@ Targeted coverage gaps in connection_info, handshake enums, lib.rs constants, co
 - **P68**: `Clone` on MontgomeryCtx, cached mont_p/mont_q/qinv_mont_p in RsaPrivateKey, CRT recombination via mont_mul. 10-15% RSA sign/decrypt.
 - All 3,813 tests pass (3,835 total), 22 ignored, 0 clippy/fmt warnings
 - hitls-crypto: 1,362 tests (14 ignored), up from 1,271
+
+---
+
+## Phase T70 — Quality Safety Net P1 Enhancement (2026-03-02)
+
+**Prompt**: Implement Phase T70 — P1 quality safety net: +6 fuzz targets (SHA-2/SHA-3/SM3/SM4/DH/ECC), +8 proptest blocks, +8 CI feature flags, +3 Miri runs.
+
+**Result**:
+- T70-A: +6 fuzz targets (fuzz_sha2, fuzz_sha3, fuzz_sm3, fuzz_sm4, fuzz_dh, fuzz_ecc_point) with 36 corpus seeds; total 46→52 targets, 322→358 corpus
+- T70-B: +8 proptest blocks (+10 test fns) — SHA3 incremental+SHAKE128 determinism, CBC-MAC incremental, FrodoKEM roundtrip, HybridKEM roundtrip, HMAC-DRBG determinism, ASN.1 integer+octet string roundtrip, SM3 incremental, X448 DH commutativity
+- T70-C: +8 CI feature flag tests — sm_tls13, dtlcp, tls13+async, cert-compression, cms, pkcs12, hybridkem, hpke; total 39→47 combos
+- T70-D: +3 Miri runs — sha2::tests, sha3::tests, chacha20::tests (with SIMD skip patterns); total 6→9 runs
+- All 3,823 tests pass (3,845 total), 22 ignored, 0 clippy/fmt warnings

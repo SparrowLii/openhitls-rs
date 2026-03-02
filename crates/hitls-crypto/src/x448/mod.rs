@@ -337,4 +337,24 @@ mod tests {
         );
         assert_eq!(k, expected);
     }
+
+    mod proptests {
+        use super::*;
+        use proptest::prelude::*;
+
+        proptest! {
+            #![proptest_config(ProptestConfig::with_cases(3))]
+
+            #[test]
+            fn prop_x448_dh_commutativity(
+                _seed in prop::array::uniform32(any::<u8>()),
+            ) {
+                let alice = X448PrivateKey::generate().unwrap();
+                let bob = X448PrivateKey::generate().unwrap();
+                let ss_ab = alice.diffie_hellman(&bob.public_key()).unwrap();
+                let ss_ba = bob.diffie_hellman(&alice.public_key()).unwrap();
+                prop_assert_eq!(ss_ab, ss_ba);
+            }
+        }
+    }
 }

@@ -12,10 +12,10 @@
 | Layer | Mechanism | Coverage | Rating | Notes |
 |:-----:|-----------|----------|:------:|-------|
 | **L1** | Static Analysis | clippy zero-warning + rustfmt + MSRV 1.75 dual-version CI | **A** | Full workspace, all features, all targets |
-| **L2** | Unit Tests | 3,731 tests (22 ignored), 100% pass rate | **A** | 3,400+ test fns + 92 async + 15 Wycheproof suites; all high-risk files directly tested |
+| **L2** | Unit Tests | 3,741 tests (22 ignored), 100% pass rate | **A** | 3,400+ test fns + 92 async + 15 Wycheproof suites; all high-risk files directly tested |
 | **L3** | Integration Tests | 260 cross-crate tests (TCP loopback + DTLS resilience + OpenSSL interop) | **A** | 14 test files; 5 protocol variants × sync/async; OpenSSL s_client/s_server interop |
-| **L4** | Fuzz Testing | 46 fuzz targets + 322 seed corpus files | **A** | 10 parse + 28 crypto semantic + 8 PQC/sign-path; +fuzz-smoke on PR/push |
-| **L5** | Property-Based Testing | ~47 proptest blocks across 6 crates | **A-** | hitls-crypto + hitls-utils + hitls-tls + hitls-pki + hitls-bignum; PQC/RSA/ECDSA/ECDH/DH/DSA/Ed448/SM2/SM9/SLH-DSA covered |
+| **L4** | Fuzz Testing | 52 fuzz targets + 358 seed corpus files | **A** | 10 parse + 34 crypto semantic + 8 PQC/sign-path; +fuzz-smoke on PR/push |
+| **L5** | Property-Based Testing | ~55 proptest blocks across 6 crates | **A-** | hitls-crypto + hitls-utils + hitls-tls + hitls-pki + hitls-bignum; PQC/RSA/ECDSA/ECDH/DH/DSA/Ed448/SM2/SM9/SLH-DSA/SHA3/SM3/DRBG/X448/FrodoKEM/HybridKEM/CBC-MAC covered |
 | **L6** | Standard Vectors | 15 Wycheproof suites + 7 FIPS KATs + 11 RFC vector sets + 10+ GB/T | **A** | 5,000+ vectors; all major algorithms covered |
 | **L7** | Concurrency & Side-Channel | 48 concurrency-aware tests; 6 timing tests | **C+** | Statistical timing analysis (Welch's t-test); multi-threaded stress tests |
 
@@ -26,17 +26,17 @@ GitHub Actions (.github/workflows/ci.yml) — 15 jobs, dependency graph: fmt/cli
 ├── Format Check       cargo fmt --all -- --check
 ├── Clippy Lint        cargo clippy --all-targets --all-features -- -D warnings
 ├── Test Matrix        Ubuntu + macOS + Windows × Rust stable + MSRV 1.75 (6 jobs)
-├── Feature Testing    Individual + combo feature flags (27→39 combos: aes, sha2, rsa, sm2, pqc, +12 new: sha1, sha3, ecdh, x25519, x448, hkdf, pbkdf2, sm9, frodokem, mceliece, drbg, fips + dtls12 + auth + pki)
+├── Feature Testing    Individual + combo feature flags (27→47 combos: aes, sha2, rsa, sm2, pqc, +12 new: sha1, sha3, ecdh, x25519, x448, hkdf, pbkdf2, sm9, frodokem, mceliece, drbg, fips + dtls12 + auth + pki + sm_tls13 + dtlcp + tls13,async + cert-compression + cms + pkcs12 + hybridkem + hpke)
 ├── Security Audit     rustsec/audit-check@v2
-├── UB Detection       Miri on hitls-bignum + hitls-utils + hitls-crypto (benes + mlkem::ntt + mldsa::ntt + modes::gcm)
+├── UB Detection       Miri on hitls-bignum + hitls-utils + hitls-crypto (benes + mlkem::ntt + mldsa::ntt + modes::gcm + sha2 + sha3 + chacha20)
 ├── Supply Chain       cargo-deny check (advisories + licenses + bans + sources)
-├── Fuzz Build         cargo fuzz check (nightly) — 46 targets
+├── Fuzz Build         cargo fuzz check (nightly) — 52 targets
 ├── Cross-compile      aarch64-unknown-linux-gnu + i686-unknown-linux-gnu
 ├── Documentation      cargo doc --workspace --all-features -D warnings
 ├── Ignored Tests      Timing + zeroize + slow keygen (weekly + on-demand)
 ├── Bench Verify       cargo bench --no-run
 ├── Coverage           cargo-llvm-cov → Codecov JSON + branch coverage
-├── Scheduled Fuzz     Weekly: all 46 targets × 60s each (Monday 03:00 UTC)
+├── Scheduled Fuzz     Weekly: all 52 targets × 60s each (Monday 03:00 UTC)
 └── Dependabot         Weekly cargo + github-actions dependency updates
 ```
 
@@ -45,15 +45,15 @@ GitHub Actions (.github/workflows/ci.yml) — 15 jobs, dependency graph: fmt/cli
 | Crate | Tests | Ignored | % of Total | Focus |
 |-------|------:|--------:|:----------:|-------|
 | hitls-tls | 1,414 | 0 | 38.1% | TLS 1.3/1.2/DTLS/TLCP/DTLCP handshake, record, extensions, callbacks, middlebox compat, connection state guards, crypt suite params |
-| hitls-crypto | 1,271 | 14 | 34.1% | 48 algorithm modules + HW accel + P-256 fast path + proptest + HW↔SW cross-validation + timing + zeroize + DRBG + GCM + FIPS PCT/KAT + HPKE full RFC 9180 |
+| hitls-crypto | 1,279 | 14 | 34.2% | 48 algorithm modules + HW accel + P-256 fast path + proptest + HW↔SW cross-validation + timing + zeroize + DRBG + GCM + FIPS PCT/KAT + HPKE full RFC 9180 |
 | hitls-pki | 405 | 0 | 10.9% | X.509, PKCS#8/12, CMS (5 content types), encoding helpers, proptest roundtrips |
 | hitls-integration | 260 | 2 | 7.0% | Cross-crate TCP loopback, error scenarios, concurrency stress, DTLS resilience, OpenSSL interop, TLS 1.3/1.2 key_update + session resumption |
 | hitls-cli | 166 | 5 | 4.5% | 16 CLI commands, speed benchmarks, s_client/s_server edge cases, hex/cipher/port edge cases, prime/kdf |
 | hitls-bignum | 90 | 1 | 2.4% | Montgomery, Miller-Rabin, prime generation, modular arithmetic, constant-time, random generation, hex/dec string, proptest |
-| hitls-utils | 66 | 0 | 1.8% | ASN.1, Base64, PEM, OID, proptest roundtrips |
+| hitls-utils | 68 | 0 | 1.8% | ASN.1, Base64, PEM, OID, proptest roundtrips |
 | hitls-auth | 33 | 0 | 0.9% | HOTP/TOTP, SPAKE2+, Privacy Pass |
 | hitls-types | 26 | 0 | 0.7% | Enum definitions, error types |
-| **Total** | **3,731** | **22** | **100%** | |
+| **Total** | **3,741** | **22** | **100%** | |
 
 ### 1.4 Standard Compliance Coverage
 
@@ -83,14 +83,14 @@ GitHub Actions (.github/workflows/ci.yml) — 15 jobs, dependency graph: fmt/cli
 | Standard vectors | ~106 | 2.9% | RFC/NIST/Wycheproof/KAT/GB/T test vectors |
 | Async | 92 | 2.5% | tokio::test async connection + handshake |
 | State machine | ~600 | 16.4% | handshake/connected/not-connected state transitions |
-| Property-based | ~47 | 1.3% | proptest blocks (6 crates: crypto + utils + tls + pki + bignum; DH/DSA/Ed448/SM2/SM9/SLH-DSA added T69) |
+| Property-based | ~55 | 1.5% | proptest blocks (6 crates: crypto + utils + tls + pki + bignum; SHA3/SM3/DRBG/X448/FrodoKEM/HybridKEM/CBC-MAC/ASN.1 added T70) |
 | Concurrency | 48 | 1.3% | Arc/Mutex/thread::spawn/tokio::spawn stress tests |
 | Timing/side-channel | 6 | 0.2% | Welch's t-test statistical timing analysis |
 | HW↔SW cross-validation | 8 | 0.2% | Software/hardware path differential tests |
 | Zeroize verification | 4 | 0.1% | Drop-based memory zeroing verification |
 | Other (deterministic, helper, etc.) | ~1,729 | 47.2% | Specific algorithm/module unit tests |
 
-**Key observations**: Error-handling tests (~370) outnumber roundtrip tests (~350), indicating good negative-path coverage. Property-based testing now spans 6/9 crates with ~47 proptest blocks. Concurrency and timing tests have been significantly expanded. Fuzz coverage expanded from 14 → 46 targets with PQC and signature-path coverage. Phase T67 added `CryptoError::InvalidArg(&'static str)` with ~30 descriptive context strings and eliminated 16 `.unwrap()` panic risks in crypto library code. Phase T69 expanded Miri coverage to NTT + GCM, feature flag isolation to 39 combos, and proptests to 6 additional crypto modules.
+**Key observations**: Error-handling tests (~370) outnumber roundtrip tests (~350), indicating good negative-path coverage. Property-based testing now spans 6/9 crates with ~55 proptest blocks. Concurrency and timing tests have been significantly expanded. Fuzz coverage expanded from 14 → 52 targets with PQC and signature-path coverage. Phase T67 added `CryptoError::InvalidArg(&'static str)` with ~30 descriptive context strings and eliminated 16 `.unwrap()` panic risks in crypto library code. Phase T69 expanded Miri coverage to NTT + GCM, feature flag isolation to 39 combos, and proptests to 6 additional crypto modules. Phase T70 added 6 fuzz targets (SHA-2/SHA-3/SM3/SM4/DH/ECC), 8 proptest blocks (SHA-3/CBC-MAC/FrodoKEM/HybridKEM/DRBG/ASN.1/SM3/X448), 8 CI feature flag tests (TLS/PKI/crypto advanced), and 3 Miri runs (SHA-2/SHA-3/ChaCha20).
 
 ### 1.7 High-Risk Zero Direct Unit Test Files — **SIGNIFICANTLY REDUCED** (Phase T45–T46)
 

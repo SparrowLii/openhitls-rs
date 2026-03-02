@@ -296,4 +296,24 @@ mod tests {
             assert_eq!(ss.len(), p.ss_len, "{:?} ss", param_id);
         }
     }
+
+    mod proptests {
+        use super::*;
+        use proptest::prelude::*;
+
+        proptest! {
+            #![proptest_config(ProptestConfig::with_cases(3))]
+
+            #[test]
+            fn prop_frodokem640_roundtrip(
+                _seed in prop::array::uniform32(any::<u8>()),
+            ) {
+                let kp =
+                    FrodoKemKeyPair::generate(FrodoKemParamId::FrodoKem640Shake).unwrap();
+                let (ct, ss_enc) = kp.encapsulate().unwrap();
+                let ss_dec = kp.decapsulate(&ct).unwrap();
+                prop_assert_eq!(ss_enc, ss_dec);
+            }
+        }
+    }
 }

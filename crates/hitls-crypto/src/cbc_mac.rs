@@ -318,4 +318,35 @@ mod tests {
 
         assert_eq!(out1, out2);
     }
+
+    mod proptests {
+        use super::*;
+        use proptest::prelude::*;
+
+        proptest! {
+            #![proptest_config(ProptestConfig::with_cases(20))]
+
+            #[test]
+            fn prop_cbc_mac_incremental_equiv(
+                data in prop::collection::vec(any::<u8>(), 1..256),
+                split in 0..256usize,
+            ) {
+                let key = [0x01u8; 16];
+                let split = split % (data.len() + 1);
+
+                let mut m1 = CbcMacSm4::new(&key).unwrap();
+                m1.update(&data).unwrap();
+                let mut out1 = [0u8; 16];
+                m1.finish(&mut out1).unwrap();
+
+                let mut m2 = CbcMacSm4::new(&key).unwrap();
+                m2.update(&data[..split]).unwrap();
+                m2.update(&data[split..]).unwrap();
+                let mut out2 = [0u8; 16];
+                m2.finish(&mut out2).unwrap();
+
+                prop_assert_eq!(out1, out2);
+            }
+        }
+    }
 }

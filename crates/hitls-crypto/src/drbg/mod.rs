@@ -153,4 +153,26 @@ mod tests {
         let out0 = drbg.generate_bytes(0).unwrap();
         assert!(out0.is_empty());
     }
+
+    mod proptests {
+        use super::*;
+        use proptest::prelude::*;
+
+        proptest! {
+            #![proptest_config(ProptestConfig::with_cases(10))]
+
+            #[test]
+            fn prop_hmac_drbg_determinism(
+                seed in prop::collection::vec(any::<u8>(), 32..64),
+            ) {
+                let mut d1 = HmacDrbg::new(&seed).unwrap();
+                let mut d2 = HmacDrbg::new(&seed).unwrap();
+                let mut out1 = [0u8; 32];
+                let mut out2 = [0u8; 32];
+                d1.generate(&mut out1, None).unwrap();
+                d2.generate(&mut out2, None).unwrap();
+                prop_assert_eq!(out1, out2);
+            }
+        }
+    }
 }

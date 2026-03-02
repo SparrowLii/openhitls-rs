@@ -387,4 +387,27 @@ mod tests {
         let digest = ctx.finish().unwrap();
         assert_eq!(to_hex(&digest), expected);
     }
+
+    mod proptests {
+        use super::*;
+        use proptest::prelude::*;
+
+        proptest! {
+            #![proptest_config(ProptestConfig::with_cases(20))]
+
+            #[test]
+            fn prop_sm3_incremental_equiv(
+                data in prop::collection::vec(any::<u8>(), 0..512),
+                split in 0..512usize,
+            ) {
+                let split = split % (data.len() + 1);
+                let one_shot = Sm3::digest(&data).unwrap();
+                let mut h = Sm3::new();
+                h.update(&data[..split]).unwrap();
+                h.update(&data[split..]).unwrap();
+                let incremental = h.finish().unwrap();
+                prop_assert_eq!(one_shot, incremental);
+            }
+        }
+    }
 }

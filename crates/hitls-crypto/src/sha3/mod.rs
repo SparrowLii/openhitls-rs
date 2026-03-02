@@ -861,4 +861,40 @@ mod tests {
             "Keccak ARM must match software after multiple rounds"
         );
     }
+
+    mod proptests {
+        use super::*;
+        use proptest::prelude::*;
+
+        proptest! {
+            #![proptest_config(ProptestConfig::with_cases(20))]
+
+            #[test]
+            fn prop_sha3_256_incremental_equiv(
+                data in prop::collection::vec(any::<u8>(), 0..512),
+                split in 0..512usize,
+            ) {
+                let split = split % (data.len() + 1);
+                let one_shot = Sha3_256::digest(&data).unwrap();
+                let mut h = Sha3_256::new();
+                h.update(&data[..split]).unwrap();
+                h.update(&data[split..]).unwrap();
+                let incremental = h.finish().unwrap();
+                prop_assert_eq!(one_shot, incremental);
+            }
+
+            #[test]
+            fn prop_shake128_deterministic(
+                data in prop::collection::vec(any::<u8>(), 0..256),
+            ) {
+                let mut s1 = Shake128::new();
+                s1.update(&data).unwrap();
+                let out1 = s1.squeeze(64).unwrap();
+                let mut s2 = Shake128::new();
+                s2.update(&data).unwrap();
+                let out2 = s2.squeeze(64).unwrap();
+                prop_assert_eq!(out1, out2);
+            }
+        }
+    }
 }

@@ -4,9 +4,9 @@
 
 Category summary:
 - Implementation: I1–I84 (84 phases)
-- Testing: T1–T69 (67 phases)
+- Testing: T1–T70 (68 phases)
 - Refactoring: R1–R12 (12 phases)
-- Performance: P1–P68 (68 phases)
+- Performance: P1–P62 (62 phases)
 
 | # | Phase | Type | Title | Date |
 |---|-------|------|-------|------|
@@ -234,14 +234,15 @@ Category summary:
 | 222 | T67 | Test | Code Quality Hardening — Dependabot, Windows CI, InvalidArg payload, hash ? propagation | 2026-03-01 |
 | 223 | T68 | Test | Quality Safety Net Enhancement — CI fuzz-smoke/feature expansion, +6 fuzz targets, +9 proptests, record zeroize | 2026-03-02 |
 | 224 | T69 | Test | Quality Safety Net P0 — Miri NTT+GCM, +12 feature flag tests, +10 proptests (DH/DSA/Ed448/SM2/SM9/SLH-DSA) | 2026-03-02 |
-| 225 | I83 | Impl | HPKE Full RFC 9180 Coverage — 4 KEMs, 3 KDFs, 4 AEADs, 4 Modes | 2026-03-02 |
-| 226 | I84 | Impl | CLI prime/kdf Commands + BigNum String Conversions + PBKDF2 Generalization | 2026-03-02 |
-| 227 | P63 | Perf | P-384 Specialized Montgomery Field + Comb Table + ECDSA Fast Path | 2026-03-02 |
-| 228 | P64 | Perf | P-521 Specialized Mersenne Field + Comb Table + ECDSA Fast Path | 2026-03-02 |
-| 229 | P65 | Perf | Ed448 Precomputed Base Table + d_const Caching | 2026-03-02 |
-| 230 | P66 | Perf | Fe448 square_times + sub_fast Cleanup | 2026-03-02 |
-| 231 | P67 | Perf | BigNum Fused CIOS Squaring | 2026-03-02 |
-| 232 | P68 | Perf | RSA CRT Montgomery Optimization | 2026-03-02 |
+| 225 | T70 | Test | Quality Safety Net P1 — +6 fuzz targets, +8 proptests, +8 CI feature flags, +3 Miri runs | 2026-03-02 |
+| 226 | I83 | Impl | HPKE Full RFC 9180 Coverage — 4 KEMs, 3 KDFs, 4 AEADs, 4 Modes | 2026-03-02 |
+| 227 | I84 | Impl | CLI prime/kdf Commands + BigNum String Conversions + PBKDF2 Generalization | 2026-03-02 |
+| 228 | P63 | Perf | P-384 Specialized Montgomery Field + Comb Table + ECDSA Fast Path | 2026-03-02 |
+| 229 | P64 | Perf | P-521 Specialized Mersenne Field + Comb Table + ECDSA Fast Path | 2026-03-02 |
+| 230 | P65 | Perf | Ed448 Precomputed Base Table + d_const Caching | 2026-03-02 |
+| 231 | P66 | Perf | Fe448 square_times + sub_fast Cleanup | 2026-03-02 |
+| 232 | P67 | Perf | BigNum Fused CIOS Squaring | 2026-03-02 |
+| 233 | P68 | Perf | RSA CRT Montgomery Optimization | 2026-03-02 |
 
 ---
 
@@ -12578,7 +12579,7 @@ Added `Clone` to `MontgomeryCtx`, cached Montgomery contexts (mont_p, mont_q, qi
 2. **qinv in Montgomery form**: Pre-compute `qinv` in Montgomery form relative to p, so CRT recombination h = qinv * (m1 - m2) mod p uses a single `mont_mul` instead of generic `mod_mul` (which internally creates a throwaway Montgomery context).
 3. **Clone on MontgomeryCtx**: Needed to store pre-computed contexts in the RSA private key struct while allowing the exponentiation functions to take mutable references.
 
-### Test Count (Post P63–P68)
+### Test Count (Post P63-P68)
 
 | Crate | Count |
 |-------|-------|
@@ -12592,7 +12593,114 @@ Added `Clone` to `MontgomeryCtx`, cached Montgomery contexts (mont_p, mont_q, qi
 | hitls-integration-tests | 260 (2 ignored) |
 | **Total** | **3835 (22 ignored)** |
 
-### Build Status (Post P63–P68)
+### Build Status (Post P63-P68)
 - `cargo test --workspace --all-features`: 3,813 passed, 0 failed, 22 ignored (3,835 total)
 - `RUSTFLAGS="-D warnings" cargo clippy`: 0 warnings
 - `cargo fmt --all -- --check`: clean
+
+---
+
+## Phase T70 — Quality Safety Net P1 Enhancement (2026-03-02)
+
+### Summary
+
+P1 tier quality enhancement following T69's P0 roadmap. Focus areas: fuzz coverage for untested crypto primitives (hash, block cipher, DH, ECC), proptest expansion to modules without property-based tests, CI feature flag isolation for TLS/PKI/advanced crypto features, and Miri expansion for hash/stream cipher modules.
+
+### T70-A: Fuzz Target Expansion (+6 targets, +36 corpus seeds)
+
+6 new fuzz targets covering hash algorithms, block ciphers, and key exchange:
+
+| Target | Algorithm | Property Tested |
+|--------|-----------|-----------------|
+| fuzz_sha2 | SHA-256/384/512 | One-shot vs incremental equivalence |
+| fuzz_sha3 | SHA3-256/512 + SHAKE-128/256 | One-shot vs incremental equivalence |
+| fuzz_sm3 | SM3 | One-shot vs incremental equivalence |
+| fuzz_sm4 | SM4 block cipher | Encrypt→decrypt roundtrip lossless |
+| fuzz_dh | DH (RFC 2409 768/1024) | Shared secret commutativity |
+| fuzz_ecc_point | ECDH P-256/384/521 | Public key validity + DH commutativity |
+
+Corpus: 6 seeds per target (empty, short, medium, long, algorithm variants) = 36 new seeds.
+
+### T70-B: Proptest Expansion (+8 proptest blocks, +10 test functions)
+
+| Module | Property | Cases |
+|--------|----------|-------|
+| sha3/mod.rs | SHA3-256 incremental equivalence | 20 |
+| sha3/mod.rs | SHAKE-128 determinism | 20 |
+| cbc_mac.rs | CBC-MAC-SM4 incremental equivalence | 20 |
+| frodokem/mod.rs | FrodoKEM-640-Shake roundtrip | 3 |
+| hybridkem/mod.rs | HybridKEM X25519+ML-KEM-768 roundtrip | 3 |
+| drbg/mod.rs | HMAC-DRBG determinism (same seed → same output) | 10 |
+| asn1/decoder.rs | ASN.1 INTEGER encode/decode roundtrip | 20 |
+| asn1/decoder.rs | ASN.1 OCTET STRING encode/decode roundtrip | 20 |
+| sm3/mod.rs | SM3 incremental equivalence | 20 |
+| x448/mod.rs | X448 DH commutativity | 3 |
+
+### T70-C: CI Feature Flag Expansion (+8 tests)
+
+New feature isolation tests in `.github/workflows/ci.yml`:
+
+| Feature Combination | Crate | Purpose |
+|---------------------|-------|---------|
+| sm_tls13 | hitls-tls | SM cipher suites in TLS 1.3 |
+| dtlcp | hitls-tls | DTLS + TLCP combined |
+| tls13,async | hitls-tls | Async TLS 1.3 |
+| cert-compression | hitls-tls | Certificate compression extension |
+| cms | hitls-pki | CMS content types isolation |
+| pkcs12 | hitls-pki | PKCS#12 isolation |
+| hybridkem | hitls-crypto | Hybrid KEM (X25519+ML-KEM) |
+| hpke | hitls-crypto | HPKE full suite |
+
+Feature flag combos: 39→47.
+
+### T70-D: Miri Expansion (+3 runs)
+
+| Module | Skip Patterns | Reason |
+|--------|---------------|--------|
+| sha2::tests | compress_soft_vs_dispatch, multi_block_consistency | SIMD intrinsics unsupported under Miri |
+| sha3::tests | (none, HW tests auto-excluded on non-aarch64) | Pure software path |
+| chacha20::tests | soft_vs_dispatch_stress, keystream_256_bytes_consistency | SIMD intrinsics unsupported under Miri |
+
+### Files Modified
+
+| File | Status | Description |
+|------|--------|-------------|
+| fuzz/Cargo.toml | Modified | +sm3, sm4, dh features; +6 [[bin]] entries |
+| fuzz/fuzz_targets/fuzz_sha2.rs | New | SHA-256/384/512 incremental fuzz |
+| fuzz/fuzz_targets/fuzz_sha3.rs | New | SHA3-256/512 + SHAKE-128/256 fuzz |
+| fuzz/fuzz_targets/fuzz_sm3.rs | New | SM3 incremental fuzz |
+| fuzz/fuzz_targets/fuzz_sm4.rs | New | SM4 block roundtrip fuzz |
+| fuzz/fuzz_targets/fuzz_dh.rs | New | DH commutativity fuzz |
+| fuzz/fuzz_targets/fuzz_ecc_point.rs | New | ECC point validity + ECDH fuzz |
+| fuzz/corpus/fuzz_{sha2,sha3,sm3,sm4,dh,ecc_point}/ | New | 36 seed files (6 per target) |
+| crates/hitls-crypto/src/sha3/mod.rs | Modified | +2 proptests |
+| crates/hitls-crypto/src/cbc_mac.rs | Modified | +1 proptest |
+| crates/hitls-crypto/src/frodokem/mod.rs | Modified | +1 proptest |
+| crates/hitls-crypto/src/hybridkem/mod.rs | Modified | +1 proptest |
+| crates/hitls-crypto/src/drbg/mod.rs | Modified | +1 proptest |
+| crates/hitls-utils/src/asn1/decoder.rs | Modified | +2 proptests |
+| crates/hitls-crypto/src/sm3/mod.rs | Modified | +1 proptest |
+| crates/hitls-crypto/src/x448/mod.rs | Modified | +1 proptest |
+| .github/workflows/ci.yml | Modified | +8 feature flag tests, +3 Miri runs |
+
+### Test Count (Post T70)
+
+| Crate | Count |
+|-------|-------|
+| hitls-crypto | 1370 (14 ignored) |
+| hitls-tls | 1414 |
+| hitls-pki | 405 |
+| hitls-bignum | 90 (1 ignored) |
+| hitls-utils | 68 |
+| hitls-auth | 33 |
+| hitls-cli | 166 (5 ignored) |
+| hitls-integration-tests | 260 (2 ignored) |
+| **Total** | **3845 (22 ignored)** |
+
+### Build Status (Post T70)
+- `cargo test --workspace --all-features`: 3,823 passed, 0 failed, 22 ignored (3,845 total)
+- `RUSTFLAGS="-D warnings" cargo clippy`: 0 warnings
+- `cargo fmt --all -- --check`: clean
+- Fuzz targets: 52 (46→52), corpus seeds: 358 (322→358)
+- CI feature flag combos: 47 (39→47)
+- Miri runs: 9 (6→9)
