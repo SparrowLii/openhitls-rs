@@ -154,7 +154,7 @@ impl Drop for Hmac {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "sha2"))]
 mod tests {
     use super::*;
     use crate::sha2::Sha256;

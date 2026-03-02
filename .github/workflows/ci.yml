@@ -90,7 +90,7 @@ jobs:
       - run: cargo test -p hitls-crypto --no-default-features --features scrypt
       - run: cargo test -p hitls-crypto --no-default-features --features entropy
       # Cross-feature combinations
-      - run: cargo test -p hitls-crypto --no-default-features --features aes,gcm
+      - run: cargo test -p hitls-crypto --no-default-features --features aes,modes
       - run: cargo test -p hitls-crypto --no-default-features --features pqc,ecdsa
       # No-default for TLS/PKI crates
       - run: cargo test -p hitls-tls --no-default-features

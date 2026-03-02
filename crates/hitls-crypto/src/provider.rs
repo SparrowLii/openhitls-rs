@@ -149,6 +149,7 @@ mod tests {
 
     /// Test HashAlgorithm::hash() default implementation via SHA-256.
     #[test]
+    #[cfg(feature = "sha2")]
     fn test_hash_algorithm_default_impl() {
         use crate::sha2::Sha256;
 
@@ -172,6 +173,7 @@ mod tests {
 
     /// Test Digest trait output_size/block_size via SHA-256.
     #[test]
+    #[cfg(feature = "sha2")]
     fn test_digest_trait_output_size() {
         use crate::sha2::Sha256;
 
@@ -182,6 +184,7 @@ mod tests {
 
     /// Test Digest reset+update+finish cycle.
     #[test]
+    #[cfg(feature = "sha2")]
     fn test_digest_trait_reset() {
         use crate::sha2::Sha256;
 

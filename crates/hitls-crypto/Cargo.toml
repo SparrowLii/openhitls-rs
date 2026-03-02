@@ -64,7 +64,7 @@ hybridkem = ["x25519", "mlkem", "sha2", "ecdh"]
 
 # KDF and DRBG
 hkdf = ["hmac"]
-pbkdf2 = ["hmac"]
+pbkdf2 = ["hmac", "sha2"]
 scrypt = ["pbkdf2"]
 drbg = ["hmac", "sha2", "aes"]
 hpke = ["hkdf", "x25519", "sha2", "aes", "modes", "chacha20", "ecdh"]
