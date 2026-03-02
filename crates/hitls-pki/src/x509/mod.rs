@@ -21,8 +21,9 @@ pub use certificate::{
 };
 pub use extensions::{
     AuthorityInfoAccess, AuthorityKeyIdentifier, BasicConstraints, CertificatePolicies,
-    ExtendedKeyUsage, GeneralName, GeneralSubtree, KeyUsage, NameConstraints, PolicyInformation,
-    PolicyQualifier, SubjectAltName,
+    CrlDistributionPoints, DistributionPoint, ExtendedKeyUsage, GeneralName, GeneralSubtree,
+    IssuingDistributionPoint, KeyUsage, NameConstraints, PolicyInformation, PolicyQualifier,
+    SubjectAltName,
 };
 pub use signing::SigningKey;
 

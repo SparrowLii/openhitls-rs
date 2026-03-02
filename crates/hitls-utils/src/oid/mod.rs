@@ -281,6 +281,9 @@ pub mod known {
     pub fn issuing_distribution_point() -> Oid {
         Oid::new(&[2, 5, 29, 28])
     }
+    pub fn certificate_issuer() -> Oid {
+        Oid::new(&[2, 5, 29, 29])
+    }
 
     // PKIX Authority Information Access (RFC 5280 §4.2.2.1)
     pub fn authority_info_access() -> Oid {

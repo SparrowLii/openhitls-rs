@@ -3,7 +3,7 @@
 ## Phase Index (Chronological)
 
 Category summary:
-- Implementation: I1–I85 (85 phases)
+- Implementation: I1–I86 (86 phases)
 - Testing: T1–T70 (68 phases)
 - Refactoring: R1–R12 (12 phases)
 - Performance: P1–P62 (62 phases)
@@ -244,6 +244,7 @@ Category summary:
 | 232 | P67 | Perf | BigNum Fused CIOS Squaring | 2026-03-02 |
 | 233 | P68 | Perf | RSA CRT Montgomery Optimization | 2026-03-02 |
 | 234 | I85 | Impl | XMSS-MT Multi-Tree + Extended XMSS Parameter Sets | 2026-03-02 |
+| 235 | I86 | Impl | PKI CRL Extensions + Certificate CRL Distribution Points | 2026-03-03 |
 
 ---
 
@@ -12774,5 +12775,74 @@ Extended XMSS from 9 to 21 single-tree parameter sets and added full XMSS-MT (mu
 
 ### Build Status (Post I85)
 - `cargo test --workspace --all-features`: 3,840 passed, 0 failed, 22 ignored (3,862 total)
+- `RUSTFLAGS="-D warnings" cargo clippy`: 0 warnings
+- `cargo fmt --all -- --check`: clean
+
+---
+
+## Phase I86 — PKI CRL Extensions + Certificate CRL Distribution Points (2026-03-03)
+
+### Summary
+
+Added CRL-level extension convenience methods (AKI, IDP, Delta CRL Indicator), CRL Distribution Points for certificates, Certificate Issuer entry extension parsing, and builder helpers for IDP/Delta CRL/CDP. Closes the highest-priority PKI CRL migration gap vs the C reference.
+
+### Part A: New Extension Types + Parse Functions (extensions.rs)
+
+- `CrlDistributionPoints` / `DistributionPoint` — RFC 5280 §4.2.1.13, for certificates
+- `IssuingDistributionPoint` — RFC 5280 §5.2.5, for CRLs
+- `parse_crl_distribution_points()` — SEQUENCE OF DistributionPoint with fullName/reasons/cRLIssuer
+- `parse_issuing_distribution_point()` — SEQUENCE with tagged BOOLEAN defaults
+- `parse_general_names()` — reusable helper for SEQUENCE OF GeneralName
+- `parse_general_name()` visibility → `pub(crate)` for CRL module reuse
+- `Certificate::crl_distribution_points()` convenience method
+
+### Part B: CRL Convenience Methods (crl.rs)
+
+- `CertificateRevocationList::authority_key_identifier()` — parse AKI from CRL extensions
+- `CertificateRevocationList::issuing_distribution_point()` — parse IDP from CRL extensions
+- `CertificateRevocationList::delta_crl_indicator()` — parse Delta CRL Indicator (INTEGER bytes)
+- `RevokedCertificate.certificate_issuer: Option<Vec<GeneralName>>` — new field
+- `parse_certificate_issuer()` — parse OID 2.5.29.29 entry extension
+
+### Part C: Builder Helpers (builder.rs)
+
+- `CrlBuilder::add_issuing_distribution_point(&[GeneralName])` — OID 2.5.29.28, critical
+- `CrlBuilder::add_delta_crl_indicator(&[u8])` — OID 2.5.29.27, critical
+- `CertificateBuilder::add_crl_distribution_points(&[&str])` — OID 2.5.29.31, non-critical
+- `encode_general_name()` helper, refactored `encode_general_subtrees` to use it
+
+### Part D: OID (oid/mod.rs)
+
+- Added `certificate_issuer()` OID (2.5.29.29)
+
+### Part E: Public API (mod.rs)
+
+- Re-exported `CrlDistributionPoints`, `DistributionPoint`, `IssuingDistributionPoint`
+
+### Files Modified
+| File | Status | Description |
+|------|--------|-------------|
+| `crates/hitls-utils/src/oid/mod.rs` | Modified | +certificate_issuer() OID (2.5.29.29) |
+| `crates/hitls-pki/src/x509/extensions.rs` | Modified | +3 types, +3 parse fns, +Certificate::crl_distribution_points(), +4 tests |
+| `crates/hitls-pki/src/x509/crl.rs` | Modified | +4 CRL convenience methods, +certificate_issuer field, +1 test |
+| `crates/hitls-pki/src/x509/builder.rs` | Modified | +3 builder helpers, +encode_general_name(), +7 tests |
+| `crates/hitls-pki/src/x509/mod.rs` | Modified | +3 public re-exports |
+
+### Test Count (Post I86)
+
+| Crate | Count |
+|-------|-------|
+| hitls-crypto | 1387 (14 ignored) |
+| hitls-tls | 1414 |
+| hitls-pki | 417 |
+| hitls-bignum | 90 (1 ignored) |
+| hitls-utils | 68 |
+| hitls-auth | 33 |
+| hitls-cli | 166 (5 ignored) |
+| hitls-integration-tests | 260 (2 ignored) |
+| **Total** | **3874 (22 ignored)** |
+
+### Build Status (Post I86)
+- `cargo test --workspace --all-features`: 3,852 passed, 0 failed, 22 ignored (3,874 total)
 - `RUSTFLAGS="-D warnings" cargo clippy`: 0 warnings
 - `cargo fmt --all -- --check`: clean

@@ -111,29 +111,34 @@ pub(crate) fn encode_extensions(exts: &[X509Extension]) -> Vec<u8> {
     outer.finish()
 }
 
+/// Encode a single GeneralName as a context-specific tagged value.
+fn encode_general_name(enc: &mut Encoder, name: &GeneralName) {
+    match name {
+        GeneralName::DnsName(s) => {
+            enc.write_context_specific(2, false, s.as_bytes());
+        }
+        GeneralName::Rfc822Name(s) => {
+            enc.write_context_specific(1, false, s.as_bytes());
+        }
+        GeneralName::Uri(s) => {
+            enc.write_context_specific(6, false, s.as_bytes());
+        }
+        GeneralName::IpAddress(ip) => {
+            enc.write_context_specific(7, false, ip);
+        }
+        GeneralName::DirectoryName(dn) => {
+            let dn_der = encode_distinguished_name(dn);
+            enc.write_context_specific(4, true, &dn_der);
+        }
+    }
+}
+
 /// Encode GeneralSubtrees for NameConstraints.
 fn encode_general_subtrees(names: &[GeneralName]) -> Vec<u8> {
     let mut out = Vec::new();
     for name in names {
         let mut sub_inner = Encoder::new();
-        match name {
-            GeneralName::DnsName(s) => {
-                sub_inner.write_context_specific(2, false, s.as_bytes());
-            }
-            GeneralName::Rfc822Name(s) => {
-                sub_inner.write_context_specific(1, false, s.as_bytes());
-            }
-            GeneralName::Uri(s) => {
-                sub_inner.write_context_specific(6, false, s.as_bytes());
-            }
-            GeneralName::IpAddress(ip) => {
-                sub_inner.write_context_specific(7, false, ip);
-            }
-            GeneralName::DirectoryName(dn) => {
-                let dn_der = encode_distinguished_name(dn);
-                sub_inner.write_context_specific(4, true, &dn_der);
-            }
-        }
+        encode_general_name(&mut sub_inner, name);
         let mut seq = Encoder::new();
         seq.write_sequence(&sub_inner.finish());
         out.extend_from_slice(&seq.finish());
@@ -407,6 +412,38 @@ impl CertificateBuilder {
         self.add_extension(known::name_constraints().to_der_value(), true, value)
     }
 
+    /// Add a CRL Distribution Points extension (OID 2.5.29.31, non-critical).
+    ///
+    /// Each URI becomes a DistributionPoint with a single fullName URI.
+    pub fn add_crl_distribution_points(self, uris: &[&str]) -> Self {
+        // SEQUENCE OF DistributionPoint
+        let mut dps = Encoder::new();
+        for uri in uris {
+            // DistributionPoint ::= SEQUENCE {
+            //   distributionPoint [0] {
+            //     fullName [0] { uniformResourceIdentifier [6] }
+            //   }
+            // }
+            let mut gn = Encoder::new();
+            gn.write_context_specific(6, false, uri.as_bytes());
+            let mut full_name = Encoder::new();
+            full_name.write_context_specific(0, true, &gn.finish());
+            let mut dp_name = Encoder::new();
+            dp_name.write_context_specific(0, true, &full_name.finish());
+            let mut dp_seq = Encoder::new();
+            dp_seq.write_sequence(&dp_name.finish());
+            dps.write_raw(&dp_seq.finish());
+        }
+        let mut outer_seq = Encoder::new();
+        outer_seq.write_sequence(&dps.finish());
+        let value = outer_seq.finish();
+        self.add_extension(
+            known::crl_distribution_points().to_der_value(),
+            false,
+            value,
+        )
+    }
+
     /// Add a KeyUsage extension.
     pub fn add_key_usage(self, usage: u16) -> Self {
         // Encode as BIT STRING
@@ -657,6 +694,41 @@ impl CrlBuilder {
             false,
             value,
         )
+    }
+
+    /// Add an Issuing Distribution Point extension (OID 2.5.29.28, critical).
+    ///
+    /// `full_names` specifies the distribution point URIs/names.
+    pub fn add_issuing_distribution_point(self, full_names: &[GeneralName]) -> Self {
+        let mut inner = Encoder::new();
+        if !full_names.is_empty() {
+            // distributionPoint [0] { fullName [0] SEQUENCE OF GeneralName }
+            let mut gns = Encoder::new();
+            for gn in full_names {
+                encode_general_name(&mut gns, gn);
+            }
+            let mut full_name_ctx = Encoder::new();
+            full_name_ctx.write_context_specific(0, true, &gns.finish());
+            inner.write_context_specific(0, true, &full_name_ctx.finish());
+        }
+        let mut seq = Encoder::new();
+        seq.write_sequence(&inner.finish());
+        let value = seq.finish();
+        self.add_extension(
+            known::issuing_distribution_point().to_der_value(),
+            true,
+            value,
+        )
+    }
+
+    /// Add a Delta CRL Indicator extension (OID 2.5.29.27, critical).
+    ///
+    /// `base_crl_number` is the CRL number of the base CRL (big-endian integer bytes).
+    pub fn add_delta_crl_indicator(self, base_crl_number: &[u8]) -> Self {
+        let mut enc = Encoder::new();
+        enc.write_integer(base_crl_number);
+        let value = enc.finish();
+        self.add_extension(known::delta_crl_indicator().to_der_value(), true, value)
     }
 
     /// Add a raw extension to the CRL.
@@ -1033,5 +1105,178 @@ mod tests {
             !der_non.windows(3).any(|w| w == [0x01, 0x01, 0xFF]),
             "Non-critical extension DER should not contain BOOLEAN TRUE"
         );
+    }
+
+    // -----------------------------------------------------------------------
+    // Phase I86: CRL/CDP builder roundtrip tests
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_crl_builder_idp_roundtrip() {
+        let (cert, sk) = make_rsa_ca();
+        let crl = CrlBuilder::new(cert.issuer.clone(), 1_700_000_000)
+            .next_update(1_710_000_000)
+            .add_crl_number(&[0x01])
+            .add_issuing_distribution_point(&[GeneralName::Uri(
+                "http://crl.example.com/ca.crl".into(),
+            )])
+            .build(&sk)
+            .unwrap();
+
+        assert_eq!(crl.version, 2);
+        let idp = crl.issuing_distribution_point();
+        assert!(idp.is_some());
+        let idp = idp.unwrap();
+        assert_eq!(idp.full_names.len(), 1);
+        match &idp.full_names[0] {
+            GeneralName::Uri(u) => assert_eq!(u, "http://crl.example.com/ca.crl"),
+            _ => panic!("expected URI"),
+        }
+        assert!(!idp.only_contains_user_certs);
+        assert!(!idp.only_contains_ca_certs);
+        assert!(!idp.indirect_crl);
+    }
+
+    #[test]
+    fn test_crl_builder_delta_crl_roundtrip() {
+        let (cert, sk) = make_rsa_ca();
+        let crl = CrlBuilder::new(cert.issuer.clone(), 1_700_000_000)
+            .next_update(1_710_000_000)
+            .add_crl_number(&[0x05])
+            .add_delta_crl_indicator(&[0x03])
+            .build(&sk)
+            .unwrap();
+
+        assert_eq!(crl.version, 2);
+        let dci = crl.delta_crl_indicator();
+        assert!(dci.is_some());
+        assert_eq!(dci.unwrap(), vec![0x03]);
+
+        // Verify CRL number is also present
+        let crl_num = crl.crl_number().unwrap();
+        assert_eq!(crl_num, vec![0x05]);
+    }
+
+    #[test]
+    fn test_cert_crl_distribution_points_roundtrip() {
+        let (cert, sk) = make_rsa_ca();
+        let spki = sk.public_key_info().unwrap();
+        let dn = DistinguishedName {
+            entries: vec![("CN".into(), "Test EE".into())],
+        };
+        let ee_cert = CertificateBuilder::new()
+            .serial_number(&[0x42])
+            .issuer(cert.issuer.clone())
+            .subject(dn)
+            .validity(1_700_000_000, 1_800_000_000)
+            .subject_public_key(spki)
+            .add_crl_distribution_points(&[
+                "http://crl.example.com/ca.crl",
+                "http://crl2.example.com/ca.crl",
+            ])
+            .build(&sk)
+            .unwrap();
+
+        let cdp = ee_cert.crl_distribution_points();
+        assert!(cdp.is_some());
+        let cdp = cdp.unwrap();
+        assert_eq!(cdp.points.len(), 2);
+        match &cdp.points[0].full_names[0] {
+            GeneralName::Uri(u) => assert_eq!(u, "http://crl.example.com/ca.crl"),
+            _ => panic!("expected URI"),
+        }
+        match &cdp.points[1].full_names[0] {
+            GeneralName::Uri(u) => assert_eq!(u, "http://crl2.example.com/ca.crl"),
+            _ => panic!("expected URI"),
+        }
+    }
+
+    #[test]
+    fn test_cert_crl_distribution_points_none() {
+        let (cert, sk) = make_rsa_ca();
+        let spki = sk.public_key_info().unwrap();
+        let dn = DistinguishedName {
+            entries: vec![("CN".into(), "No CDP".into())],
+        };
+        let ee_cert = CertificateBuilder::new()
+            .serial_number(&[0x43])
+            .issuer(cert.issuer.clone())
+            .subject(dn)
+            .validity(1_700_000_000, 1_800_000_000)
+            .subject_public_key(spki)
+            .build(&sk)
+            .unwrap();
+
+        assert!(ee_cert.crl_distribution_points().is_none());
+    }
+
+    #[test]
+    fn test_revoked_entry_certificate_issuer() {
+        let (cert, sk) = make_rsa_ca();
+        // Build a revoked entry with Certificate Issuer extension
+        use hitls_utils::asn1::Encoder;
+        let mut gn_enc = Encoder::new();
+        gn_enc.write_context_specific(6, false, b"http://ca.example.com");
+        let mut seq_enc = Encoder::new();
+        seq_enc.write_sequence(&gn_enc.finish());
+        let ci_value = seq_enc.finish();
+        let entry = RevokedCertBuilder::new(&[0x99], 1_700_100_000)
+            .reason(RevocationReason::KeyCompromise)
+            .add_extension(known::certificate_issuer().to_der_value(), true, ci_value);
+        let crl = CrlBuilder::new(cert.issuer.clone(), 1_700_000_000)
+            .add_revoked(entry)
+            .build(&sk)
+            .unwrap();
+
+        assert_eq!(crl.revoked_certs.len(), 1);
+        let re = &crl.revoked_certs[0];
+        assert!(re.certificate_issuer.is_some());
+        let ci = re.certificate_issuer.as_ref().unwrap();
+        assert_eq!(ci.len(), 1);
+        match &ci[0] {
+            GeneralName::Uri(u) => assert_eq!(u, "http://ca.example.com"),
+            _ => panic!("expected URI"),
+        }
+    }
+
+    #[test]
+    fn test_crl_issuing_distribution_point_roundtrip() {
+        let (cert, sk) = make_rsa_ca();
+        let crl = CrlBuilder::new(cert.issuer.clone(), 1_700_000_000)
+            .next_update(1_710_000_000)
+            .add_crl_number(&[0x02])
+            .add_issuing_distribution_point(&[
+                GeneralName::Uri("http://crl.example.com/ca.crl".into()),
+                GeneralName::Uri("ldap://ldap.example.com/ca.crl".into()),
+            ])
+            .build(&sk)
+            .unwrap();
+
+        let idp = crl.issuing_distribution_point().unwrap();
+        assert_eq!(idp.full_names.len(), 2);
+        match &idp.full_names[0] {
+            GeneralName::Uri(u) => assert_eq!(u, "http://crl.example.com/ca.crl"),
+            _ => panic!("expected URI"),
+        }
+        match &idp.full_names[1] {
+            GeneralName::Uri(u) => assert_eq!(u, "ldap://ldap.example.com/ca.crl"),
+            _ => panic!("expected URI"),
+        }
+        // Verify signature
+        assert!(crl.verify_signature(&cert).unwrap());
+    }
+
+    #[test]
+    fn test_crl_delta_crl_indicator_roundtrip() {
+        let (cert, sk) = make_rsa_ca();
+        let crl = CrlBuilder::new(cert.issuer.clone(), 1_700_000_000)
+            .add_crl_number(&[0x11])
+            .add_delta_crl_indicator(&[0x10])
+            .build(&sk)
+            .unwrap();
+
+        let dci = crl.delta_crl_indicator().unwrap();
+        assert_eq!(dci, vec![0x10]);
+        assert!(crl.verify_signature(&cert).unwrap());
     }
 }

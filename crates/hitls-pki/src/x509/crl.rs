@@ -4,6 +4,9 @@ use hitls_types::PkiError;
 use hitls_utils::asn1::{tags, Decoder, TagClass};
 use hitls_utils::oid::{known, Oid};
 
+use super::extensions::{
+    parse_issuing_distribution_point, AuthorityKeyIdentifier, GeneralName, IssuingDistributionPoint,
+};
 use super::{
     parse_algorithm_identifier, parse_extensions, parse_name, verify_ecdsa, verify_ed25519,
     verify_ed448, verify_rsa, verify_rsa_pss, verify_sm2, Certificate, DistinguishedName, HashAlg,
@@ -48,6 +51,8 @@ pub struct RevokedCertificate {
     pub reason: Option<RevocationReason>,
     /// Invalidity date (from InvalidityDate extension).
     pub invalidity_date: Option<i64>,
+    /// Certificate issuer (from CertificateIssuer extension, OID 2.5.29.29).
+    pub certificate_issuer: Option<Vec<GeneralName>>,
     /// Entry-level extensions.
     pub extensions: Vec<X509Extension>,
 }
@@ -263,6 +268,43 @@ impl CertificateRevocationList {
                 dec.read_integer().ok().map(|v| v.to_vec())
             })
     }
+
+    /// Parse the Authority Key Identifier extension, if present.
+    pub fn authority_key_identifier(&self) -> Option<AuthorityKeyIdentifier> {
+        let aki_oid = known::authority_key_identifier().to_der_value();
+        self.extensions
+            .iter()
+            .find(|e| e.oid == aki_oid)
+            .and_then(|e| {
+                let mut dec = Decoder::new(&e.value).read_sequence().ok()?;
+                let key_identifier = dec
+                    .try_read_context_specific(0, false)
+                    .ok()?
+                    .map(|tlv| tlv.value.to_vec());
+                Some(AuthorityKeyIdentifier { key_identifier })
+            })
+    }
+
+    /// Parse the Issuing Distribution Point extension, if present.
+    pub fn issuing_distribution_point(&self) -> Option<IssuingDistributionPoint> {
+        let idp_oid = known::issuing_distribution_point().to_der_value();
+        self.extensions
+            .iter()
+            .find(|e| e.oid == idp_oid)
+            .and_then(|e| parse_issuing_distribution_point(&e.value).ok())
+    }
+
+    /// Get the Delta CRL Indicator extension value (INTEGER bytes), if present.
+    pub fn delta_crl_indicator(&self) -> Option<Vec<u8>> {
+        let dci_oid = known::delta_crl_indicator().to_der_value();
+        self.extensions
+            .iter()
+            .find(|e| e.oid == dci_oid)
+            .and_then(|e| {
+                let mut dec = Decoder::new(&e.value);
+                dec.read_integer().ok().map(|v| v.to_vec())
+            })
+    }
 }
 
 /// Verify a signature given the OID, TBS data, signature, and SPKI.
@@ -328,6 +370,7 @@ fn parse_revoked_entry(dec: &mut Decoder) -> Result<RevokedCertificate, PkiError
     // crlEntryExtensions Extensions OPTIONAL
     let mut reason = None;
     let mut invalidity_date = None;
+    let mut certificate_issuer = None;
     let mut extensions = Vec::new();
 
     if !entry_dec.is_empty() {
@@ -371,6 +414,8 @@ fn parse_revoked_entry(dec: &mut Decoder) -> Result<RevokedCertificate, PkiError
                 reason = parse_reason_code(&value).ok();
             } else if oid_parsed == known::invalidity_date() {
                 invalidity_date = parse_invalidity_date(&value).ok();
+            } else if oid_parsed == known::certificate_issuer() {
+                certificate_issuer = parse_certificate_issuer(&value).ok();
             }
 
             extensions.push(X509Extension {
@@ -386,6 +431,7 @@ fn parse_revoked_entry(dec: &mut Decoder) -> Result<RevokedCertificate, PkiError
         revocation_date,
         reason,
         invalidity_date,
+        certificate_issuer,
         extensions,
     })
 }
@@ -412,6 +458,26 @@ fn parse_invalidity_date(value: &[u8]) -> Result<i64, PkiError> {
     let mut dec = Decoder::new(value);
     dec.read_time()
         .map_err(|e| PkiError::InvalidCrl(e.to_string()))
+}
+
+/// Parse a CertificateIssuer entry extension (OID 2.5.29.29).
+/// Value is `SEQUENCE OF GeneralName`.
+fn parse_certificate_issuer(value: &[u8]) -> Result<Vec<GeneralName>, PkiError> {
+    let mut dec = Decoder::new(value)
+        .read_sequence()
+        .map_err(|e| PkiError::InvalidCrl(e.to_string()))?;
+    let mut names = Vec::new();
+    while !dec.is_empty() {
+        let tlv = dec
+            .read_tlv()
+            .map_err(|e| PkiError::InvalidCrl(e.to_string()))?;
+        if tlv.tag.class == TagClass::ContextSpecific {
+            if let Some(gn) = super::extensions::parse_general_name(tlv.tag.number, tlv.value) {
+                names.push(gn);
+            }
+        }
+    }
+    Ok(names)
 }
 
 /// Parse multiple CRLs from a PEM string.
@@ -718,5 +784,22 @@ mod tests {
                 || sig_oid == known::sha512_with_rsa_encryption()
                 || sig_oid == known::sha1_with_rsa_encryption()
         );
+    }
+
+    // -----------------------------------------------------------------------
+    // Phase I86: CRL convenience methods
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_crl_authority_key_identifier() {
+        // v2 CRL with AKI extension
+        let crl = CertificateRevocationList::from_pem(CRL_V2_PEM).unwrap();
+        assert_eq!(crl.version, 2);
+        let aki = crl.authority_key_identifier();
+        // The test CRL should have an AKI extension
+        assert!(aki.is_some());
+        let aki = aki.unwrap();
+        assert!(aki.key_identifier.is_some());
+        assert!(!aki.key_identifier.unwrap().is_empty());
     }
 }

@@ -89,6 +89,40 @@ pub struct PolicyQualifier {
     pub qualifier: Vec<u8>,
 }
 
+/// Parsed CRL Distribution Points extension (RFC 5280 §4.2.1.13).
+#[derive(Debug, Clone)]
+pub struct CrlDistributionPoints {
+    pub points: Vec<DistributionPoint>,
+}
+
+/// A single distribution point within CRL Distribution Points.
+#[derive(Debug, Clone)]
+pub struct DistributionPoint {
+    /// Full names (URIs, DNS names, etc.) — from `[0][0]` fullName.
+    pub full_names: Vec<GeneralName>,
+    /// Reason flags (BIT STRING) — from `[1]`.
+    pub reasons: Option<u16>,
+    /// CRL issuer — from `[2]`.
+    pub crl_issuer: Vec<GeneralName>,
+}
+
+/// Parsed Issuing Distribution Point extension (RFC 5280 §5.2.5).
+#[derive(Debug, Clone)]
+pub struct IssuingDistributionPoint {
+    /// Distribution point full names — from `[0]` distributionPoint fullName.
+    pub full_names: Vec<GeneralName>,
+    /// Only contains user certificates — `[1]` DEFAULT FALSE.
+    pub only_contains_user_certs: bool,
+    /// Only contains CA certificates — `[2]` DEFAULT FALSE.
+    pub only_contains_ca_certs: bool,
+    /// Only some reasons — `[3]` ReasonFlags.
+    pub only_some_reasons: Option<u16>,
+    /// Indirect CRL — `[4]` DEFAULT FALSE.
+    pub indirect_crl: bool,
+    /// Only contains attribute certificates — `[5]` DEFAULT FALSE.
+    pub only_contains_attribute_certs: bool,
+}
+
 /// Parsed KeyUsage extension (RFC 5280 §4.2.1.3) as a bit-flag mask.
 #[derive(Debug, Clone, Copy)]
 pub struct KeyUsage(pub u16);
@@ -200,7 +234,7 @@ fn parse_extended_key_usage(value: &[u8]) -> Result<ExtendedKeyUsage, PkiError> 
 ///   ediPartyName    [5], uniformResourceIdentifier [6] IA5String,
 ///   iPAddress       [7] OCTET STRING, registeredID [8] OID
 /// }
-fn parse_general_name(tag_num: u32, value: &[u8]) -> Option<GeneralName> {
+pub(crate) fn parse_general_name(tag_num: u32, value: &[u8]) -> Option<GeneralName> {
     match tag_num {
         1 => {
             // rfc822Name — IA5String
@@ -426,6 +460,190 @@ fn parse_general_subtrees(data: &[u8]) -> Result<Vec<GeneralSubtree>, PkiError> 
     Ok(subtrees)
 }
 
+/// Parse CRL Distribution Points: `SEQUENCE OF DistributionPoint`
+/// DistributionPoint ::= SEQUENCE {
+///   distributionPoint [0] DistributionPointName OPTIONAL,
+///   reasons           [1] ReasonFlags OPTIONAL,
+///   cRLIssuer         [2] GeneralNames OPTIONAL
+/// }
+/// DistributionPointName ::= CHOICE { fullName [0] GeneralNames, ... }
+pub(crate) fn parse_crl_distribution_points(
+    value: &[u8],
+) -> Result<CrlDistributionPoints, PkiError> {
+    let mut dec = Decoder::new(value)
+        .read_sequence()
+        .map_err(|e| PkiError::Asn1Error(e.to_string()))?;
+    let mut points = Vec::new();
+    while !dec.is_empty() {
+        let mut dp_dec = dec
+            .read_sequence()
+            .map_err(|e| PkiError::Asn1Error(e.to_string()))?;
+        let mut full_names = Vec::new();
+        let mut reasons = None;
+        let mut crl_issuer = Vec::new();
+        // [0] distributionPoint OPTIONAL
+        if let Some(dp_tlv) = dp_dec
+            .try_read_context_specific(0, true)
+            .map_err(|e| PkiError::Asn1Error(e.to_string()))?
+        {
+            // DistributionPointName CHOICE — fullName [0] IMPLICIT SEQUENCE OF GeneralName
+            let mut dpn_dec = Decoder::new(dp_tlv.value);
+            if let Some(fn_tlv) = dpn_dec
+                .try_read_context_specific(0, true)
+                .map_err(|e| PkiError::Asn1Error(e.to_string()))?
+            {
+                full_names = parse_general_names(fn_tlv.value)?;
+            }
+        }
+        // [1] reasons OPTIONAL (BIT STRING)
+        if let Some(r_tlv) = dp_dec
+            .try_read_context_specific(1, false)
+            .map_err(|e| PkiError::Asn1Error(e.to_string()))?
+        {
+            if !r_tlv.value.is_empty() {
+                let unused = r_tlv.value[0];
+                let mut mask: u16 = 0;
+                if r_tlv.value.len() > 1 {
+                    mask |= r_tlv.value[1] as u16;
+                }
+                if r_tlv.value.len() > 2 {
+                    mask |= (r_tlv.value[2] as u16) << 8;
+                }
+                if unused > 0 && unused < 16 {
+                    // Clear unused bits
+                    let last_idx = r_tlv.value.len() - 1 - 1; // skip unused_bits byte
+                    if last_idx == 0 {
+                        mask &= !((1u16 << unused) - 1);
+                    }
+                }
+                reasons = Some(mask);
+            }
+        }
+        // [2] cRLIssuer OPTIONAL (GeneralNames)
+        if let Some(ci_tlv) = dp_dec
+            .try_read_context_specific(2, true)
+            .map_err(|e| PkiError::Asn1Error(e.to_string()))?
+        {
+            crl_issuer = parse_general_names(ci_tlv.value)?;
+        }
+        points.push(DistributionPoint {
+            full_names,
+            reasons,
+            crl_issuer,
+        });
+    }
+    Ok(CrlDistributionPoints { points })
+}
+
+/// Parse Issuing Distribution Point (RFC 5280 §5.2.5).
+/// IssuingDistributionPoint ::= SEQUENCE {
+///   distributionPoint          [0] DistributionPointName OPTIONAL,
+///   onlyContainsUserCerts      [1] BOOLEAN DEFAULT FALSE,
+///   onlyContainsCACerts        [2] BOOLEAN DEFAULT FALSE,
+///   onlySomeReasons            [3] ReasonFlags OPTIONAL,
+///   indirectCRL                [4] BOOLEAN DEFAULT FALSE,
+///   onlyContainsAttributeCerts [5] BOOLEAN DEFAULT FALSE
+/// }
+pub(crate) fn parse_issuing_distribution_point(
+    value: &[u8],
+) -> Result<IssuingDistributionPoint, PkiError> {
+    let mut dec = Decoder::new(value)
+        .read_sequence()
+        .map_err(|e| PkiError::Asn1Error(e.to_string()))?;
+    let mut full_names = Vec::new();
+    let mut only_contains_user_certs = false;
+    let mut only_contains_ca_certs = false;
+    let mut only_some_reasons = None;
+    let mut indirect_crl = false;
+    let mut only_contains_attribute_certs = false;
+
+    // [0] distributionPoint OPTIONAL
+    if let Some(dp_tlv) = dec
+        .try_read_context_specific(0, true)
+        .map_err(|e| PkiError::Asn1Error(e.to_string()))?
+    {
+        // fullName [0] IMPLICIT SEQUENCE OF GeneralName
+        let mut dpn_dec = Decoder::new(dp_tlv.value);
+        if let Some(fn_tlv) = dpn_dec
+            .try_read_context_specific(0, true)
+            .map_err(|e| PkiError::Asn1Error(e.to_string()))?
+        {
+            full_names = parse_general_names(fn_tlv.value)?;
+        }
+    }
+    // [1] onlyContainsUserCerts BOOLEAN DEFAULT FALSE
+    if let Some(tlv) = dec
+        .try_read_context_specific(1, false)
+        .map_err(|e| PkiError::Asn1Error(e.to_string()))?
+    {
+        only_contains_user_certs = !tlv.value.is_empty() && tlv.value[0] != 0;
+    }
+    // [2] onlyContainsCACerts BOOLEAN DEFAULT FALSE
+    if let Some(tlv) = dec
+        .try_read_context_specific(2, false)
+        .map_err(|e| PkiError::Asn1Error(e.to_string()))?
+    {
+        only_contains_ca_certs = !tlv.value.is_empty() && tlv.value[0] != 0;
+    }
+    // [3] onlySomeReasons ReasonFlags OPTIONAL (BIT STRING)
+    if let Some(tlv) = dec
+        .try_read_context_specific(3, false)
+        .map_err(|e| PkiError::Asn1Error(e.to_string()))?
+    {
+        if !tlv.value.is_empty() {
+            let _unused = tlv.value[0];
+            let mut mask: u16 = 0;
+            if tlv.value.len() > 1 {
+                mask |= tlv.value[1] as u16;
+            }
+            if tlv.value.len() > 2 {
+                mask |= (tlv.value[2] as u16) << 8;
+            }
+            only_some_reasons = Some(mask);
+        }
+    }
+    // [4] indirectCRL BOOLEAN DEFAULT FALSE
+    if let Some(tlv) = dec
+        .try_read_context_specific(4, false)
+        .map_err(|e| PkiError::Asn1Error(e.to_string()))?
+    {
+        indirect_crl = !tlv.value.is_empty() && tlv.value[0] != 0;
+    }
+    // [5] onlyContainsAttributeCerts BOOLEAN DEFAULT FALSE
+    if let Some(tlv) = dec
+        .try_read_context_specific(5, false)
+        .map_err(|e| PkiError::Asn1Error(e.to_string()))?
+    {
+        only_contains_attribute_certs = !tlv.value.is_empty() && tlv.value[0] != 0;
+    }
+
+    Ok(IssuingDistributionPoint {
+        full_names,
+        only_contains_user_certs,
+        only_contains_ca_certs,
+        only_some_reasons,
+        indirect_crl,
+        only_contains_attribute_certs,
+    })
+}
+
+/// Parse a SEQUENCE OF GeneralName from raw bytes.
+fn parse_general_names(data: &[u8]) -> Result<Vec<GeneralName>, PkiError> {
+    let mut dec = Decoder::new(data);
+    let mut names = Vec::new();
+    while !dec.is_empty() {
+        let tlv = dec
+            .read_tlv()
+            .map_err(|e| PkiError::Asn1Error(e.to_string()))?;
+        if tlv.tag.class == TagClass::ContextSpecific {
+            if let Some(gn) = parse_general_name(tlv.tag.number, tlv.value) {
+                names.push(gn);
+            }
+        }
+    }
+    Ok(names)
+}
+
 // ---------------------------------------------------------------------------
 // Certificate extension convenience methods
 // ---------------------------------------------------------------------------
@@ -510,6 +728,15 @@ impl Certificate {
             .iter()
             .find(|e| e.oid == cp_oid)
             .and_then(|e| parse_certificate_policies(&e.value).ok())
+    }
+
+    /// Parse the CRL Distribution Points extension, if present.
+    pub fn crl_distribution_points(&self) -> Option<CrlDistributionPoints> {
+        let cdp_oid = known::crl_distribution_points().to_der_value();
+        self.extensions
+            .iter()
+            .find(|e| e.oid == cdp_oid)
+            .and_then(|e| parse_crl_distribution_points(&e.value).ok())
     }
 
     /// Returns true if this certificate is a CA (BasicConstraints present with isCA=true).
@@ -651,5 +878,112 @@ mod tests {
         // Empty flags
         let empty = KeyUsage(0);
         assert!(!empty.has(KeyUsage::DIGITAL_SIGNATURE));
+    }
+
+    // -----------------------------------------------------------------------
+    // CRL Distribution Points / Issuing Distribution Point tests
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_parse_crl_distribution_points_single_uri() {
+        // SEQUENCE OF DistributionPoint:
+        //   SEQUENCE {
+        //     [0] { [0] { [6] "http://crl.example.com/ca.crl" } }
+        //   }
+        use hitls_utils::asn1::Encoder;
+        let uri = b"http://crl.example.com/ca.crl";
+        let mut gn = Encoder::new();
+        gn.write_context_specific(6, false, uri);
+        let mut full_name = Encoder::new();
+        full_name.write_context_specific(0, true, &gn.finish());
+        let mut dp_name = Encoder::new();
+        dp_name.write_context_specific(0, true, &full_name.finish());
+        let mut dp_seq = Encoder::new();
+        dp_seq.write_sequence(&dp_name.finish());
+        let mut outer = Encoder::new();
+        outer.write_sequence(&dp_seq.finish());
+        let der = outer.finish();
+
+        let cdp = parse_crl_distribution_points(&der).unwrap();
+        assert_eq!(cdp.points.len(), 1);
+        assert_eq!(cdp.points[0].full_names.len(), 1);
+        match &cdp.points[0].full_names[0] {
+            GeneralName::Uri(u) => assert_eq!(u, "http://crl.example.com/ca.crl"),
+            _ => panic!("expected URI"),
+        }
+        assert!(cdp.points[0].reasons.is_none());
+        assert!(cdp.points[0].crl_issuer.is_empty());
+    }
+
+    #[test]
+    fn test_parse_crl_distribution_points_multiple() {
+        use hitls_utils::asn1::Encoder;
+        let uris = [
+            "http://crl1.example.com/ca.crl",
+            "http://crl2.example.com/ca.crl",
+        ];
+        let mut dps = Encoder::new();
+        for uri in &uris {
+            let mut gn = Encoder::new();
+            gn.write_context_specific(6, false, uri.as_bytes());
+            let mut full_name = Encoder::new();
+            full_name.write_context_specific(0, true, &gn.finish());
+            let mut dp_name = Encoder::new();
+            dp_name.write_context_specific(0, true, &full_name.finish());
+            let mut dp_seq = Encoder::new();
+            dp_seq.write_sequence(&dp_name.finish());
+            dps.write_raw(&dp_seq.finish());
+        }
+        let mut outer = Encoder::new();
+        outer.write_sequence(&dps.finish());
+        let der = outer.finish();
+
+        let cdp = parse_crl_distribution_points(&der).unwrap();
+        assert_eq!(cdp.points.len(), 2);
+        for (i, expected_uri) in uris.iter().enumerate() {
+            match &cdp.points[i].full_names[0] {
+                GeneralName::Uri(u) => assert_eq!(u, expected_uri),
+                _ => panic!("expected URI at index {}", i),
+            }
+        }
+    }
+
+    #[test]
+    fn test_parse_issuing_distribution_point_flags() {
+        // IDP with onlyContainsUserCerts=TRUE and indirectCRL=TRUE
+        use hitls_utils::asn1::Encoder;
+        let mut inner = Encoder::new();
+        // [1] BOOLEAN TRUE (onlyContainsUserCerts)
+        inner.write_context_specific(1, false, &[0xFF]);
+        // [4] BOOLEAN TRUE (indirectCRL)
+        inner.write_context_specific(4, false, &[0xFF]);
+        let mut seq = Encoder::new();
+        seq.write_sequence(&inner.finish());
+        let der = seq.finish();
+
+        let idp = parse_issuing_distribution_point(&der).unwrap();
+        assert!(idp.full_names.is_empty());
+        assert!(idp.only_contains_user_certs);
+        assert!(!idp.only_contains_ca_certs);
+        assert!(idp.only_some_reasons.is_none());
+        assert!(idp.indirect_crl);
+        assert!(!idp.only_contains_attribute_certs);
+    }
+
+    #[test]
+    fn test_parse_issuing_distribution_point_defaults() {
+        // Empty IDP — all defaults
+        use hitls_utils::asn1::Encoder;
+        let mut seq = Encoder::new();
+        seq.write_sequence(&[]);
+        let der = seq.finish();
+
+        let idp = parse_issuing_distribution_point(&der).unwrap();
+        assert!(idp.full_names.is_empty());
+        assert!(!idp.only_contains_user_certs);
+        assert!(!idp.only_contains_ca_certs);
+        assert!(idp.only_some_reasons.is_none());
+        assert!(!idp.indirect_crl);
+        assert!(!idp.only_contains_attribute_certs);
     }
 }

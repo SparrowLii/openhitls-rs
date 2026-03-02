@@ -3811,3 +3811,19 @@ Targeted coverage gaps in connection_info, handshake enums, lib.rs constants, co
 - Added 56 XMSS-MT multi-tree parameter sets with hypertree sign/verify
 - New `XmssMtKeyPair` struct for multi-tree key management
 - +17 tests (3,862 total), 22 ignored, 0 clippy/fmt warnings
+
+---
+
+## Phase I86 — PKI CRL Extensions + Certificate CRL Distribution Points (2026-03-03)
+
+**Prompt**: Implement Phase I86 — PKI CRL Extensions + Certificate CRL Distribution Points. Add CRL convenience methods (AKI, IDP, Delta CRL Indicator), CRL Distribution Points for certificates, Certificate Issuer entry extension, and builder helpers for IDP/delta CRL/CDP.
+
+**Result**:
+- Added 3 new extension types: CrlDistributionPoints, DistributionPoint, IssuingDistributionPoint
+- Added 3 parse functions: parse_crl_distribution_points, parse_issuing_distribution_point, parse_general_names
+- Added Certificate::crl_distribution_points() convenience method
+- Added 4 CRL convenience methods: authority_key_identifier(), issuing_distribution_point(), delta_crl_indicator(), plus certificate_issuer field on RevokedCertificate
+- Added 3 builder helpers: CrlBuilder::add_issuing_distribution_point(), add_delta_crl_indicator(), CertificateBuilder::add_crl_distribution_points()
+- Added certificate_issuer OID (2.5.29.29)
+- Re-exported CrlDistributionPoints, DistributionPoint, IssuingDistributionPoint
+- +12 tests (3,874 total), 22 ignored, 0 clippy/fmt warnings
