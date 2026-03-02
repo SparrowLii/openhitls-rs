@@ -169,6 +169,10 @@ jobs:
       - run: cargo miri test -p hitls-crypto --all-features -- sm3::tests
       # SM4 software path (T-table, no intrinsics)
       - run: cargo miri test -p hitls-crypto --all-features -- sm4::tests
+      # P-256/P-384/P-521 specialized Montgomery field arithmetic (unsafe code)
+      - run: cargo miri test -p hitls-crypto --all-features -- ecc::p256_field::tests
+      - run: cargo miri test -p hitls-crypto --all-features -- ecc::p384_field::tests
+      - run: cargo miri test -p hitls-crypto --all-features -- ecc::p521_field::tests
 
   fuzz-check:
     name: Fuzz Build Check
