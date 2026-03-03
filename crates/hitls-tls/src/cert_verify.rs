@@ -3,6 +3,7 @@
 //! Shared certificate chain + hostname verification called by all client handshake paths.
 
 use crate::config::TlsConfig;
+use hitls_pki::x509::crl::CertificateRevocationList;
 use hitls_pki::x509::hostname::verify_hostname;
 use hitls_pki::x509::verify::CertificateVerifier;
 use hitls_pki::x509::Certificate;
@@ -12,6 +13,8 @@ use hitls_types::TlsError;
 #[derive(Debug)]
 pub struct CertVerifyInfo {
     /// The result of chain verification (Ok or error message).
+    /// When CRL revocation checking is enabled, chain_result also includes
+    /// revocation check results (CertRevoked error if the leaf is revoked).
     pub chain_result: Result<(), String>,
     /// The result of hostname verification (Ok or error message).
     pub hostname_result: Result<(), String>,
@@ -54,7 +57,7 @@ pub fn verify_server_certificate(
         .filter_map(|der| Certificate::from_der(der).ok())
         .collect();
 
-    // Chain verification
+    // Chain verification (with optional CRL revocation checking)
     let chain_result = if config.trusted_certs.is_empty() {
         Err("no trusted certificates configured".to_string())
     } else {
@@ -63,6 +66,15 @@ pub fn verify_server_certificate(
             if let Ok(trusted) = Certificate::from_der(trusted_der) {
                 verifier.add_trusted_cert(trusted);
             }
+        }
+        // Add CRLs and enable revocation checking if configured
+        if config.check_revocation {
+            for crl_der in &config.crls {
+                if let Ok(crl) = CertificateRevocationList::from_der(crl_der) {
+                    verifier.add_crl(crl);
+                }
+            }
+            verifier.set_check_revocation(true);
         }
         verifier
             .verify_cert(&leaf, &intermediates)
@@ -476,5 +488,222 @@ mod tests {
         assert!(verify_server_certificate(&config, &[cert_der]).is_ok());
         // But callback should have seen hostname error
         assert!(*hostname_was_err.lock().unwrap());
+    }
+
+    // -------------------------------------------------------
+    // TLS-CRL Integration tests
+    // -------------------------------------------------------
+
+    /// Build a self-signed CA + leaf cert + CRL that revokes the leaf.
+    /// Returns (ca_der, leaf_der, crl_der).
+    fn make_ca_leaf_crl() -> (Vec<u8>, Vec<u8>, Vec<u8>) {
+        use hitls_pki::x509::{
+            CertificateBuilder, DistinguishedName, KeyUsage, SigningKey, SubjectPublicKeyInfo,
+        };
+        use hitls_pki::x509::{CrlBuilder, RevokedCertBuilder};
+
+        // CA keypair
+        let ca_kp = hitls_crypto::ed25519::Ed25519KeyPair::generate().unwrap();
+        let ca_sk = SigningKey::Ed25519(ca_kp);
+        let ca_dn = DistinguishedName {
+            entries: vec![("CN".into(), "Test CA".into())],
+        };
+        let ca_pub = ca_sk.public_key_info().unwrap();
+        let ca_cert = CertificateBuilder::new()
+            .serial_number(&[0x01])
+            .issuer(ca_dn.clone())
+            .subject(ca_dn.clone())
+            .validity(1_700_000_000, 1_900_000_000)
+            .subject_public_key(ca_pub)
+            .add_basic_constraints(true, None)
+            .add_key_usage(KeyUsage::KEY_CERT_SIGN | KeyUsage::CRL_SIGN)
+            .build(&ca_sk)
+            .unwrap();
+
+        // Leaf keypair
+        let leaf_kp = hitls_crypto::ed25519::Ed25519KeyPair::generate().unwrap();
+        let leaf_dn = DistinguishedName {
+            entries: vec![("CN".into(), "leaf.example.com".into())],
+        };
+        let leaf_pub = SubjectPublicKeyInfo {
+            algorithm_oid: vec![0x2b, 0x65, 0x70], // Ed25519
+            algorithm_params: None,
+            public_key: leaf_kp.public_key().to_vec(),
+        };
+        let leaf_cert = CertificateBuilder::new()
+            .serial_number(&[0x02])
+            .issuer(ca_dn.clone())
+            .subject(leaf_dn)
+            .validity(1_700_000_000, 1_900_000_000)
+            .subject_public_key(leaf_pub)
+            .build(&ca_sk)
+            .unwrap();
+
+        // CRL that revokes serial 0x02 (the leaf)
+        let crl = CrlBuilder::new(ca_dn, 1_700_000_000)
+            .next_update(1_900_000_000)
+            .add_revoked(RevokedCertBuilder::new(&[0x02], 1_700_000_001))
+            .add_crl_number(&[0x01])
+            .build(&ca_sk)
+            .unwrap();
+
+        (ca_cert.raw, leaf_cert.raw, crl.to_der())
+    }
+
+    #[test]
+    fn test_tls_crl_revoked_cert_rejected() {
+        let (ca_der, leaf_der, crl_der) = make_ca_leaf_crl();
+        let config = TlsConfig::builder()
+            .role(TlsRole::Client)
+            .verify_peer(true)
+            .verify_hostname(false)
+            .trusted_cert(ca_der)
+            .crl(crl_der)
+            .check_revocation(true)
+            .build();
+
+        let result = verify_server_certificate(&config, &[leaf_der]);
+        assert!(result.is_err());
+        let msg = format!("{}", result.unwrap_err());
+        assert!(
+            msg.contains("Revoked") || msg.contains("revoked") || msg.contains("CertRevoked"),
+            "expected revocation error, got: {msg}"
+        );
+    }
+
+    #[test]
+    fn test_tls_crl_non_revoked_cert_accepted() {
+        use hitls_pki::x509::{
+            CertificateBuilder, DistinguishedName, KeyUsage, SigningKey, SubjectPublicKeyInfo,
+        };
+        use hitls_pki::x509::{CrlBuilder, RevokedCertBuilder};
+
+        // CA
+        let ca_kp = hitls_crypto::ed25519::Ed25519KeyPair::generate().unwrap();
+        let ca_sk = SigningKey::Ed25519(ca_kp);
+        let ca_dn = DistinguishedName {
+            entries: vec![("CN".into(), "Test CA".into())],
+        };
+        let ca_pub = ca_sk.public_key_info().unwrap();
+        let ca_cert = CertificateBuilder::new()
+            .serial_number(&[0x01])
+            .issuer(ca_dn.clone())
+            .subject(ca_dn.clone())
+            .validity(1_700_000_000, 1_900_000_000)
+            .subject_public_key(ca_pub)
+            .add_basic_constraints(true, None)
+            .add_key_usage(KeyUsage::KEY_CERT_SIGN | KeyUsage::CRL_SIGN)
+            .build(&ca_sk)
+            .unwrap();
+
+        // Leaf (serial 0x03)
+        let leaf_kp = hitls_crypto::ed25519::Ed25519KeyPair::generate().unwrap();
+        let leaf_pub = SubjectPublicKeyInfo {
+            algorithm_oid: vec![0x2b, 0x65, 0x70],
+            algorithm_params: None,
+            public_key: leaf_kp.public_key().to_vec(),
+        };
+        let leaf_cert = CertificateBuilder::new()
+            .serial_number(&[0x03])
+            .issuer(ca_dn.clone())
+            .subject(DistinguishedName {
+                entries: vec![("CN".into(), "good.example.com".into())],
+            })
+            .validity(1_700_000_000, 1_900_000_000)
+            .subject_public_key(leaf_pub)
+            .build(&ca_sk)
+            .unwrap();
+
+        // CRL revokes serial 0x99, NOT 0x03
+        let crl = CrlBuilder::new(ca_dn, 1_700_000_000)
+            .next_update(1_900_000_000)
+            .add_revoked(RevokedCertBuilder::new(&[0x99], 1_700_000_001))
+            .add_crl_number(&[0x01])
+            .build(&ca_sk)
+            .unwrap();
+
+        let config = TlsConfig::builder()
+            .role(TlsRole::Client)
+            .verify_peer(true)
+            .verify_hostname(false)
+            .trusted_cert(ca_cert.raw)
+            .crl(crl.to_der())
+            .check_revocation(true)
+            .build();
+
+        let result = verify_server_certificate(&config, &[leaf_cert.raw]);
+        assert!(result.is_ok(), "expected Ok, got: {:?}", result.err());
+    }
+
+    #[test]
+    fn test_tls_crl_disabled_allows_revoked() {
+        let (ca_der, leaf_der, crl_der) = make_ca_leaf_crl();
+        // check_revocation=false (default): revoked cert still passes
+        let config = TlsConfig::builder()
+            .role(TlsRole::Client)
+            .verify_peer(true)
+            .verify_hostname(false)
+            .trusted_cert(ca_der)
+            .crl(crl_der)
+            .check_revocation(false)
+            .build();
+
+        let result = verify_server_certificate(&config, &[leaf_der]);
+        assert!(result.is_ok(), "expected Ok with revocation check off, got: {:?}", result.err());
+    }
+
+    #[test]
+    fn test_tls_crl_no_crl_configured() {
+        let (ca_der, leaf_der, _crl_der) = make_ca_leaf_crl();
+        // check_revocation=true but no CRLs → soft-fail (cert accepted)
+        let config = TlsConfig::builder()
+            .role(TlsRole::Client)
+            .verify_peer(true)
+            .verify_hostname(false)
+            .trusted_cert(ca_der)
+            .check_revocation(true)
+            .build();
+
+        let result = verify_server_certificate(&config, &[leaf_der]);
+        assert!(result.is_ok(), "expected soft-fail when no CRL, got: {:?}", result.err());
+    }
+
+    #[test]
+    fn test_tls_crl_callback_sees_revocation_error() {
+        use std::sync::Mutex;
+
+        let (ca_der, leaf_der, crl_der) = make_ca_leaf_crl();
+        let chain_was_err: Arc<Mutex<bool>> = Arc::new(Mutex::new(false));
+        let chain_err_msg: Arc<Mutex<String>> = Arc::new(Mutex::new(String::new()));
+        let cwe = chain_was_err.clone();
+        let cem = chain_err_msg.clone();
+
+        let cb: CertVerifyCallback = Arc::new(move |info| {
+            *cwe.lock().unwrap() = info.chain_result.is_err();
+            if let Err(ref e) = info.chain_result {
+                *cem.lock().unwrap() = e.clone();
+            }
+            Ok(()) // accept anyway
+        });
+
+        let config = TlsConfig::builder()
+            .role(TlsRole::Client)
+            .verify_peer(true)
+            .verify_hostname(false)
+            .trusted_cert(ca_der)
+            .crl(crl_der)
+            .check_revocation(true)
+            .cert_verify_callback(cb)
+            .build();
+
+        // Callback accepts, so should succeed
+        assert!(verify_server_certificate(&config, &[leaf_der]).is_ok());
+        // But callback should have seen revocation error
+        assert!(*chain_was_err.lock().unwrap());
+        let msg = chain_err_msg.lock().unwrap();
+        assert!(
+            msg.contains("Revoked") || msg.contains("revoked"),
+            "expected revocation in error: {msg}"
+        );
     }
 }

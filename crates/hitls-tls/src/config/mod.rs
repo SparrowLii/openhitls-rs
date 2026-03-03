@@ -402,6 +402,10 @@ pub struct TlsConfig {
     pub verify_peer: bool,
     /// Trusted CA certificates (DER-encoded).
     pub trusted_certs: Vec<Vec<u8>>,
+    /// CRLs for revocation checking (DER-encoded).
+    pub crls: Vec<Vec<u8>>,
+    /// Whether to check certificate revocation against configured CRLs.
+    pub check_revocation: bool,
     /// Server certificate chain (DER-encoded, leaf first).
     pub certificate_chain: Vec<Vec<u8>>,
     /// Server private key for CertificateVerify signing.
@@ -645,6 +649,8 @@ pub struct TlsConfigBuilder {
     supported_groups: Vec<NamedGroup>,
     verify_peer: bool,
     trusted_certs: Vec<Vec<u8>>,
+    crls: Vec<Vec<u8>>,
+    check_revocation: bool,
     certificate_chain: Vec<Vec<u8>>,
     private_key: Option<ServerPrivateKey>,
     ticket_key: Option<Vec<u8>>,
@@ -729,6 +735,8 @@ impl Default for TlsConfigBuilder {
             supported_groups: vec![NamedGroup::X25519],
             verify_peer: true,
             trusted_certs: Vec::new(),
+            crls: Vec::new(),
+            check_revocation: false,
             certificate_chain: Vec::new(),
             private_key: None,
             ticket_key: None,
@@ -855,6 +863,18 @@ impl TlsConfigBuilder {
 
     pub fn trusted_cert(mut self, der_cert: Vec<u8>) -> Self {
         self.trusted_certs.push(der_cert);
+        self
+    }
+
+    /// Add a CRL (DER-encoded) for certificate revocation checking.
+    pub fn crl(mut self, der_crl: Vec<u8>) -> Self {
+        self.crls.push(der_crl);
+        self
+    }
+
+    /// Enable or disable certificate revocation checking against configured CRLs.
+    pub fn check_revocation(mut self, check: bool) -> Self {
+        self.check_revocation = check;
         self
     }
 
@@ -1163,6 +1183,8 @@ impl TlsConfigBuilder {
             supported_groups: self.supported_groups,
             verify_peer: self.verify_peer,
             trusted_certs: self.trusted_certs,
+            crls: self.crls,
+            check_revocation: self.check_revocation,
             certificate_chain: self.certificate_chain,
             private_key: self.private_key,
             ticket_key: self.ticket_key,
