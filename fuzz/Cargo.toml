@@ -337,3 +337,8 @@ doc = false
 name = "fuzz_siphash"
 path = "fuzz_targets/fuzz_siphash.rs"
 doc = false
+
+[[bin]]
+name = "fuzz_sm4_modes"
+path = "fuzz_targets/fuzz_sm4_modes.rs"
+doc = false
