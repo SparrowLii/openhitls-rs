@@ -6,7 +6,7 @@ Category summary:
 - Implementation: I1–I86 (86 phases)
 - Testing: T1–T72 (71 phases, T64 skipped)
 - Refactoring: R1–R12 (12 phases)
-- Performance: P1–P68 (68 phases)
+- Performance: P1–P80 (80 phases)
 
 | # | Phase | Type | Title | Date |
 |---|-------|------|-------|------|
@@ -245,8 +245,20 @@ Category summary:
 | 233 | P68 | Perf | RSA CRT Montgomery Optimization | 2026-03-02 |
 | 234 | I85 | Impl | XMSS-MT Multi-Tree + Extended XMSS Parameter Sets | 2026-03-02 |
 | 235 | I86 | Impl | PKI CRL Extensions + Certificate CRL Distribution Points | 2026-03-03 |
-| 236 | T71 | Test | Quality Safety Net P2 — +8 fuzz targets, +12 proptests, +8 CI feature flags, +2 Miri runs | 2026-03-03 |
-| 237 | T72 | Test | Quality Safety Net P3 — Deep gap analysis, +20 tests, +3 fuzz, +10 proptests, +3 Miri, +8 CI | 2026-03-03 |
+| 236 | P69 | Perf | Fe448 Radix-2^56 Karatsuba Multiplication | 2026-03-03 |
+| 237 | P70 | Perf | Ed448 Constant-Time Scalar Multiplication | 2026-03-03 |
+| 238 | T71 | Test | Quality Safety Net P2 — +8 fuzz targets, +12 proptests, +8 CI feature flags, +2 Miri runs | 2026-03-03 |
+| 239 | T72 | Test | Quality Safety Net P3 — Deep gap analysis, +20 tests, +3 fuzz, +10 proptests, +3 Miri, +8 CI | 2026-03-03 |
+| 240 | P71 | Perf | HCTR GF(2^128) Table-Based Multiplication + Horner's Method | 2026-03-03 |
+| 241 | P72 | Perf | AES 4-Block Parallel Pipeline | 2026-03-03 |
+| 242 | P73 | Perf | GCM Interleaved CTR+GHASH 4-Block Pipeline | 2026-03-03 |
+| 243 | P74 | Perf | SHA-1 ARMv8 Crypto Extension Acceleration | 2026-03-03 |
+| 244 | P75 | Perf | Poly1305 r² Precompute + 2-Block Batch Processing | 2026-03-03 |
+| 245 | P76 | Perf | ChaCha20 2-Block Parallel Generation | 2026-03-03 |
+| 246 | P77 | Perf | SM3 Pre-Expansion + Loop Unification | 2026-03-03 |
+| 247 | P78 | Perf | SLH-DSA Hypertree Heap Elimination | 2026-03-03 |
+| 248 | P79 | Perf | FrodoKEM Matrix Buffer Reuse | 2026-03-03 |
+| 249 | P80 | Perf | SM9 Pairing O(n²) Fix + Clone Elimination | 2026-03-03 |
 
 ---
 
@@ -13069,5 +13081,188 @@ Added CRL-level extension convenience methods (AKI, IDP, Delta CRL Indicator), C
 
 ### Build Status (Post T72)
 - `cargo test --workspace --all-features`: 3,912 passed, 0 failed, 22 ignored
+- `RUSTFLAGS="-D warnings" cargo clippy`: 0 warnings
+- `cargo fmt --all -- --check`: clean
+
+---
+
+## Phase P69 — Fe448 Radix-2^56 Karatsuba Multiplication (2026-03-03)
+
+### Summary
+Replaced schoolbook multiplication in Fe448 with Karatsuba-style algorithm, reducing multiply count for the 8-limb radix-2^56 representation. Improved Ed448 and X448 performance.
+
+### Changes
+| File | Status | Description |
+|------|--------|-------------|
+| `crates/hitls-crypto/src/ed448/fe448.rs` | Modified | Karatsuba multiplication for radix-2^56 limbs |
+
+---
+
+## Phase P70 — Ed448 Constant-Time Scalar Multiplication (2026-03-03)
+
+### Summary
+Made Ed448 scalar multiplication constant-time using conditional swap instead of conditional branch, eliminating timing side-channel.
+
+### Changes
+| File | Status | Description |
+|------|--------|-------------|
+| `crates/hitls-crypto/src/ed448/mod.rs` | Modified | Constant-time scalar_mul with conditional swap |
+
+---
+
+## Phase P71 — HCTR GF(2^128) Table-Based Multiplication + Horner's Method (2026-03-03)
+
+### Summary
+Replaced bit-by-bit schoolbook GF(2^128) multiplication in HCTR mode with 4-bit table-based multiply (same algorithm as GHASH). Eliminated Vec allocations in `uhash()` by switching to Horner's method for polynomial evaluation. Expected ~50-100x speedup.
+
+### Changes
+| File | Status | Description |
+|------|--------|-------------|
+| `crates/hitls-crypto/src/modes/hctr.rs` | Modified | 4-bit table `gf128_mul` (16-entry precomputed table, nibble-by-nibble processing), Horner's method in `uhash()` replacing `k_powers: Vec` and `all_data: Vec` with inline XOR+multiply loop. Zero heap allocation in hot path. |
+
+### Implementation Details
+1. **Table-based GF(2^128) multiply**: Build 16-entry table for operand `a` (table[0]=0, table[8]=a, half/XOR fill), then process each nibble of `b` with table lookup + 4-bit shift + reduction
+2. **Horner's method**: Instead of precomputing K^m, K^(m-1), ..., K powers and then dot-product, uses `hash = (...((block_0 * K + block_1) * K + block_2)... * K + len_block * K)` — same number of multiplies, zero Vec allocation
+3. **+1 test**: HCTR multi-block test added
+
+---
+
+## Phase P72 — AES 4-Block Parallel Pipeline (2026-03-03)
+
+### Summary
+Added `encrypt_4_blocks` to all AES backends (NEON, NI, software) and integrated into CTR and ECB modes. AES-NI/NEON have 4-cycle latency but 1-cycle throughput — processing 4 blocks simultaneously hides pipeline latency. Expected 2-3x CTR/ECB speedup for messages >= 64 bytes.
+
+### Changes
+| File | Status | Description |
+|------|--------|-------------|
+| `crates/hitls-crypto/src/aes/aes_neon.rs` | Modified | +`encrypt_4_blocks_neon`: 4 uint8x16_t parallel AES rounds |
+| `crates/hitls-crypto/src/aes/aes_ni.rs` | Modified | +`encrypt_4_blocks_ni`: 4 __m128i parallel AES rounds |
+| `crates/hitls-crypto/src/aes/soft.rs` | Modified | +`encrypt_4_blocks_soft`: sequential 4x `encrypt_block_soft` fallback |
+| `crates/hitls-crypto/src/aes/mod.rs` | Modified | +`encrypt_4_blocks` dispatch on AesKey |
+| `crates/hitls-crypto/src/modes/ctr.rs` | Modified | 4-block CTR pipeline (64-byte chunks) + single-block tail |
+| `crates/hitls-crypto/src/modes/ecb.rs` | Modified | 4-block ECB pipeline (64-byte chunks) + single-block tail |
+
+---
+
+## Phase P73 — GCM Interleaved CTR+GHASH 4-Block Pipeline (2026-03-03)
+
+### Summary
+Added AES-specific GCM function using `AesKey::encrypt_4_blocks` for interleaved CTR encryption + GHASH authentication in 4-block (64-byte) chunks. Replaces the generic path that processes all CTR first, then all GHASH. Expected 1.5-2.5x AES-GCM speedup.
+
+### Changes
+| File | Status | Description |
+|------|--------|-------------|
+| `crates/hitls-crypto/src/modes/gcm.rs` | Modified | +`gcm_crypt_aes()` with 4-block interleaved pipeline: generate 4 CTR keystream blocks via `encrypt_4_blocks`, XOR with data, GHASH 4 blocks, repeat. Routes AES-GCM through optimized path. |
+| `crates/hitls-tls/src/crypt/aead.rs` | Modified | Updated AesGcmAead/Sm4GcmAead to use new `gcm_encrypt_aes`/`gcm_decrypt_aes` for AES path |
+
+---
+
+## Phase P74 — SHA-1 ARMv8 Crypto Extension Acceleration (2026-03-03)
+
+### Summary
+Added SHA-1 hardware acceleration using ARMv8 Crypto Extension instructions (`vsha1cq_u32`, `vsha1pq_u32`, `vsha1mq_u32`, `vsha1hq_u32`, `vsha1su0q_u32`, `vsha1su1q_u32`). Runtime detection via `sha2` feature group. Expected 3-5x SHA-1 speedup on ARM64.
+
+### Changes
+| File | Status | Description |
+|------|--------|-------------|
+| `crates/hitls-crypto/src/sha1/mod.rs` | Modified | +`sha1_compress_arm` using SHA-1 CE intrinsics, runtime dispatch in `sha1_compress()`, software fallback renamed to `sha1_compress_soft` |
+
+### Implementation Details
+1. **5-register rotation**: state as `uint32x4_t abcd` + `u32 e`, 4 message words per `vld1q_u8`
+2. **80 rounds in groups**: 20 rounds choose (`vsha1cq_u32`), 20 parity (`vsha1pq_u32`), 20 majority (`vsha1mq_u32`), 20 parity
+3. **Message schedule**: `vsha1su0q_u32` + `vsha1su1q_u32` for W expansion
+4. **Runtime detection**: `std::arch::is_aarch64_feature_detected!("sha2")`
+
+---
+
+## Phase P75 — Poly1305 r² Precompute + 2-Block Batch Processing (2026-03-03)
+
+### Summary
+Precompute `r²` during Poly1305 initialization and add `process_2_blocks()` that processes two 16-byte blocks with shorter dependency chains: `acc = (acc + b0) * r² + b1 * r`. The `update()` method processes 32-byte pairs when available. Expected ~30-40% Poly1305 speedup.
+
+### Changes
+| File | Status | Description |
+|------|--------|-------------|
+| `crates/hitls-crypto/src/chacha20/mod.rs` | Modified | +`r2: [u32; 5]` field in Poly1305, +`mul_r_squared()`, +`process_2_blocks()`, updated `update()` for 32-byte pair processing |
+
+---
+
+## Phase P76 — ChaCha20 2-Block Parallel Generation (2026-03-03)
+
+### Summary
+Added `chacha20_2_blocks` generating 128 bytes (2 consecutive counters) with interleaved SIMD operations. NEON and SSE2 backends process two independent states simultaneously. Expected ~15-20% ChaCha20 speedup.
+
+### Changes
+| File | Status | Description |
+|------|--------|-------------|
+| `crates/hitls-crypto/src/chacha20/chacha20_neon.rs` | Modified | +`chacha20_2_blocks_neon`: interleaved 2-state NEON (8 uint32x4_t) |
+| `crates/hitls-crypto/src/chacha20/chacha20_x86.rs` | Modified | +`chacha20_2_blocks_x86`: interleaved 2-state SSE2 (8 __m128i) |
+| `crates/hitls-crypto/src/chacha20/mod.rs` | Modified | +`chacha20_2_blocks()` dispatch, `apply_keystream()` 128-byte chunk processing |
+
+---
+
+## Phase P77 — SM3 Pre-Expansion + Loop Unification (2026-03-03)
+
+### Summary
+Replaced ring buffer `w[16]` with full pre-expansion `w[68]`, enabling unified loop structure. Eliminated `expand()` function. Reduced from 3 loops to 2 (rounds 0-15 XOR form, rounds 16-63 majority/choice form). Expected ~10-15% SM3 speedup.
+
+### Changes
+| File | Status | Description |
+|------|--------|-------------|
+| `crates/hitls-crypto/src/sm3/mod.rs` | Modified | Full `w[68]` pre-expansion, removed `expand()`, unified 2-loop structure with direct `w[j]`/`w[j+4]` access |
+
+---
+
+## Phase P78 — SLH-DSA Hypertree Heap Elimination (2026-03-03)
+
+### Summary
+Replaced nested `Vec<Vec<u8>>` with flat `Vec<u8>` in XMSS tree operations, enabling in-place tree reduction. Pre-allocated `combined` buffers in `xmss_root_from_sig` and `fors_pk_from_sig`. Expected 20-30% SLH-DSA verify speedup.
+
+### Changes
+| File | Status | Description |
+|------|--------|-------------|
+| `crates/hitls-crypto/src/slh_dsa/hypertree.rs` | Modified | Flat `Vec<u8>` for tree nodes (nodes[i*n..(i+1)*n] indexing), in-place halving at each tree level, pre-allocated `combined` buffer in `xmss_root_from_sig` |
+| `crates/hitls-crypto/src/slh_dsa/fors.rs` | Modified | Pre-allocated `combined` buffer in `fors_pk_from_sig` replacing `sibling.to_vec()` + `extend_from_slice` pattern |
+
+---
+
+## Phase P79 — FrodoKEM Matrix Buffer Reuse (2026-03-03)
+
+### Summary
+Hoisted `a_rows` and `row_bytes` Vec allocations outside the main loop in all 4 matrix generation functions (`gen_a_mul_add_shake`, `gen_a_mul_add_aes`, `mul_add_sa_plus_e` SHAKE/AES paths). Buffers reused via `fill(0)` per iteration. Expected 15-25% FrodoKEM speedup.
+
+### Changes
+| File | Status | Description |
+|------|--------|-------------|
+| `crates/hitls-crypto/src/frodokem/matrix.rs` | Modified | Pre-allocate `a_rows: Vec<u16>` and `row_bytes: Vec<u8>` before loops, reuse via `fill(0)`. Applies to all 4 matrix generation paths. |
+
+---
+
+## Phase P80 — SM9 Pairing O(n²) Fix + Clone Elimination (2026-03-03)
+
+### Summary
+Replaced O(n²) `param_bits.remove(0)` with O(n) index-based iteration in Miller loop. Pre-computed Q affine coordinates and `Fp2(py, 0)` before loop. Added optimized line functions taking `yp_fp2` by reference. Expected 5-10% SM9 pairing speedup.
+
+### Changes
+| File | Status | Description |
+|------|--------|-------------|
+| `crates/hitls-crypto/src/sm9/pairing.rs` | Modified | O(n) `position()` scan for leading bit, index-based iteration from `start+1`, pre-computed `q_affine` and `yp_fp2`, +`line_double_opt`/`line_add_opt` with `&Fp2` parameter |
+
+### Test Count (Post P69-P80)
+
+| Crate | Count |
+|-------|-------|
+| hitls-crypto | 1427 (14 ignored) |
+| hitls-tls | 1414 |
+| hitls-pki | 417 |
+| hitls-bignum | 95 (1 ignored) |
+| hitls-utils | 68 |
+| hitls-auth | 47 |
+| hitls-cli | 161 (5 ignored) |
+| hitls-integration-tests | 258 (2 ignored) |
+| **Total** | **3935 (22 ignored)** |
+
+### Build Status (Post P69-P80)
+- `cargo test --workspace --all-features`: 3,913 passed, 0 failed, 22 ignored (3,935 total)
 - `RUSTFLAGS="-D warnings" cargo clippy`: 0 warnings
 - `cargo fmt --all -- --check`: clean

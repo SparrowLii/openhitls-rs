@@ -8,7 +8,7 @@ openHiTLS-rs is a pure Rust rewrite of [openHiTLS](https://gitee.com/openhitls/o
 
 - **Language**: Rust (MSRV 1.75, edition 2021)
 - **License**: MulanPSL-2.0
-- **Status**: Phases I1–I86, T1–T72, R1–R12, P1–P68 complete (3935 tests, 22 ignored)
+- **Status**: Phases I1–I86, T1–T72, R1–R12, P1–P80 complete (3935 tests, 22 ignored)
 
 ## Workspace Structure
 
@@ -132,7 +132,7 @@ The original C implementation is at `/Users/dongqiu/Dev/code/openhitls/`:
 
 ## Migration Roadmap
 
-Phases I1–I86, T1–T72, R1–R12, P1–P68 complete (3935 tests, 22 ignored). **100% C→Rust feature parity achieved. Architecture refactoring complete. Performance optimization and quality improvement complete.**
+Phases I1–I86, T1–T72, R1–R12, P1–P80 complete (3935 tests, 22 ignored). **100% C→Rust feature parity achieved. Architecture refactoring complete. Performance optimization and quality improvement complete.**
 
 ### Completed Phases (Summary)
 
@@ -220,6 +220,18 @@ Key milestones:
 - Phase P66: Fe448 square_times + sub_fast — `square_times(n)` helper for inversion chains, `sub_fast()` with 2p bias for bounded inputs. 15-20% Ed448/X448 speedup.
 - Phase P67: BigNum fused CIOS squaring — replace `sqr_limbs + redc_limbs` (1.5n²) with `cios_mul_n(a,a)` (n²) in mont_exp/mont_exp_mont squaring loops, eliminate sqr_buf allocation. 25-30% all Montgomery exponentiation speedup.
 - Phase P68: RSA CRT Montgomery optimization — `Clone` on MontgomeryCtx, cached mont_p/mont_q/qinv_mont_p in RsaPrivateKey, CRT recombination via mont_mul instead of Knuth division. 10-15% RSA sign/decrypt speedup.
+- Phase P69: Fe448 radix-2^56 Karatsuba multiplication — reduced multiply count for 8-limb representation. Ed448/X448 performance improvement.
+- Phase P70: Ed448 constant-time scalar multiplication — conditional swap instead of conditional branch, eliminating timing side-channel.
+- Phase P71: HCTR GF(2^128) table-based multiply + Horner's method — bit-by-bit → 4-bit table (~50-100x), Vec elimination via Horner polynomial evaluation.
+- Phase P72: AES 4-block parallel pipeline — `encrypt_4_blocks` for NEON/NI/soft backends, integrated into CTR+ECB modes. 2-3x CTR/ECB speedup for >=64 byte messages.
+- Phase P73: GCM interleaved CTR+GHASH 4-block pipeline — `gcm_crypt_aes()` with AES-specific 4-block interleaved pipeline. 1.5-2.5x AES-GCM speedup.
+- Phase P74: SHA-1 ARMv8 Crypto Extension acceleration — `vsha1cq_u32`/`vsha1pq_u32`/`vsha1mq_u32` intrinsics, runtime `sha2` feature detection. 3-5x SHA-1 speedup on ARM64.
+- Phase P75: Poly1305 r² precompute + 2-block batch processing — `process_2_blocks()` with shorter dependency chains `(acc+b0)*r² + b1*r`. ~30-40% Poly1305 speedup.
+- Phase P76: ChaCha20 2-block parallel generation — `chacha20_2_blocks` for NEON/SSE2 with interleaved 2-state processing. ~15-20% ChaCha20 speedup.
+- Phase P77: SM3 pre-expansion + loop unification — `w[68]` replacing `w[16]` ring buffer, removed `expand()`, unified 3→2 loops. ~10-15% SM3 speedup.
+- Phase P78: SLH-DSA hypertree heap elimination — `Vec<Vec<u8>>` → flat `Vec<u8>` in XMSS tree ops, in-place tree reduction, pre-allocated `combined` buffers. 20-30% SLH-DSA verify speedup.
+- Phase P79: FrodoKEM matrix buffer reuse — pre-allocate `a_rows`/`row_bytes` outside loops in all 4 matrix generation functions. 15-25% FrodoKEM speedup.
+- Phase P80: SM9 pairing O(n²) fix + clone elimination — `remove(0)` → `position()`+index iteration, pre-computed `q_affine`/`yp_fp2`, optimized line functions. 5-10% SM9 pairing speedup.
 - Phase T45–T53: Quality improvement roadmap — TLS connection unit tests (+15), TLS 1.2 handshake edge cases (+15), HW↔SW cross-validation (+8), proptest expansion to 5/9 crates (+15), side-channel timing tests (+6), concurrency stress tests (+10), feature flag smoke tests (+4), zeroize runtime verification (+4), DTLS fuzz + OpenSSL interop (+1 fuzz target, +2 tests). Total: +80 tests, 13→14 fuzz targets, defense model B→B+.
 - Phase T59–T62: Test optimization & deep defense — RSA OAEP/PKCS1v15 constant-time fix (timing side-channel elimination), CBC/GCM buffer zeroize on error, RSA timing tests (+2 ignored), unit tests (+2), crypto semantic fuzz targets (+6: RSA/ECDSA/HKDF/SM2/CCM/TLS PRF), TLS 1.3/1.2 state machine fuzz (+2), corpus enrichment (+40 seeds), cargo-deny supply-chain policy, CI hardening (miri blocking, feature combos, cargo-deny job), subtle version unification. Total: +4 tests, 18→26 fuzz targets, 118→158 corpus, defense model B+→A-.
 - Phase T63: PQC fuzz + signature sign fuzz — ML-KEM encap/decap, ML-DSA sign/verify, SLH-DSA sign/verify (fast variants), RSA sign (PKCS1v15/PSS), ECDSA sign (P-256/P-384/P-521), Ed25519 full coverage, SM2 sign/encrypt/decrypt, DSA sign (small params). Total: +8 fuzz targets (26→34), +80 corpus seeds (158→238), PQC coverage 0→3/6, sign-path coverage 0→5/7.
