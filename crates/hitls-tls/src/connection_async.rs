@@ -10,9 +10,10 @@ use crate::crypt::traffic_keys::TrafficKeys;
 use crate::crypt::{CipherSuiteParams, DigestVariant, NamedGroup};
 use crate::handshake::client::{ClientHandshake, ServerHelloResult};
 use crate::handshake::codec::{
-    decode_certificate_request, decode_key_update, encode_certificate, encode_certificate_verify,
+    decode_certificate, decode_certificate_request, decode_certificate_verify, decode_finished,
+    decode_key_update, encode_certificate, encode_certificate_request, encode_certificate_verify,
     encode_finished, encode_key_update, parse_handshake_header, CertificateEntry, CertificateMsg,
-    CertificateVerifyMsg, KeyUpdateMsg, KeyUpdateRequest,
+    CertificateRequestMsg, CertificateVerifyMsg, KeyUpdateMsg, KeyUpdateRequest,
 };
 use crate::handshake::server::{ClientHelloResult, ServerHandshake};
 use crate::handshake::{HandshakeState, HandshakeType};
@@ -277,6 +278,224 @@ impl<S: AsyncRead + AsyncWrite + Unpin> AsyncTlsServerConnection<S> {
 
     async fn handle_key_update(&mut self, body: &[u8]) -> Result<(), TlsError> {
         tls13_server_handle_key_update_body!(is_async, self, body)
+    }
+
+    /// Request post-handshake client authentication (RFC 8446 §4.6.2).
+    ///
+    /// Sends a CertificateRequest message and reads the client's
+    /// Certificate + CertificateVerify + Finished response.
+    /// Returns the client's certificate chain (DER-encoded certs), which
+    /// may be empty if the client has no certificate.
+    pub async fn request_client_auth(&mut self) -> Result<Vec<Vec<u8>>, TlsError> {
+        use crate::crypt::SignatureScheme;
+        use crate::handshake::extensions_codec::build_signature_algorithms;
+        use crate::handshake::verify::verify_certificate_verify;
+
+        if self.state != ConnectionState::Connected {
+            return Err(TlsError::HandshakeFailed(
+                "request_client_auth: not connected".into(),
+            ));
+        }
+
+        let params = self
+            .cipher_params
+            .as_ref()
+            .ok_or_else(|| TlsError::HandshakeFailed("no cipher params".into()))?
+            .clone();
+        let alg = params.hash_alg_id();
+        let ks = KeySchedule::new(params.clone());
+
+        // Generate random context for this request
+        let mut context = vec![0u8; 8];
+        getrandom::getrandom(&mut context)
+            .map_err(|e| TlsError::HandshakeFailed(format!("random error: {e}")))?;
+
+        // Build CertificateRequest with signature_algorithms extension
+        let sig_algs = vec![
+            SignatureScheme::ED25519,
+            SignatureScheme::ECDSA_SECP256R1_SHA256,
+            SignatureScheme::ECDSA_SECP384R1_SHA384,
+            SignatureScheme::RSA_PSS_RSAE_SHA256,
+            SignatureScheme::RSA_PSS_RSAE_SHA384,
+            SignatureScheme::RSA_PSS_RSAE_SHA512,
+        ];
+        let mut cr_exts = vec![build_signature_algorithms(&sig_algs)];
+        if !self.config.oid_filters.is_empty() {
+            cr_exts.push(crate::handshake::extensions_codec::build_oid_filters(
+                &self.config.oid_filters,
+            ));
+        }
+        let cr = CertificateRequestMsg {
+            certificate_request_context: context.clone(),
+            extensions: cr_exts,
+        };
+        let cr_msg = encode_certificate_request(&cr);
+
+        // Send CertificateRequest
+        let cr_record = self
+            .record_layer
+            .seal_record(ContentType::Handshake, &cr_msg)?;
+        self.stream
+            .write_all(&cr_record)
+            .await
+            .map_err(|e| TlsError::RecordError(format!("write error: {e}")))?;
+
+        // Start transcript for this post-HS exchange (just the CertificateRequest)
+        let mut hasher = DigestVariant::new(alg);
+        hasher.update(&cr_msg).map_err(TlsError::CryptoError)?;
+
+        // Read client Certificate
+        let (ct, cert_data) = self.read_record().await?;
+        if ct != ContentType::Handshake {
+            return Err(TlsError::HandshakeFailed(format!(
+                "expected Handshake (Certificate), got {ct:?}"
+            )));
+        }
+        let (hs_type, cert_body, cert_total) = parse_handshake_header(&cert_data)?;
+        if hs_type != HandshakeType::Certificate {
+            return Err(TlsError::HandshakeFailed(format!(
+                "expected Certificate, got {hs_type:?}"
+            )));
+        }
+        let cert_msg_data = &cert_data[..cert_total];
+        let cert_msg = decode_certificate(cert_body)?;
+
+        // Verify context matches
+        if cert_msg.certificate_request_context != context {
+            return Err(TlsError::HandshakeFailed(
+                "certificate_request_context mismatch".into(),
+            ));
+        }
+
+        let client_certs: Vec<Vec<u8>> = cert_msg
+            .certificate_list
+            .iter()
+            .map(|e| e.cert_data.clone())
+            .collect();
+
+        // Update transcript with Certificate
+        hasher
+            .update(cert_msg_data)
+            .map_err(TlsError::CryptoError)?;
+
+        if client_certs.is_empty() {
+            // Client sent empty Certificate — no CertificateVerify expected.
+            // Read Finished.
+            let mut fin_hash_buf = [0u8; 64];
+            let mut hasher_fin = DigestVariant::new(alg);
+            hasher_fin.update(&cr_msg).map_err(TlsError::CryptoError)?;
+            hasher_fin
+                .update(cert_msg_data)
+                .map_err(TlsError::CryptoError)?;
+            hasher_fin
+                .finish(&mut fin_hash_buf[..params.hash_len])
+                .map_err(TlsError::CryptoError)?;
+
+            let (ct3, fin_data) = self.read_record().await?;
+            if ct3 != ContentType::Handshake {
+                return Err(TlsError::HandshakeFailed(format!(
+                    "expected Handshake (Finished), got {ct3:?}"
+                )));
+            }
+            let (hs_type3, fin_body, _) = parse_handshake_header(&fin_data)?;
+            if hs_type3 != HandshakeType::Finished {
+                return Err(TlsError::HandshakeFailed(format!(
+                    "expected Finished, got {hs_type3:?}"
+                )));
+            }
+            let fin_msg = decode_finished(fin_body, params.hash_len)?;
+
+            // Verify Finished
+            let finished_key = ks.derive_finished_key(&self.client_app_secret)?;
+            let expected =
+                ks.compute_finished_verify_data(&finished_key, &fin_hash_buf[..params.hash_len])?;
+            if fin_msg.verify_data != expected {
+                return Err(TlsError::HandshakeFailed(
+                    "post-HS client Finished verification failed".into(),
+                ));
+            }
+
+            return Ok(client_certs);
+        }
+
+        // Read CertificateVerify
+        let (ct2, cv_data) = self.read_record().await?;
+        if ct2 != ContentType::Handshake {
+            return Err(TlsError::HandshakeFailed(format!(
+                "expected Handshake (CertificateVerify), got {ct2:?}"
+            )));
+        }
+        let (hs_type2, cv_body, cv_total) = parse_handshake_header(&cv_data)?;
+        if hs_type2 != HandshakeType::CertificateVerify {
+            return Err(TlsError::HandshakeFailed(format!(
+                "expected CertificateVerify, got {hs_type2:?}"
+            )));
+        }
+        let cv_msg_data = &cv_data[..cv_total];
+        let cv_msg = decode_certificate_verify(cv_body)?;
+
+        // Verify CertificateVerify signature against transcript hash
+        let mut cv_hash = [0u8; 64];
+        let mut hasher_cv = DigestVariant::new(alg);
+        hasher_cv.update(&cr_msg).map_err(TlsError::CryptoError)?;
+        hasher_cv
+            .update(cert_msg_data)
+            .map_err(TlsError::CryptoError)?;
+        hasher_cv
+            .finish(&mut cv_hash[..params.hash_len])
+            .map_err(TlsError::CryptoError)?;
+
+        // Parse the first client cert to verify the signature
+        let client_cert = hitls_pki::x509::Certificate::from_der(&client_certs[0])
+            .map_err(|e| TlsError::HandshakeFailed(format!("client cert parse: {e}")))?;
+        verify_certificate_verify(
+            &client_cert,
+            cv_msg.algorithm,
+            &cv_msg.signature,
+            &cv_hash[..params.hash_len],
+            false, // client CertificateVerify
+        )?;
+
+        // Compute hash for Finished that includes CR+Cert+CV
+        let mut fin_hash_buf = [0u8; 64];
+        let mut hasher_fin = DigestVariant::new(alg);
+        hasher_fin.update(&cr_msg).map_err(TlsError::CryptoError)?;
+        hasher_fin
+            .update(cert_msg_data)
+            .map_err(TlsError::CryptoError)?;
+        hasher_fin
+            .update(cv_msg_data)
+            .map_err(TlsError::CryptoError)?;
+        hasher_fin
+            .finish(&mut fin_hash_buf[..params.hash_len])
+            .map_err(TlsError::CryptoError)?;
+
+        // Read Finished
+        let (ct3, fin_data) = self.read_record().await?;
+        if ct3 != ContentType::Handshake {
+            return Err(TlsError::HandshakeFailed(format!(
+                "expected Handshake (Finished), got {ct3:?}"
+            )));
+        }
+        let (hs_type3, fin_body, _) = parse_handshake_header(&fin_data)?;
+        if hs_type3 != HandshakeType::Finished {
+            return Err(TlsError::HandshakeFailed(format!(
+                "expected Finished, got {hs_type3:?}"
+            )));
+        }
+        let fin_msg = decode_finished(fin_body, params.hash_len)?;
+
+        // Verify Finished
+        let finished_key = ks.derive_finished_key(&self.client_app_secret)?;
+        let expected =
+            ks.compute_finished_verify_data(&finished_key, &fin_hash_buf[..params.hash_len])?;
+        if fin_msg.verify_data != expected {
+            return Err(TlsError::HandshakeFailed(
+                "post-HS client Finished verification failed".into(),
+            ));
+        }
+
+        Ok(client_certs)
     }
 
     async fn do_handshake(&mut self) -> Result<(), TlsError> {
@@ -1035,5 +1254,217 @@ mod tests {
         assert!(!conn.early_data_accepted());
         // Queue should accumulate
         assert_eq!(conn.early_data_queue, b"hello world");
+    }
+
+    // ===================================================================
+    // Async Post-Handshake Authentication tests
+    // ===================================================================
+
+    /// Build a self-signed Ed25519 DER certificate from a seed.
+    fn build_ed25519_der_cert(seed: &[u8]) -> Vec<u8> {
+        use hitls_utils::asn1::Encoder;
+
+        let kp = hitls_crypto::ed25519::Ed25519KeyPair::from_seed(seed).unwrap();
+        let pub_key = kp.public_key();
+
+        let ed25519_oid = &[0x2b, 0x65, 0x70];
+
+        let mut alg_id_enc = Encoder::new();
+        alg_id_enc.write_oid(ed25519_oid);
+        let alg_id_bytes = alg_id_enc.finish();
+        let mut alg_id = Encoder::new();
+        alg_id.write_sequence(&alg_id_bytes);
+        let alg_id_der = alg_id.finish();
+
+        let mut spki_contents = Vec::new();
+        spki_contents.extend_from_slice(&alg_id_der);
+        let mut bs_enc = Encoder::new();
+        bs_enc.write_bit_string(0, pub_key);
+        spki_contents.extend_from_slice(&bs_enc.finish());
+        let mut spki = Encoder::new();
+        spki.write_sequence(&spki_contents);
+        let spki_der = spki.finish();
+
+        let cn_oid = &[0x55, 0x04, 0x03];
+        let mut rdn_inner = Encoder::new();
+        rdn_inner.write_oid(cn_oid);
+        rdn_inner.write_tlv(0x0c, b"test");
+        let rdn_seq_bytes = rdn_inner.finish();
+        let mut rdn_seq = Encoder::new();
+        rdn_seq.write_sequence(&rdn_seq_bytes);
+        let set_bytes = rdn_seq.finish();
+        let mut rdn_set = Encoder::new();
+        rdn_set.write_set(&set_bytes);
+        let name_inner = rdn_set.finish();
+        let mut name = Encoder::new();
+        name.write_sequence(&name_inner);
+        let name_der = name.finish();
+
+        let mut validity = Encoder::new();
+        validity.write_tlv(0x17, b"200101000000Z");
+        validity.write_tlv(0x17, b"300101000000Z");
+        let validity_bytes = validity.finish();
+        let mut validity_seq = Encoder::new();
+        validity_seq.write_sequence(&validity_bytes);
+        let validity_der = validity_seq.finish();
+
+        let mut ver_int = Encoder::new();
+        ver_int.write_integer(&[0x02]);
+        let ver_int_bytes = ver_int.finish();
+        let mut version = Encoder::new();
+        version.write_tlv(0xa0, &ver_int_bytes);
+        let version_der = version.finish();
+
+        let mut serial = Encoder::new();
+        serial.write_integer(&[0x01]);
+        let serial_der = serial.finish();
+
+        let mut tbs_inner = Vec::new();
+        tbs_inner.extend_from_slice(&version_der);
+        tbs_inner.extend_from_slice(&serial_der);
+        tbs_inner.extend_from_slice(&alg_id_der);
+        tbs_inner.extend_from_slice(&name_der);
+        tbs_inner.extend_from_slice(&validity_der);
+        tbs_inner.extend_from_slice(&name_der);
+        tbs_inner.extend_from_slice(&spki_der);
+        let mut tbs = Encoder::new();
+        tbs.write_sequence(&tbs_inner);
+        let tbs_der = tbs.finish();
+
+        let signature = kp.sign(&tbs_der).unwrap();
+
+        let mut cert_inner = Vec::new();
+        cert_inner.extend_from_slice(&tbs_der);
+        cert_inner.extend_from_slice(&alg_id_der);
+        let mut sig_bits = Encoder::new();
+        sig_bits.write_bit_string(0, &signature);
+        cert_inner.extend_from_slice(&sig_bits.finish());
+
+        let mut cert = Encoder::new();
+        cert.write_sequence(&cert_inner);
+        cert.finish()
+    }
+
+    /// Async server request_client_auth: error when not connected.
+    #[tokio::test]
+    async fn test_async_post_hs_auth_not_connected() {
+        let (_, server_config) = make_tls13_configs();
+        let (_, server_stream) = tokio::io::duplex(16 * 1024);
+        let mut server = AsyncTlsServerConnection::new(server_stream, server_config);
+
+        let result = server.request_client_auth().await;
+        assert!(result.is_err());
+        let msg = format!("{}", result.unwrap_err());
+        assert!(msg.contains("not connected"));
+    }
+
+    /// Async PHA roundtrip: server requests auth, client responds with cert.
+    #[tokio::test]
+    async fn test_async_post_hs_auth_roundtrip() {
+        use crate::config::ServerPrivateKey;
+
+        let server_seed = [0x42u8; 32];
+        let fake_cert = vec![0x30, 0x82, 0x01, 0x00];
+
+        let client_seed = vec![0x99; 32];
+        let client_cert_der = build_ed25519_der_cert(&client_seed);
+
+        let server_config = TlsConfig::builder()
+            .certificate_chain(vec![fake_cert])
+            .private_key(ServerPrivateKey::Ed25519(server_seed.to_vec()))
+            .verify_peer(false)
+            .build();
+
+        let client_config = TlsConfig::builder()
+            .verify_peer(false)
+            .post_handshake_auth(true)
+            .client_certificate_chain(vec![client_cert_der.clone()])
+            .client_private_key(ServerPrivateKey::Ed25519(client_seed))
+            .build();
+
+        let (client_stream, server_stream) = tokio::io::duplex(64 * 1024);
+        let mut client = AsyncTlsClientConnection::new(client_stream, client_config);
+        let mut server = AsyncTlsServerConnection::new(server_stream, server_config);
+
+        // Handshake
+        let (c_res, s_res) = tokio::join!(client.handshake(), server.handshake());
+        c_res.unwrap();
+        s_res.unwrap();
+
+        // Post-handshake auth: server requests, client responds via read().
+        // After PHA completes, server sends app data so client read() returns.
+        let (pha_result, client_read_result) = tokio::join!(
+            async {
+                let result = server.request_client_auth().await;
+                // Send app data so client's read() loop returns
+                server.write(b"pha-done").await.unwrap();
+                result
+            },
+            async {
+                let mut buf = [0u8; 256];
+                let n = client.read(&mut buf).await?;
+                Ok::<(usize, [u8; 256]), TlsError>((n, buf))
+            }
+        );
+
+        let client_certs = pha_result.unwrap();
+        assert_eq!(client_certs.len(), 1, "should receive 1 client certificate");
+        assert_eq!(client_certs[0], client_cert_der);
+
+        // Client should have received "pha-done" after PHA processing
+        let (n, buf) = client_read_result.unwrap();
+        assert_eq!(&buf[..n], b"pha-done");
+    }
+
+    /// Async PHA roundtrip: client has no certificate (empty response).
+    #[tokio::test]
+    async fn test_async_post_hs_auth_no_cert() {
+        use crate::config::ServerPrivateKey;
+
+        let server_seed = [0x42u8; 32];
+        let fake_cert = vec![0x30, 0x82, 0x01, 0x00];
+
+        let server_config = TlsConfig::builder()
+            .certificate_chain(vec![fake_cert])
+            .private_key(ServerPrivateKey::Ed25519(server_seed.to_vec()))
+            .verify_peer(false)
+            .build();
+
+        // Client has PHA enabled but no certificate configured
+        let client_config = TlsConfig::builder()
+            .verify_peer(false)
+            .post_handshake_auth(true)
+            .build();
+
+        let (client_stream, server_stream) = tokio::io::duplex(64 * 1024);
+        let mut client = AsyncTlsClientConnection::new(client_stream, client_config);
+        let mut server = AsyncTlsServerConnection::new(server_stream, server_config);
+
+        let (c_res, s_res) = tokio::join!(client.handshake(), server.handshake());
+        c_res.unwrap();
+        s_res.unwrap();
+
+        // Post-handshake auth: client returns empty certificate
+        let (pha_result, client_read_result) = tokio::join!(
+            async {
+                let result = server.request_client_auth().await;
+                server.write(b"pha-empty-done").await.unwrap();
+                result
+            },
+            async {
+                let mut buf = [0u8; 256];
+                let n = client.read(&mut buf).await?;
+                Ok::<(usize, [u8; 256]), TlsError>((n, buf))
+            }
+        );
+
+        let client_certs = pha_result.unwrap();
+        assert!(
+            client_certs.is_empty(),
+            "should receive empty certificate list"
+        );
+
+        let (n, buf) = client_read_result.unwrap();
+        assert_eq!(&buf[..n], b"pha-empty-done");
     }
 }

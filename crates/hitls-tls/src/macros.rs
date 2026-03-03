@@ -280,6 +280,7 @@ macro_rules! tls13_client_handle_post_hs_cert_request_body {
             maybe_await!($mode, $self.stream.write_all(&cv_record))
                 .map_err(|e| TlsError::RecordError(format!("write error: {e}")))?;
 
+            // Finished hash: Hash(CR || Certificate || CertificateVerify)
             let finished_key = ks.derive_finished_key(&$self.client_app_secret)?;
             let mut fin_hash = [0u8; 64];
             let mut hasher4 = DigestVariant::new(alg);
@@ -289,6 +290,24 @@ macro_rules! tls13_client_handle_post_hs_cert_request_body {
                 .map_err(TlsError::CryptoError)?;
             hasher4.update(&cv_msg).map_err(TlsError::CryptoError)?;
             hasher4
+                .finish(&mut fin_hash[..params.hash_len])
+                .map_err(TlsError::CryptoError)?;
+
+            let verify_data =
+                ks.compute_finished_verify_data(&finished_key, &fin_hash[..params.hash_len])?;
+            let fin_msg = encode_finished(&verify_data);
+
+            let fin_record = $self
+                .record_layer
+                .seal_record(ContentType::Handshake, &fin_msg)?;
+            maybe_await!($mode, $self.stream.write_all(&fin_record))
+                .map_err(|e| TlsError::RecordError(format!("write error: {e}")))?;
+        } else {
+            // No private key: send Finished without CertificateVerify (RFC 8446 §4.4.2).
+            // Finished hash: Hash(CR || Certificate)
+            let finished_key = ks.derive_finished_key(&$self.client_app_secret)?;
+            let mut fin_hash = [0u8; 64];
+            hasher2
                 .finish(&mut fin_hash[..params.hash_len])
                 .map_err(TlsError::CryptoError)?;
 
