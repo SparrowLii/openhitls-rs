@@ -424,6 +424,36 @@ mod tests {
                 let ss_ba = bob.compute_shared_secret(&params, &alice_pub).unwrap();
                 prop_assert_eq!(ss_ab, ss_ba);
             }
+
+            /// DH commutativity on RFC 2409 1024-bit group.
+            #[test]
+            fn prop_dh_rfc2409_1024_commutativity(
+                _seed in prop::array::uniform32(any::<u8>()),
+            ) {
+                let params = DhParams::from_group(DhParamId::Rfc2409_1024).unwrap();
+                let alice = DhKeyPair::generate(&params).unwrap();
+                let bob = DhKeyPair::generate(&params).unwrap();
+                let alice_pub = alice.public_key_bytes(&params).unwrap();
+                let bob_pub = bob.public_key_bytes(&params).unwrap();
+                let ss_ab = alice.compute_shared_secret(&params, &bob_pub).unwrap();
+                let ss_ba = bob.compute_shared_secret(&params, &alice_pub).unwrap();
+                prop_assert_eq!(ss_ab, ss_ba);
+            }
+
+            /// DH commutativity on RFC 3526 1536-bit group.
+            #[test]
+            fn prop_dh_rfc3526_1536_commutativity(
+                _seed in prop::array::uniform32(any::<u8>()),
+            ) {
+                let params = DhParams::from_group(DhParamId::Rfc3526_1536).unwrap();
+                let alice = DhKeyPair::generate(&params).unwrap();
+                let bob = DhKeyPair::generate(&params).unwrap();
+                let alice_pub = alice.public_key_bytes(&params).unwrap();
+                let bob_pub = bob.public_key_bytes(&params).unwrap();
+                let ss_ab = alice.compute_shared_secret(&params, &bob_pub).unwrap();
+                let ss_ba = bob.compute_shared_secret(&params, &alice_pub).unwrap();
+                prop_assert_eq!(ss_ab, ss_ba);
+            }
         }
     }
 }

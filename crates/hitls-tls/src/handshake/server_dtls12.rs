@@ -733,7 +733,8 @@ impl Dtls12ServerHandshake {
         if let Some(ref cb) = self.config.cookie_verify_callback {
             return cb(&ch.random, cookie);
         }
-        cookie == self.expected_cookie
+        cookie.len() == self.expected_cookie.len()
+            && bool::from(cookie.ct_eq(&self.expected_cookie))
     }
 }
 

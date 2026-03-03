@@ -329,7 +329,7 @@ mod tests {
 
     mod proptests {
         use super::super::Hmac;
-        use super::sha256_factory;
+        use super::{sha256_factory, sha384_factory, sha512_factory};
         use proptest::prelude::*;
 
         proptest! {
@@ -342,6 +342,28 @@ mod tests {
             ) {
                 let r1 = Hmac::mac(sha256_factory, &key, &data).unwrap();
                 let r2 = Hmac::mac(sha256_factory, &key, &data).unwrap();
+                prop_assert_eq!(r1, r2);
+            }
+
+            /// HMAC-SHA-384 determinism.
+            #[test]
+            fn prop_hmac_sha384_determinism(
+                key in proptest::collection::vec(any::<u8>(), 1..64),
+                data in proptest::collection::vec(any::<u8>(), 0..256),
+            ) {
+                let r1 = Hmac::mac(sha384_factory, &key, &data).unwrap();
+                let r2 = Hmac::mac(sha384_factory, &key, &data).unwrap();
+                prop_assert_eq!(r1, r2);
+            }
+
+            /// HMAC-SHA-512 determinism.
+            #[test]
+            fn prop_hmac_sha512_determinism(
+                key in proptest::collection::vec(any::<u8>(), 1..64),
+                data in proptest::collection::vec(any::<u8>(), 0..256),
+            ) {
+                let r1 = Hmac::mac(sha512_factory, &key, &data).unwrap();
+                let r2 = Hmac::mac(sha512_factory, &key, &data).unwrap();
                 prop_assert_eq!(r1, r2);
             }
         }

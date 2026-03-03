@@ -177,4 +177,27 @@ mod tests {
         ctr_crypt(&key, &nonce, &mut data).unwrap();
         assert_eq!(data, pt);
     }
+
+    mod proptests {
+        use super::*;
+        use proptest::prelude::*;
+
+        proptest! {
+            #![proptest_config(ProptestConfig::with_cases(20))]
+
+            /// AES-CTR encrypt→decrypt roundtrip for random data.
+            #[test]
+            fn prop_ctr_aes128_roundtrip(
+                key in prop::collection::vec(any::<u8>(), 16..=16),
+                nonce in prop::collection::vec(any::<u8>(), 16..=16),
+                pt in prop::collection::vec(any::<u8>(), 0..256),
+            ) {
+                let mut ct = pt.clone();
+                ctr_crypt(&key, &nonce, &mut ct).unwrap();
+                // Encrypt again to decrypt
+                ctr_crypt(&key, &nonce, &mut ct).unwrap();
+                prop_assert_eq!(ct, pt);
+            }
+        }
+    }
 }
