@@ -8,22 +8,22 @@ openHiTLS-rs is a pure Rust rewrite of [openHiTLS](https://gitee.com/openhitls/o
 
 - **Language**: Rust (MSRV 1.75, edition 2021)
 - **License**: MulanPSL-2.0
-- **Status**: Phases I1–I86, T1–T72, R1–R12, P1–P68 complete (3912 tests, 22 ignored)
+- **Status**: Phases I1–I86, T1–T72, R1–R12, P1–P68 complete (3935 tests, 22 ignored)
 
 ## Workspace Structure
 
 ```
 openhitls-rs/
 ├── crates/
-│   ├── hitls-types/     # Shared types: algorithm IDs, error enums
-│   ├── hitls-utils/     # Hex, ASN.1, Base64, PEM, OID utilities
-│   ├── hitls-bignum/    # Big number arithmetic (CIOS Montgomery, Miller-Rabin, prime generation, hex/dec string) (95 tests, 1 ignored)
-│   ├── hitls-crypto/    # Cryptographic algorithms (feature-gated): AES, SM4, ChaCha20, SHA-2/3, SM3, HMAC, RSA, ECC, Ed25519/448, X25519/448, DH, DSA, SM2, SM9, PQC (ML-KEM/ML-DSA/SLH-DSA/XMSS+XMSS-MT/FrodoKEM/McEliece), HybridKEM (12 variants), DRBG, FIPS/CMVP, entropy health, hardware AES/SHA-2/GHASH/ChaCha20, P-256/P-384/P-521 fast paths, SM2 fast path, ML-KEM NEON NTT, ML-DSA NEON NTT, SM4 T-table, SHA-512 HW accel, Ed25519/Ed448 precomputed tables, Keccak SHA-3 HW accel, P-256/P-384/P-521 scalar fields, HPKE full RFC 9180 (4 KEMs/3 KDFs/4 AEADs/4 modes) (1426 tests, 14 ignored)
+│   ├── hitls-types/     # Shared types: algorithm IDs, error enums (26 tests)
+│   ├── hitls-utils/     # Hex, ASN.1, Base64, PEM, OID utilities (68 tests)
+│   ├── hitls-bignum/    # Big number arithmetic (CIOS Montgomery, Miller-Rabin, prime generation, hex/dec string) (96 tests, 1 ignored)
+│   ├── hitls-crypto/    # Cryptographic algorithms (feature-gated): AES, SM4, ChaCha20, SHA-2/3, SM3, HMAC, RSA, ECC, Ed25519/448, X25519/448, DH, DSA, SM2, SM9, PQC (ML-KEM/ML-DSA/SLH-DSA/XMSS+XMSS-MT/FrodoKEM/McEliece), HybridKEM (12 variants), DRBG, FIPS/CMVP, entropy health, hardware AES/SHA-2/GHASH/ChaCha20, P-256/P-384/P-521 fast paths, SM2 fast path, ML-KEM NEON NTT, ML-DSA NEON NTT, SM4 T-table, SHA-512 HW accel, Ed25519/Ed448 precomputed tables, Keccak SHA-3 HW accel, P-256/P-384/P-521 scalar fields, HPKE full RFC 9180 (4 KEMs/3 KDFs/4 AEADs/4 modes) (1441 tests, 14 ignored)
 │   ├── hitls-tls/       # TLS 1.3/1.2 (91 cipher suites), DTLS 1.2, TLCP, DTLCP; 10 connection types (5 sync + 5 async via tokio); 15 TLS extensions; 10 callbacks; session cache, hostname verification, renegotiation, GREASE, custom extensions, NSS key logging, middlebox compat (1414 tests)
 │   ├── hitls-pki/       # X.509, PKCS#8 (incl. Encrypted PBES2), PKCS#12, CMS (SignedData/EnvelopedData/EncryptedData/DigestedData/AuthenticatedData), CRL builder+extensions, hostname verification (417 tests)
 │   ├── hitls-auth/      # HOTP/TOTP, SPAKE2+, Privacy Pass (47 tests)
 │   └── hitls-cli/       # CLI tool: dgst, genpkey, x509, verify, enc, pkey, crl, req, s-client, s-server, list, rand, pkeyutl, speed, pkcs12, mac, prime, kdf (166 tests, 5 ignored)
-├── tests/interop/       # Integration tests (260 cross-crate tests) — 14 test files + helper lib
+├── tests/interop/       # Integration tests (260 cross-crate tests, 2 ignored) — 14 test files + helper lib
 ├── tests/vectors/       # Standard test vectors (NIST, Wycheproof, GM/T)
 ├── fuzz/                # Fuzz targets (cargo-fuzz, 63 targets, 418 corpus seeds)
 ```
@@ -34,15 +34,15 @@ openhitls-rs/
 # Build
 cargo build --workspace --all-features
 
-# Run all tests (3912 tests, 22 ignored)
+# Run all tests (3935 tests, 22 ignored)
 cargo test --workspace --all-features
 
 # Run tests for a specific crate
-cargo test -p hitls-crypto --all-features   # 1426 tests (14 ignored)
+cargo test -p hitls-crypto --all-features   # 1441 tests (14 ignored)
 cargo test -p hitls-tls --all-features      # 1414 tests
 
 cargo test -p hitls-pki --all-features      # 417 tests
-cargo test -p hitls-bignum                  # 95 tests (1 ignored)
+cargo test -p hitls-bignum                  # 96 tests (1 ignored)
 cargo test -p hitls-utils                   # 68 tests
 cargo test -p hitls-auth --all-features     # 47 tests
 cargo test -p hitls-cli --all-features      # 166 tests (5 ignored)
@@ -132,7 +132,7 @@ The original C implementation is at `/Users/dongqiu/Dev/code/openhitls/`:
 
 ## Migration Roadmap
 
-Phases I1–I86, T1–T72, R1–R12, P1–P68 complete (3912 tests, 22 ignored). **100% C→Rust feature parity achieved. Architecture refactoring complete. Performance optimization and quality improvement complete.**
+Phases I1–I86, T1–T72, R1–R12, P1–P68 complete (3935 tests, 22 ignored). **100% C→Rust feature parity achieved. Architecture refactoring complete. Performance optimization and quality improvement complete.**
 
 ### Completed Phases (Summary)
 

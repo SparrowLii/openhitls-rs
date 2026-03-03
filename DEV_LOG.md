@@ -4,9 +4,9 @@
 
 Category summary:
 - Implementation: I1–I86 (86 phases)
-- Testing: T1–T72 (70 phases)
+- Testing: T1–T72 (71 phases, T64 skipped)
 - Refactoring: R1–R12 (12 phases)
-- Performance: P1–P62 (62 phases)
+- Performance: P1–P68 (68 phases)
 
 | # | Phase | Type | Title | Date |
 |---|-------|------|-------|------|
