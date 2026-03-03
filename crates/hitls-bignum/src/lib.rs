@@ -9,4 +9,4 @@ mod prime;
 mod rand;
 
 pub use bignum::BigNum;
-pub use montgomery::MontgomeryCtx;
+pub use montgomery::{MontExpTable, MontgomeryCtx};

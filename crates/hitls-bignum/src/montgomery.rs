@@ -8,6 +8,18 @@
 use crate::bignum::{BigNum, DoubleLimb, Limb, LIMB_BITS};
 use hitls_types::CryptoError;
 
+/// Precomputed windowed exponentiation table for a fixed base.
+///
+/// Stores the base raised to powers [0..2^w) in Montgomery form,
+/// allowing `mont_exp_with_table` to skip table construction.
+#[derive(Clone)]
+pub struct MontExpTable {
+    /// Flat limb storage: table_size entries × m_size limbs each.
+    table: Vec<u64>,
+    /// Window size (bits per exponent chunk).
+    window: usize,
+}
+
 /// Montgomery multiplication context.
 ///
 /// Precomputes values needed for efficient modular multiplication
@@ -217,6 +229,108 @@ impl MontgomeryCtx {
         if *scratch.get_unchecked(n) != 0 || limbs_ge(&result[..n], n_mod) {
             limbs_sub_in_place(result, n_mod, n);
         }
+    }
+
+    /// Build a precomputed exponentiation table for a fixed base.
+    ///
+    /// The table stores `[R mod N, base_mont, base_mont^2, ..., base_mont^(2^w - 1)]`
+    /// in Montgomery form, where `w` is chosen based on `exp_bits`.
+    pub fn build_exp_table(
+        &self,
+        base: &BigNum,
+        exp_bits: usize,
+    ) -> Result<MontExpTable, CryptoError> {
+        let n = self.m_size;
+        let w = get_window_size(exp_bits);
+        let table_size = 1usize << w;
+
+        let mut scratch = vec![0u64; n + 2];
+        let mut table = vec![0u64; table_size * n];
+
+        // table[0] = R mod N (Montgomery form of 1)
+        self.cios_mul(
+            &mut table[0..n],
+            &[1u64],
+            self.r_squared.limbs(),
+            &mut scratch,
+        );
+
+        // table[1] = base in Montgomery form
+        let base_reduced = base.mod_reduce(&self.modulus)?;
+        self.cios_mul(
+            &mut table[n..2 * n],
+            base_reduced.limbs(),
+            self.r_squared.limbs(),
+            &mut scratch,
+        );
+
+        // table[i] = table[i-1] * table[1]
+        let mut base_mont = vec![0u64; n];
+        base_mont.copy_from_slice(&table[n..2 * n]);
+        for i in 2..table_size {
+            let (left, right) = table.split_at_mut(i * n);
+            let prev = &left[(i - 1) * n..];
+            let cur = &mut right[..n];
+            // SAFETY: prev and base_mont both have exactly n limbs
+            unsafe { self.cios_mul_n(cur, prev, &base_mont, &mut scratch) };
+        }
+
+        Ok(MontExpTable { table, window: w })
+    }
+
+    /// Windowed Montgomery exponentiation using a precomputed table.
+    ///
+    /// The table must have been built by `build_exp_table` with the same
+    /// `MontgomeryCtx`. Skips base reduction and table construction.
+    pub fn mont_exp_with_table(
+        &self,
+        table: &MontExpTable,
+        exp: &BigNum,
+    ) -> Result<BigNum, CryptoError> {
+        if exp.is_zero() {
+            if self.modulus.is_one() {
+                return Ok(BigNum::zero());
+            }
+            return Ok(BigNum::from_u64(1));
+        }
+
+        let n = self.m_size;
+        let w = table.window;
+        let exp_bits = exp.bit_len();
+
+        let mut scratch = vec![0u64; n + 2];
+        let mut result = vec![0u64; n];
+        let mut temp = vec![0u64; n];
+        result.copy_from_slice(&table.table[0..n]); // Start with 1 in Montgomery form
+
+        let mut i = exp_bits;
+        while i > 0 {
+            let window_bits = if i >= w { w } else { i };
+            i -= window_bits;
+
+            for _ in 0..window_bits {
+                // SAFETY: result has exactly n limbs
+                unsafe { self.cios_mul_n(&mut temp, &result, &result, &mut scratch) };
+                std::mem::swap(&mut result, &mut temp);
+            }
+
+            let mut window_val = 0u64;
+            for b in 0..window_bits {
+                window_val |= exp.get_bit(i + b) << b;
+            }
+
+            if window_val != 0 {
+                let idx = window_val as usize;
+                let table_entry = &table.table[idx * n..(idx + 1) * n];
+                // SAFETY: result and table_entry both have exactly n limbs
+                unsafe { self.cios_mul_n(&mut temp, &result, table_entry, &mut scratch) };
+                std::mem::swap(&mut result, &mut temp);
+            }
+        }
+
+        // Convert back from Montgomery form
+        self.cios_mul(&mut temp, &result, &[1u64], &mut scratch);
+        Ok(BigNum::from_limbs(temp))
     }
 
     /// Windowed Montgomery exponentiation: base^exp mod N.

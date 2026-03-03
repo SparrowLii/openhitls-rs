@@ -6,9 +6,65 @@
 
 mod groups;
 
-use hitls_bignum::BigNum;
+use std::sync::OnceLock;
+
+use hitls_bignum::{BigNum, MontExpTable, MontgomeryCtx};
 use hitls_types::{CryptoError, DhParamId};
 use zeroize::Zeroize;
+
+/// Cached MontgomeryCtx + precomputed generator table for a DH group.
+struct DhGroupCache {
+    ctx: MontgomeryCtx,
+    gen_table: MontExpTable,
+}
+
+/// One cache slot per DhParamId variant (13 groups).
+static GROUP_CACHES: [OnceLock<DhGroupCache>; 13] = [
+    OnceLock::new(),
+    OnceLock::new(),
+    OnceLock::new(),
+    OnceLock::new(),
+    OnceLock::new(),
+    OnceLock::new(),
+    OnceLock::new(),
+    OnceLock::new(),
+    OnceLock::new(),
+    OnceLock::new(),
+    OnceLock::new(),
+    OnceLock::new(),
+    OnceLock::new(),
+];
+
+/// Map DhParamId to cache index (0–12).
+fn param_id_to_index(id: DhParamId) -> usize {
+    match id {
+        DhParamId::Rfc2409_768 => 0,
+        DhParamId::Rfc2409_1024 => 1,
+        DhParamId::Rfc3526_1536 => 2,
+        DhParamId::Rfc3526_2048 => 3,
+        DhParamId::Rfc3526_3072 => 4,
+        DhParamId::Rfc3526_4096 => 5,
+        DhParamId::Rfc3526_6144 => 6,
+        DhParamId::Rfc3526_8192 => 7,
+        DhParamId::Rfc7919_2048 => 8,
+        DhParamId::Rfc7919_3072 => 9,
+        DhParamId::Rfc7919_4096 => 10,
+        DhParamId::Rfc7919_6144 => 11,
+        DhParamId::Rfc7919_8192 => 12,
+    }
+}
+
+/// Get or initialize the cached MontgomeryCtx + generator table for a group.
+fn get_group_cache(id: DhParamId, params: &DhParams) -> &'static DhGroupCache {
+    let idx = param_id_to_index(id);
+    GROUP_CACHES[idx].get_or_init(|| {
+        let ctx = MontgomeryCtx::new(&params.p).unwrap();
+        // exp_bits = prime bit length (private exponent up to p-1)
+        let exp_bits = params.p.bit_len();
+        let gen_table = ctx.build_exp_table(&params.g, exp_bits).unwrap();
+        DhGroupCache { ctx, gen_table }
+    })
+}
 
 /// Diffie-Hellman domain parameters (p, g).
 #[derive(Debug, Clone)]
@@ -17,6 +73,8 @@ pub struct DhParams {
     p: BigNum,
     /// The generator g.
     g: BigNum,
+    /// Optional predefined group ID for cache lookup.
+    param_id: Option<DhParamId>,
 }
 
 impl DhParams {
@@ -37,13 +95,21 @@ impl DhParams {
             return Err(CryptoError::InvalidArg("DH generator invalid"));
         }
 
-        Ok(DhParams { p: p_bn, g: g_bn })
+        Ok(DhParams {
+            p: p_bn,
+            g: g_bn,
+            param_id: None,
+        })
     }
 
     /// Create DH parameters from a predefined RFC 7919 group.
     pub fn from_group(id: DhParamId) -> Result<Self, CryptoError> {
         match groups::get_ffdhe_params(id) {
-            Some((p, g)) => Ok(DhParams { p, g }),
+            Some((p, g)) => Ok(DhParams {
+                p,
+                g,
+                param_id: Some(id),
+            }),
             None => Err(CryptoError::InvalidArg("DH group not found")),
         }
     }
@@ -84,6 +150,9 @@ impl DhKeyPair {
     ///
     /// Private key x is random in [2, p-2], public key y = g^x mod p.
     /// Retries if y falls outside the valid range [2, p-2].
+    ///
+    /// For predefined groups, uses a cached MontgomeryCtx and precomputed
+    /// generator table to avoid repeated R² computation and table building.
     pub fn generate(params: &DhParams) -> Result<Self, CryptoError> {
         let two = BigNum::from_u64(2);
         let p_minus_1 = params.p.sub(&BigNum::from_u64(1));
@@ -95,7 +164,12 @@ impl DhKeyPair {
                 x = BigNum::from_u64(2);
             }
 
-            let y = params.g.mod_exp(&x, &params.p)?;
+            let y = if let Some(id) = params.param_id {
+                let cache = get_group_cache(id, params);
+                cache.ctx.mont_exp_with_table(&cache.gen_table, &x)?
+            } else {
+                params.g.mod_exp(&x, &params.p)?
+            };
 
             // Ensure y is in valid range [2, p-2] (reject 0, 1, p-1)
             if y > BigNum::from_u64(1) && y < p_minus_1 {

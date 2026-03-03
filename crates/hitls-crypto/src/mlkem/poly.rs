@@ -396,12 +396,16 @@ pub(crate) fn rej_sample(xof: &mut Shake128) -> Poly {
 /// ExpandA: generate the k×k matrix A from seed ρ using SHAKE128.
 ///
 /// Each A[i][j] is sampled via SHAKE128(ρ || j || i).
+/// Pre-seeds a base XOF with ρ and clones it for each (i,j) pair,
+/// avoiding redundant k² absorptions of the same 32-byte seed.
 pub(crate) fn expand_a(rho: &[u8; 32], k: usize) -> Vec<Vec<Poly>> {
+    let mut base_xof = Shake128::new();
+    base_xof.update(rho).unwrap();
+
     let mut a = vec![vec![[0i16; N]; k]; k];
     for (i, row) in a.iter_mut().enumerate() {
         for (j, entry) in row.iter_mut().enumerate() {
-            let mut xof = Shake128::new();
-            xof.update(rho).unwrap();
+            let mut xof = base_xof.clone();
             xof.update(&[j as u8, i as u8]).unwrap();
             *entry = rej_sample(&mut xof);
         }
@@ -413,6 +417,16 @@ pub(crate) fn expand_a(rho: &[u8; 32], k: usize) -> Vec<Vec<Poly>> {
 pub(crate) fn prf_into(seed: &[u8], nonce: u8, output: &mut [u8]) {
     let mut xof = Shake256::new();
     xof.update(seed).unwrap();
+    xof.update(&[nonce]).unwrap();
+    xof.squeeze_into(output);
+}
+
+/// PRF from a pre-seeded SHAKE-256 state: clone + nonce + squeeze.
+///
+/// Avoids re-absorbing the seed for each nonce. The base state should
+/// have already absorbed the seed bytes.
+pub(crate) fn prf_into_from(base: &Shake256, nonce: u8, output: &mut [u8]) {
+    let mut xof = base.clone();
     xof.update(&[nonce]).unwrap();
     xof.squeeze_into(output);
 }

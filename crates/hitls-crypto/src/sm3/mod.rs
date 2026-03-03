@@ -40,10 +40,9 @@ fn p1(x: u32) -> u32 {
     x ^ x.rotate_left(15) ^ x.rotate_left(23)
 }
 
+/// Expand message schedule from a 64-byte block into w[0..68].
 #[inline]
-fn sm3_compress(state: &mut [u32; 8], block: &[u8]) {
-    // Pre-expand full message schedule w[0..67]
-    let mut w = [0u32; 68];
+fn expand_schedule(block: &[u8], w: &mut [u32; 68]) {
     for i in 0..16 {
         w[i] = u32::from_be_bytes([
             block[4 * i],
@@ -57,7 +56,11 @@ fn sm3_compress(state: &mut [u32; 8], block: &[u8]) {
             ^ w[i - 13].rotate_left(7)
             ^ w[i - 6];
     }
+}
 
+/// Run 64 rounds of SM3 compression using a pre-expanded message schedule.
+#[inline]
+fn compress_rounds(state: &mut [u32; 8], w: &[u32; 68]) {
     let [mut a, mut b, mut c, mut d, mut e, mut f, mut g, mut h] = *state;
 
     // Rounds 0–15: ff/gg use XOR form
@@ -124,6 +127,14 @@ fn sm3_compress(state: &mut [u32; 8], block: &[u8]) {
     state[7] ^= h;
 }
 
+/// Combined expand + compress for a single block (used for padding/tail).
+#[inline]
+fn sm3_compress(state: &mut [u32; 8], block: &[u8]) {
+    let mut w = [0u32; 68];
+    expand_schedule(block, &mut w);
+    compress_rounds(state, &w);
+}
+
 /// SM3 hash context.
 #[derive(Clone)]
 pub struct Sm3 {
@@ -167,9 +178,26 @@ impl Sm3 {
             self.buffer_len = 0;
         }
 
-        while offset + 64 <= data.len() {
-            sm3_compress(&mut self.state, &data[offset..offset + 64]);
+        // Pipeline: overlap message expansion of block N+1 with
+        // compression of block N. Expansion is data-independent from
+        // compression, so the CPU OoO engine can overlap them.
+        if offset + 128 <= data.len() {
+            let mut w_cur = [0u32; 68];
+            let mut w_next = [0u32; 68];
+            expand_schedule(&data[offset..offset + 64], &mut w_cur);
             offset += 64;
+            while offset + 64 <= data.len() {
+                expand_schedule(&data[offset..offset + 64], &mut w_next);
+                compress_rounds(&mut self.state, &w_cur);
+                std::mem::swap(&mut w_cur, &mut w_next);
+                offset += 64;
+            }
+            compress_rounds(&mut self.state, &w_cur);
+        } else {
+            while offset + 64 <= data.len() {
+                sm3_compress(&mut self.state, &data[offset..offset + 64]);
+                offset += 64;
+            }
         }
 
         let remaining = data.len() - offset;

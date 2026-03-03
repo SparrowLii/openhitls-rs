@@ -102,16 +102,20 @@ fn kpke_keygen(d: &[u8; 32], params: &MlKemParams) -> Result<(Vec<u8>, Vec<u8>),
     let a_hat = expand_a(&rho, k);
 
     // Sample secret vector s and error vector e
+    // Pre-seed SHAKE-256 with σ; clone for each nonce (avoids k re-absorptions)
+    let mut prf_base = crate::sha3::Shake256::new();
+    prf_base.update(&sigma).unwrap();
+
     let mut s = Vec::with_capacity(k);
     let mut e = Vec::with_capacity(k);
     let mut prf_buf = [0u8; 192]; // max(64*eta1=192 for eta=3, 128 for eta=2)
     let prf_len = 64 * params.eta1;
     for i in 0..k {
-        prf_into(&sigma, i as u8, &mut prf_buf[..prf_len]);
+        prf_into_from(&prf_base, i as u8, &mut prf_buf[..prf_len]);
         s.push(sample_cbd(&prf_buf[..prf_len], params.eta1)?);
     }
     for i in 0..k {
-        prf_into(&sigma, (k + i) as u8, &mut prf_buf[..prf_len]);
+        prf_into_from(&prf_base, (k + i) as u8, &mut prf_buf[..prf_len]);
         e.push(sample_cbd(&prf_buf[..prf_len], params.eta1)?);
     }
 
@@ -173,20 +177,24 @@ fn kpke_encrypt(
     let a_hat = expand_a(&rho, k);
 
     // Sample r, e1, e2
+    // Pre-seed SHAKE-256 with randomness; clone for each nonce
+    let mut prf_base = crate::sha3::Shake256::new();
+    prf_base.update(randomness).unwrap();
+
     let mut r_vec = Vec::with_capacity(k);
     let mut e1 = Vec::with_capacity(k);
     let mut prf_buf = [0u8; 192]; // max(64*eta1=192 for eta=3, 128 for eta=2)
     let prf_len1 = 64 * params.eta1;
     for i in 0..k {
-        prf_into(randomness, i as u8, &mut prf_buf[..prf_len1]);
+        prf_into_from(&prf_base, i as u8, &mut prf_buf[..prf_len1]);
         r_vec.push(sample_cbd(&prf_buf[..prf_len1], params.eta1)?);
     }
     let prf_len2 = 64 * params.eta2;
     for i in 0..k {
-        prf_into(randomness, (k + i) as u8, &mut prf_buf[..prf_len2]);
+        prf_into_from(&prf_base, (k + i) as u8, &mut prf_buf[..prf_len2]);
         e1.push(sample_cbd(&prf_buf[..prf_len2], params.eta2)?);
     }
-    prf_into(randomness, (2 * k) as u8, &mut prf_buf[..prf_len2]);
+    prf_into_from(&prf_base, (2 * k) as u8, &mut prf_buf[..prf_len2]);
     let e2 = sample_cbd(&prf_buf[..prf_len2], params.eta2)?;
 
     // NTT r in-place — original r_vec is never used in non-NTT form
