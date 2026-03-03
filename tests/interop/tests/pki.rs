@@ -487,3 +487,99 @@ fn test_encrypted_pkcs8_e2e() {
         _ => panic!("Expected Ed25519"),
     }
 }
+
+/// CRL end-to-end: CrlBuilder → sign → DER/PEM roundtrip → verify → revocation check.
+#[test]
+fn test_crl_builder_sign_parse_verify_roundtrip() {
+    use hitls_pki::x509::{
+        CertificateBuilder, CertificateRevocationList, CrlBuilder, DistinguishedName,
+        RevocationReason, RevokedCertBuilder, SigningKey,
+    };
+
+    // 1. Create a self-signed RSA CA certificate
+    let rsa_key = hitls_crypto::rsa::RsaPrivateKey::generate(2048).unwrap();
+    let sk = SigningKey::Rsa(rsa_key);
+    let ca_dn = DistinguishedName {
+        entries: vec![
+            ("C".into(), "CN".into()),
+            ("O".into(), "Integration Test".into()),
+            ("CN".into(), "CRL E2E Test CA".into()),
+        ],
+    };
+    let ca_cert =
+        CertificateBuilder::self_signed(ca_dn.clone(), &sk, 1_700_000_000, 1_800_000_000)
+            .unwrap();
+    assert!(ca_cert.is_self_signed());
+    assert!(ca_cert.is_ca());
+
+    // 2. Build a CRL with multiple revoked certificates
+    let serial_revoked = vec![0x01, 0x02, 0x03];
+    let serial_compromised = vec![0x0A, 0x0B];
+    let serial_not_revoked = vec![0xFF];
+
+    let crl = CrlBuilder::new(ca_dn, 1_710_000_000)
+        .next_update(1_720_000_000)
+        .add_revoked(
+            RevokedCertBuilder::new(&serial_revoked, 1_705_000_000)
+                .reason(RevocationReason::CessationOfOperation),
+        )
+        .add_revoked(
+            RevokedCertBuilder::new(&serial_compromised, 1_706_000_000)
+                .reason(RevocationReason::KeyCompromise)
+                .invalidity_date(1_704_000_000),
+        )
+        .add_crl_number(&[0x01])
+        .build(&sk)
+        .unwrap();
+
+    // 3. DER roundtrip
+    let der = crl.to_der();
+    let parsed = CertificateRevocationList::from_der(&der).unwrap();
+    assert_eq!(parsed.revoked_certs.len(), 2);
+    assert_eq!(parsed.this_update, 1_710_000_000);
+    assert_eq!(parsed.next_update, Some(1_720_000_000));
+
+    // 4. PEM roundtrip
+    let pem = crl.to_pem();
+    let parsed_pem = CertificateRevocationList::from_pem(&pem).unwrap();
+    assert_eq!(parsed_pem.revoked_certs.len(), 2);
+
+    // 5. Verify CRL signature against the CA certificate
+    assert!(parsed.verify_signature(&ca_cert).unwrap());
+
+    // 6. Revocation status checks
+    assert!(
+        parsed.is_revoked(&serial_revoked).is_some(),
+        "serial_revoked must be in CRL"
+    );
+    assert!(
+        parsed.is_revoked(&serial_compromised).is_some(),
+        "serial_compromised must be in CRL"
+    );
+    assert!(
+        parsed.is_revoked(&serial_not_revoked).is_none(),
+        "serial_not_revoked must NOT be in CRL"
+    );
+
+    // 7. Check revocation reason and invalidity date
+    let entry = parsed.is_revoked(&serial_compromised).unwrap();
+    assert_eq!(entry.reason, Some(RevocationReason::KeyCompromise));
+    assert_eq!(entry.invalidity_date, Some(1_704_000_000));
+
+    // 8. Check CRL number extension
+    assert_eq!(parsed.crl_number(), Some(vec![0x01]));
+
+    // 9. Cross-verify: wrong CA must fail
+    let rsa_key2 = hitls_crypto::rsa::RsaPrivateKey::generate(2048).unwrap();
+    let sk2 = SigningKey::Rsa(rsa_key2);
+    let wrong_dn = DistinguishedName {
+        entries: vec![("CN".into(), "Wrong CA".into())],
+    };
+    let wrong_ca =
+        CertificateBuilder::self_signed(wrong_dn, &sk2, 1_700_000_000, 1_800_000_000).unwrap();
+    let verify_wrong = parsed.verify_signature(&wrong_ca);
+    assert!(
+        verify_wrong.is_err() || !verify_wrong.unwrap(),
+        "CRL signature must fail with wrong CA"
+    );
+}
