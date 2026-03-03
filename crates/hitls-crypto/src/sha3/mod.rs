@@ -4,6 +4,7 @@
 //! as defined in FIPS 202. SHA-3 is based on the Keccak sponge construction.
 
 use hitls_types::CryptoError;
+use zeroize::Zeroize;
 
 #[cfg(all(target_arch = "aarch64", has_sha3_keccak_intrinsics))]
 mod keccak_arm;
@@ -164,7 +165,7 @@ fn keccak_f1600_soft(state: &mut [u64; 25]) {
 
 /// Maximum rate for any Keccak variant is 168 bytes (SHAKE128).
 /// We use 200 (= 25 × 8, the full state size) for the absorb buffer.
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 struct KeccakState {
     state: [u64; 25],
     buf: [u8; 200],
@@ -172,6 +173,13 @@ struct KeccakState {
     rate: usize,
     suffix: u8,
     squeezed: bool,
+}
+
+impl Drop for KeccakState {
+    fn drop(&mut self) {
+        self.state.zeroize();
+        self.buf.zeroize();
+    }
 }
 
 impl KeccakState {

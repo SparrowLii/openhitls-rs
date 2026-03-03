@@ -4,6 +4,7 @@
 //! government. It is structurally similar to SHA-256 and is used with SM2/SM4.
 
 use hitls_types::CryptoError;
+use zeroize::Zeroize;
 
 /// SM3 output size in bytes.
 pub const SM3_OUTPUT_SIZE: usize = 32;
@@ -130,6 +131,13 @@ pub struct Sm3 {
     count: u64,
     buffer: [u8; SM3_BLOCK_SIZE],
     buffer_len: usize,
+}
+
+impl Drop for Sm3 {
+    fn drop(&mut self) {
+        self.state.zeroize();
+        self.buffer.zeroize();
+    }
 }
 
 impl Sm3 {

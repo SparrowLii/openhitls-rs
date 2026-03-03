@@ -3,6 +3,7 @@
 //! Provides SHA-224, SHA-256, SHA-384, and SHA-512 as defined in FIPS 180-4.
 
 use hitls_types::CryptoError;
+use zeroize::Zeroize;
 
 #[cfg(target_arch = "aarch64")]
 mod sha256_arm;
@@ -499,6 +500,13 @@ pub struct Sha224 {
     buffer_len: usize,
 }
 
+impl Drop for Sha224 {
+    fn drop(&mut self) {
+        self.state.zeroize();
+        self.buffer.zeroize();
+    }
+}
+
 impl Sha224 {
     pub fn new() -> Self {
         Self {
@@ -563,6 +571,13 @@ pub struct Sha256 {
     buffer_len: usize,
 }
 
+impl Drop for Sha256 {
+    fn drop(&mut self) {
+        self.state.zeroize();
+        self.buffer.zeroize();
+    }
+}
+
 impl Sha256 {
     pub fn new() -> Self {
         Self {
@@ -623,6 +638,13 @@ pub struct Sha384 {
     count: u128,
     buffer: [u8; 128],
     buffer_len: usize,
+}
+
+impl Drop for Sha384 {
+    fn drop(&mut self) {
+        self.state.zeroize();
+        self.buffer.zeroize();
+    }
 }
 
 impl Sha384 {
@@ -687,6 +709,13 @@ pub struct Sha512 {
     count: u128,
     buffer: [u8; 128],
     buffer_len: usize,
+}
+
+impl Drop for Sha512 {
+    fn drop(&mut self) {
+        self.state.zeroize();
+        self.buffer.zeroize();
+    }
 }
 
 impl Sha512 {

@@ -10,6 +10,7 @@
 mod sha1_arm;
 
 use hitls_types::CryptoError;
+use zeroize::Zeroize;
 
 /// SHA-1 output size in bytes.
 pub const SHA1_OUTPUT_SIZE: usize = 20;
@@ -90,6 +91,13 @@ pub struct Sha1 {
     count: u64,
     buffer: [u8; SHA1_BLOCK_SIZE],
     buffer_len: usize,
+}
+
+impl Drop for Sha1 {
+    fn drop(&mut self) {
+        self.state.zeroize();
+        self.buffer.zeroize();
+    }
 }
 
 impl Sha1 {

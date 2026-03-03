@@ -7,6 +7,7 @@
 //! and non-security applications (e.g., checksums).
 
 use hitls_types::CryptoError;
+use zeroize::Zeroize;
 
 /// MD5 output size in bytes.
 pub const MD5_OUTPUT_SIZE: usize = 16;
@@ -90,6 +91,13 @@ pub struct Md5 {
     count: u64,
     buffer: [u8; MD5_BLOCK_SIZE],
     buffer_len: usize,
+}
+
+impl Drop for Md5 {
+    fn drop(&mut self) {
+        self.state.zeroize();
+        self.buffer.zeroize();
+    }
 }
 
 impl Md5 {
