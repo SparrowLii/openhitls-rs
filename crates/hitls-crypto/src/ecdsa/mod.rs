@@ -495,6 +495,24 @@ mod tests {
                 let valid = kp_b.verify(&digest, &sig).unwrap_or(false);
                 prop_assert!(!valid);
             }
+
+            #[test]
+            fn prop_ecdsa_p384_sign_verify_roundtrip(
+                digest in prop::collection::vec(any::<u8>(), 48..=48),
+            ) {
+                let kp = EcdsaKeyPair::generate(EccCurveId::NistP384).unwrap();
+                let sig = kp.sign(&digest).unwrap();
+                prop_assert!(kp.verify(&digest, &sig).unwrap());
+            }
+
+            #[test]
+            fn prop_ecdsa_p521_sign_verify_roundtrip(
+                digest in prop::collection::vec(any::<u8>(), 64..=64),
+            ) {
+                let kp = EcdsaKeyPair::generate(EccCurveId::NistP521).unwrap();
+                let sig = kp.sign(&digest).unwrap();
+                prop_assert!(kp.verify(&digest, &sig).unwrap());
+            }
         }
     }
 }

@@ -268,6 +268,28 @@ mod tests {
                 let ss_ba = kp_b.compute_shared_secret(&pub_a).unwrap();
                 prop_assert_eq!(ss_ab, ss_ba);
             }
+
+            #[test]
+            fn prop_ecdh_p384_commutativity(_seed in any::<u64>()) {
+                let kp_a = EcdhKeyPair::generate(EccCurveId::NistP384).unwrap();
+                let kp_b = EcdhKeyPair::generate(EccCurveId::NistP384).unwrap();
+                let pub_a = kp_a.public_key_bytes().unwrap();
+                let pub_b = kp_b.public_key_bytes().unwrap();
+                let ss_ab = kp_a.compute_shared_secret(&pub_b).unwrap();
+                let ss_ba = kp_b.compute_shared_secret(&pub_a).unwrap();
+                prop_assert_eq!(ss_ab, ss_ba);
+            }
+
+            #[test]
+            fn prop_ecdh_p521_commutativity(_seed in any::<u64>()) {
+                let kp_a = EcdhKeyPair::generate(EccCurveId::NistP521).unwrap();
+                let kp_b = EcdhKeyPair::generate(EccCurveId::NistP521).unwrap();
+                let pub_a = kp_a.public_key_bytes().unwrap();
+                let pub_b = kp_b.public_key_bytes().unwrap();
+                let ss_ab = kp_a.compute_shared_secret(&pub_b).unwrap();
+                let ss_ba = kp_b.compute_shared_secret(&pub_a).unwrap();
+                prop_assert_eq!(ss_ab, ss_ba);
+            }
         }
     }
 }
