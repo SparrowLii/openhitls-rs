@@ -426,7 +426,7 @@ mod tests {
             #[test]
             fn prop_new_seq_within_window_accepted(
                 max_seq in 64u64..200,
-                offset in 0u64..63,
+                offset in 1u64..63,
             ) {
                 let mut w = AntiReplayWindow::new();
                 w.accept(max_seq);
