@@ -122,8 +122,9 @@ fn sm4_cbc_decrypt_raw(key: &[u8], iv: &[u8], data: &mut [u8]) -> Result<(), Tls
     let cipher = hitls_crypto::sm4::Sm4Key::new(key).map_err(TlsError::CryptoError)?;
     let mut prev = [0u8; SM4_BLOCK_SIZE];
     prev.copy_from_slice(iv);
-    for chunk in data.chunks_mut(SM4_BLOCK_SIZE) {
-        let ct_copy: [u8; SM4_BLOCK_SIZE] = chunk.try_into().unwrap();
+    for chunk in data.chunks_exact_mut(SM4_BLOCK_SIZE) {
+        let mut ct_copy = [0u8; SM4_BLOCK_SIZE];
+        ct_copy.copy_from_slice(chunk);
         cipher.decrypt_block(chunk).map_err(TlsError::CryptoError)?;
         for i in 0..SM4_BLOCK_SIZE {
             chunk[i] ^= prev[i];

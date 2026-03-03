@@ -41,9 +41,10 @@ pub(crate) struct Gf128 {
 
 impl Gf128 {
     pub(crate) fn from_bytes(b: &[u8; 16]) -> Self {
+        let (hi, lo) = b.split_at(8);
         Self {
-            h: u64::from_be_bytes(b[..8].try_into().unwrap()),
-            l: u64::from_be_bytes(b[8..].try_into().unwrap()),
+            h: u64::from_be_bytes([hi[0], hi[1], hi[2], hi[3], hi[4], hi[5], hi[6], hi[7]]),
+            l: u64::from_be_bytes([lo[0], lo[1], lo[2], lo[3], lo[4], lo[5], lo[6], lo[7]]),
         }
     }
 

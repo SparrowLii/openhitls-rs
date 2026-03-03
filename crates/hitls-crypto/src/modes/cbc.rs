@@ -48,8 +48,9 @@ pub fn cbc_decrypt(key: &[u8], iv: &[u8], ciphertext: &[u8]) -> Result<Vec<u8>, 
     let mut prev = [0u8; AES_BLOCK_SIZE];
     prev.copy_from_slice(iv);
 
-    for chunk in output.chunks_mut(AES_BLOCK_SIZE) {
-        let ct_copy: [u8; AES_BLOCK_SIZE] = chunk.try_into().unwrap();
+    for chunk in output.chunks_exact_mut(AES_BLOCK_SIZE) {
+        let mut ct_copy = [0u8; AES_BLOCK_SIZE];
+        ct_copy.copy_from_slice(chunk);
         cipher.decrypt_block(chunk)?;
         for i in 0..AES_BLOCK_SIZE {
             chunk[i] ^= prev[i];
