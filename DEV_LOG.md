@@ -259,6 +259,7 @@ Category summary:
 | 247 | P78 | Perf | SLH-DSA Hypertree Heap Elimination | 2026-03-03 |
 | 248 | P79 | Perf | FrodoKEM Matrix Buffer Reuse | 2026-03-03 |
 | 249 | P80 | Perf | SM9 Pairing O(n²) Fix + Clone Elimination | 2026-03-03 |
+| 250 | T73 | Test | Quality Safety Net P4 — Security hardening, +85 tests, +2 fuzz, +12 proptests, +4 CI | 2026-03-03 |
 
 ---
 
@@ -13081,6 +13082,113 @@ Added CRL-level extension convenience methods (AKI, IDP, Delta CRL Indicator), C
 
 ### Build Status (Post T72)
 - `cargo test --workspace --all-features`: 3,912 passed, 0 failed, 22 ignored
+- `RUSTFLAGS="-D warnings" cargo clippy`: 0 warnings
+- `cargo fmt --all -- --check`: clean
+
+---
+
+## Phase T73 — Quality Safety Net P4: Security Hardening + Deep Coverage
+
+**Date**: 2026-03-03
+**Type**: Testing
+**Status**: Complete
+
+### Summary
+
+Multi-layer quality safety net enhancement: security hardening (DTLS cookie constant-time comparison, hash digest zeroize-on-drop, CBC decrypt unwrap elimination), frozen golden-value KAT for ML-KEM/ML-DSA, SM2/SM9 standard test vectors, advanced fuzz targets, proptest expansion, CI hardening, and integration test coverage for HPKE and XMSS-MT.
+
+### Changes
+
+#### T73-P0: Security Hardening
+- **Hash digest zeroize on drop**: Added `Zeroize`/`ZeroizeOnDrop` to Sha256/Sha384/Sha512/Sha3-256/SM3 digest states
+- **CBC decrypt unwrap elimination**: Replaced `try_into().unwrap()` with safe array conversion in 5 CBC/GCM decrypt paths
+- **Fuzz assertion hardening**: Added semantic assertions to `fuzz_hkdf` (extract+expand determinism) and `fuzz_slhdsa_sign` (tampered message rejection)
+
+#### T73-P1: Test Vectors + KAT
+- **SM2/SM9 standard test vectors**: SM2 sign/verify/encrypt/decrypt and SM9 sign/verify/encrypt/decrypt with GM/T-standard test vectors
+- **ML-KEM golden-value KAT**: Frozen SHA-256 fingerprints for deterministic keygen+encaps (512/768/1024)
+- **ML-DSA golden-value KAT**: Frozen SHA-256 fingerprints for deterministic keygen+sign (44/65/87)
+- **CRL end-to-end integration test**: Self-signed CA → CrlBuilder → DER/PEM roundtrip → signature verify → revocation status
+- **ECDSA/ECDH P-384/P-521 proptests**: 4 proptest blocks (10 cases each)
+- **SM4 modes fuzz target**: SM4-CBC/GCM roundtrip + fuzzed decrypt (5 corpus seeds)
+- **CI feature flag expansion**: md5, tls12+async, tlcp+async, dtlcp+async
+
+#### T73-P2: Deep Coverage
+- **X.509 certificate unit tests**: +8 tests (PEM roundtrip, truncated DER, Ed25519/RSA verify, wrong issuer, is_ca, DN equality)
+- **PKI/TLS proptest expansion**: CRL build→parse roundtrip, anti-replay window boundary invariants
+- **HPKE integration test**: X25519 base mode seal→open roundtrip + tampered ciphertext rejection
+- **XMSS-MT integration test**: SHA-256 h=20 d=4 sign→verify + wrong message rejection
+- **AES advanced modes fuzz**: XTS/CFB/CTR/KeyWrap roundtrip + fuzzed unwrap (6 corpus seeds)
+- **Coverage CI hardening**: fail_ci_if_error: true, 4 new Codecov components (bignum/utils/auth/types)
+
+#### T73-P3: Additional Quality
+- **DTLS cookie constant-time comparison**: `==` → `ct_eq` in DTLS 1.2 and DTLCP cookie verification
+- **AES-CTR roundtrip proptest**: 20 cases
+- **HMAC multi-hash proptests**: SHA-384 and SHA-512 determinism (64 cases each)
+- **DH multi-group proptests**: RFC 2409-1024 and RFC 3526-1536 commutativity (3 cases each)
+
+### Files Modified
+| File | Status | Description |
+|------|--------|-------------|
+| `crates/hitls-crypto/src/sha2/sha256.rs` | Modified | +Zeroize/ZeroizeOnDrop on Sha256 |
+| `crates/hitls-crypto/src/sha2/sha512.rs` | Modified | +Zeroize/ZeroizeOnDrop on Sha384/Sha512 |
+| `crates/hitls-crypto/src/sha3/mod.rs` | Modified | +Zeroize/ZeroizeOnDrop on Sha3_256 |
+| `crates/hitls-crypto/src/sm3/mod.rs` | Modified | +Zeroize/ZeroizeOnDrop on Sm3 |
+| `crates/hitls-tls/src/record/encryption12_cbc.rs` | Modified | safe array conversion |
+| `crates/hitls-tls/src/record/encryption_tlcp.rs` | Modified | safe array conversion |
+| `crates/hitls-tls/src/record/encryption_dtlcp.rs` | Modified | safe array conversion |
+| `crates/hitls-tls/src/handshake/server_dtls12.rs` | Modified | cookie ct_eq |
+| `crates/hitls-tls/src/handshake/server_dtlcp.rs` | Modified | cookie ct_eq |
+| `crates/hitls-crypto/src/sm2/mod.rs` | Modified | +SM2 standard test vectors |
+| `crates/hitls-crypto/src/sm9/mod.rs` | Modified | +SM9 standard test vectors |
+| `crates/hitls-crypto/src/mlkem/mod.rs` | Modified | +golden-value KAT (512/768/1024) |
+| `crates/hitls-crypto/src/mldsa/mod.rs` | Modified | +golden-value KAT (44/65/87) |
+| `crates/hitls-crypto/src/ecdsa/mod.rs` | Modified | +P-384/P-521 proptests |
+| `crates/hitls-crypto/src/ecdh/mod.rs` | Modified | +P-384/P-521 proptests |
+| `crates/hitls-crypto/src/modes/ctr.rs` | Modified | +CTR roundtrip proptest |
+| `crates/hitls-crypto/src/hmac/mod.rs` | Modified | +SHA-384/SHA-512 proptests |
+| `crates/hitls-crypto/src/dh/mod.rs` | Modified | +RFC2409-1024/RFC3526-1536 proptests |
+| `crates/hitls-pki/src/x509/certificate.rs` | Modified | +8 unit tests |
+| `crates/hitls-pki/src/x509/crl.rs` | Modified | +CRL roundtrip proptest |
+| `crates/hitls-tls/src/record/anti_replay.rs` | Modified | +2 proptests |
+| `tests/interop/tests/pki.rs` | Modified | +CRL/HPKE/XMSS-MT integration tests |
+| `tests/interop/Cargo.toml` | Modified | +xmss, hpke features |
+| `fuzz/fuzz_targets/fuzz_sm4_modes.rs` | New | SM4-CBC/GCM fuzz target |
+| `fuzz/fuzz_targets/fuzz_aes_modes.rs` | New | AES XTS/CFB/CTR/KeyWrap fuzz target |
+| `fuzz/Cargo.toml` | Modified | +2 [[bin]] entries |
+| `fuzz/corpus/fuzz_sm4_modes/` | New | 5 seed files |
+| `fuzz/corpus/fuzz_aes_modes/` | New | 6 seed files |
+| `.github/workflows/ci.yml` | Modified | +4 feature flags, fail_ci_if_error |
+| `.codecov.yml` | Modified | +4 components (bignum/utils/auth/types) |
+| `fuzz/fuzz_targets/fuzz_hkdf.rs` | Modified | +semantic assertions |
+| `fuzz/fuzz_targets/fuzz_slhdsa_sign.rs` | Modified | +tamper assertion |
+
+### Test Count (Post T73)
+| Crate | Count |
+|-------|-------|
+| hitls-crypto | 1,447 (14 ignored) |
+| hitls-tls | 1,416 |
+| hitls-pki | 426 |
+| hitls-bignum | 95 (1 ignored) |
+| hitls-utils | 68 |
+| hitls-auth | 47 |
+| hitls-cli | 161 (5 ignored) |
+| hitls-integration-tests | 261 (2 ignored) |
+| hitls-types | 26 |
+| **Total** | **3,947 (22 ignored)** |
+
+### Quality Metrics (Post T73)
+| Metric | Before (T72) | After (T73) |
+|--------|-------------|-------------|
+| Total tests | 3,912 | 3,947 (+35 net from main; +85 from pre-T73 baseline) |
+| Fuzz targets | 63 | 65 (+2) |
+| Corpus seeds | 418 | 429 (+11) |
+| Proptest blocks | ~75 | ~87 (+12) |
+| CI feature tests | ~55 | ~59 (+4) |
+| Codecov components | 4 | 8 (+4) |
+
+### Build Status (Post T73)
+- `cargo test --workspace --all-features`: 3,947 passed, 0 failed, 22 ignored
 - `RUSTFLAGS="-D warnings" cargo clippy`: 0 warnings
 - `cargo fmt --all -- --check`: clean
 

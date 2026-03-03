@@ -8,7 +8,7 @@ openHiTLS-rs is a pure Rust rewrite of [openHiTLS](https://gitee.com/openhitls/o
 
 - **Language**: Rust (MSRV 1.75, edition 2021)
 - **License**: MulanPSL-2.0
-- **Status**: Phases I1–I86, T1–T72, R1–R12, P1–P80 complete (3935 tests, 22 ignored)
+- **Status**: Phases I1–I86, T1–T73, R1–R12, P1–P80 complete (3947 tests, 22 ignored)
 
 ## Workspace Structure
 
@@ -17,15 +17,15 @@ openhitls-rs/
 ├── crates/
 │   ├── hitls-types/     # Shared types: algorithm IDs, error enums (26 tests)
 │   ├── hitls-utils/     # Hex, ASN.1, Base64, PEM, OID utilities (68 tests)
-│   ├── hitls-bignum/    # Big number arithmetic (CIOS Montgomery, Miller-Rabin, prime generation, hex/dec string) (96 tests, 1 ignored)
-│   ├── hitls-crypto/    # Cryptographic algorithms (feature-gated): AES, SM4, ChaCha20, SHA-2/3, SM3, HMAC, RSA, ECC, Ed25519/448, X25519/448, DH, DSA, SM2, SM9, PQC (ML-KEM/ML-DSA/SLH-DSA/XMSS+XMSS-MT/FrodoKEM/McEliece), HybridKEM (12 variants), DRBG, FIPS/CMVP, entropy health, hardware AES/SHA-2/GHASH/ChaCha20, P-256/P-384/P-521 fast paths, SM2 fast path, ML-KEM NEON NTT, ML-DSA NEON NTT, SM4 T-table, SHA-512 HW accel, Ed25519/Ed448 precomputed tables, Keccak SHA-3 HW accel, P-256/P-384/P-521 scalar fields, HPKE full RFC 9180 (4 KEMs/3 KDFs/4 AEADs/4 modes) (1441 tests, 14 ignored)
-│   ├── hitls-tls/       # TLS 1.3/1.2 (91 cipher suites), DTLS 1.2, TLCP, DTLCP; 10 connection types (5 sync + 5 async via tokio); 15 TLS extensions; 10 callbacks; session cache, hostname verification, renegotiation, GREASE, custom extensions, NSS key logging, middlebox compat (1414 tests)
-│   ├── hitls-pki/       # X.509, PKCS#8 (incl. Encrypted PBES2), PKCS#12, CMS (SignedData/EnvelopedData/EncryptedData/DigestedData/AuthenticatedData), CRL builder+extensions, hostname verification (417 tests)
+│   ├── hitls-bignum/    # Big number arithmetic (CIOS Montgomery, Miller-Rabin, prime generation, hex/dec string) (95 tests, 1 ignored)
+│   ├── hitls-crypto/    # Cryptographic algorithms (feature-gated): AES, SM4, ChaCha20, SHA-2/3, SM3, HMAC, RSA, ECC, Ed25519/448, X25519/448, DH, DSA, SM2, SM9, PQC (ML-KEM/ML-DSA/SLH-DSA/XMSS+XMSS-MT/FrodoKEM/McEliece), HybridKEM (12 variants), DRBG, FIPS/CMVP, entropy health, hardware AES/SHA-2/GHASH/ChaCha20, P-256/P-384/P-521 fast paths, SM2 fast path, ML-KEM NEON NTT, ML-DSA NEON NTT, SM4 T-table, SHA-512 HW accel, Ed25519/Ed448 precomputed tables, Keccak SHA-3 HW accel, P-256/P-384/P-521 scalar fields, HPKE full RFC 9180 (4 KEMs/3 KDFs/4 AEADs/4 modes) (1447 tests, 14 ignored)
+│   ├── hitls-tls/       # TLS 1.3/1.2 (91 cipher suites), DTLS 1.2, TLCP, DTLCP; 10 connection types (5 sync + 5 async via tokio); 15 TLS extensions; 10 callbacks; session cache, hostname verification, renegotiation, GREASE, custom extensions, NSS key logging, middlebox compat (1416 tests)
+│   ├── hitls-pki/       # X.509, PKCS#8 (incl. Encrypted PBES2), PKCS#12, CMS (SignedData/EnvelopedData/EncryptedData/DigestedData/AuthenticatedData), CRL builder+extensions, hostname verification (426 tests)
 │   ├── hitls-auth/      # HOTP/TOTP, SPAKE2+, Privacy Pass (47 tests)
-│   └── hitls-cli/       # CLI tool: dgst, genpkey, x509, verify, enc, pkey, crl, req, s-client, s-server, list, rand, pkeyutl, speed, pkcs12, mac, prime, kdf (166 tests, 5 ignored)
-├── tests/interop/       # Integration tests (260 cross-crate tests, 2 ignored) — 14 test files + helper lib
+│   └── hitls-cli/       # CLI tool: dgst, genpkey, x509, verify, enc, pkey, crl, req, s-client, s-server, list, rand, pkeyutl, speed, pkcs12, mac, prime, kdf (161 tests, 5 ignored)
+├── tests/interop/       # Integration tests (261 cross-crate tests, 2 ignored) — 14 test files + helper lib
 ├── tests/vectors/       # Standard test vectors (NIST, Wycheproof, GM/T)
-├── fuzz/                # Fuzz targets (cargo-fuzz, 63 targets, 418 corpus seeds)
+├── fuzz/                # Fuzz targets (cargo-fuzz, 65 targets, 429 corpus seeds)
 ```
 
 ## Build & Test Commands
@@ -34,19 +34,19 @@ openhitls-rs/
 # Build
 cargo build --workspace --all-features
 
-# Run all tests (3935 tests, 22 ignored)
+# Run all tests (3947 tests, 22 ignored)
 cargo test --workspace --all-features
 
 # Run tests for a specific crate
-cargo test -p hitls-crypto --all-features   # 1441 tests (14 ignored)
-cargo test -p hitls-tls --all-features      # 1414 tests
+cargo test -p hitls-crypto --all-features   # 1447 tests (14 ignored)
+cargo test -p hitls-tls --all-features      # 1416 tests
 
-cargo test -p hitls-pki --all-features      # 417 tests
-cargo test -p hitls-bignum                  # 96 tests (1 ignored)
+cargo test -p hitls-pki --all-features      # 426 tests
+cargo test -p hitls-bignum                  # 95 tests (1 ignored)
 cargo test -p hitls-utils                   # 68 tests
 cargo test -p hitls-auth --all-features     # 47 tests
-cargo test -p hitls-cli --all-features      # 166 tests (5 ignored)
-cargo test -p hitls-integration-tests       # 260 tests (2 ignored)
+cargo test -p hitls-cli --all-features      # 161 tests (5 ignored)
+cargo test -p hitls-integration-tests       # 261 tests (2 ignored)
 
 # Lint (must pass with zero warnings)
 RUSTFLAGS="-D warnings" cargo clippy --workspace --all-features --all-targets
@@ -132,7 +132,7 @@ The original C implementation is at `/Users/dongqiu/Dev/code/openhitls/`:
 
 ## Migration Roadmap
 
-Phases I1–I86, T1–T72, R1–R12, P1–P80 complete (3935 tests, 22 ignored). **100% C→Rust feature parity achieved. Architecture refactoring complete. Performance optimization and quality improvement complete.**
+Phases I1–I86, T1–T73, R1–R12, P1–P80 complete (3947 tests, 22 ignored). **100% C→Rust feature parity achieved. Architecture refactoring complete. Performance optimization and quality improvement complete.**
 
 ### Completed Phases (Summary)
 
@@ -247,5 +247,6 @@ Key milestones:
 - Phase I86: PKI CRL Extensions + Certificate CRL Distribution Points — CrlDistributionPoints/DistributionPoint/IssuingDistributionPoint types, parse_crl_distribution_points/parse_issuing_distribution_point parse functions, Certificate::crl_distribution_points(), CRL authority_key_identifier()/issuing_distribution_point()/delta_crl_indicator() convenience methods, RevokedCertificate.certificate_issuer field (OID 2.5.29.29), CrlBuilder::add_issuing_distribution_point()/add_delta_crl_indicator(), CertificateBuilder::add_crl_distribution_points(). +12 tests. Total: 3874 (22 ignored).
 - Phase T71: Quality safety net P2 — +8 fuzz targets (X448/XMSS/HybridKEM/HPKE/SM9/DSA-verify/ML-DSA-verify/SLH-DSA-verify, 52→60 targets, +48 corpus seeds 358→406), +12 proptest blocks (+18 test fns: Montgomery roundtrip+commutativity, ct_eq+ct_select, gen_prime, HPKE base+PSK, SM9 encrypt, XMSS sign, HybridKEM P-256+P-384, PBKDF2+scrypt deterministic, CMAC incremental, HOTP roundtrip+range, SPAKE2+ exchange), +8 CI feature flags (xmss/gmac/cbc-mac/siphash/elgamal/paillier/otp/spake2plus, 47→55), +2 Miri runs (sm3/sm4, 9→11). Total: 3892 (22 ignored).
 - Phase T72: Quality safety net P3 — Deep 12-layer analysis remediation. +11 hitls-auth privpass edge case tests + 2 proptests (issue/verify roundtrip, wrong challenge), enhanced PKCS#12/CRL/CMS fuzz targets (deeper API coverage), +3 proptests (Paillier encrypt/decrypt + homomorphic add, ElGamal encrypt/decrypt + pubkey determinism, McEliece encap/decap roundtrip), +3 Miri CI runs (P-256/P-384/P-521 field arithmetic), +3 fuzz targets (CBC-MAC/GMAC/SipHash, 60→63 targets, +12 corpus seeds 406→418), +4 proptests (GMAC block-aligned split + determinism, SipHash incremental + different-keys), +4 CI feature combos (privpass/tls12+tls13/aes+modes+sha2/x509+pkcs8+cms+pkcs12), s390x big-endian cross-check, Codecov proptest-regressions ignore. Total: 3912 (22 ignored).
+- Phase T73: Quality safety net P4 — Security hardening (DTLS cookie ct_eq, hash digest zeroize-on-drop, CBC decrypt unwrap elimination), frozen golden-value KAT for ML-KEM/ML-DSA, SM2/SM9 standard test vectors, HPKE/XMSS-MT integration tests, X.509 certificate unit tests, CRL integration test, +2 fuzz targets (SM4-modes/AES-modes, 63→65 targets, +11 corpus seeds 418→429), +12 proptest blocks (ECDSA/ECDH P-384/P-521, CRL roundtrip, anti-replay window, AES-CTR, HMAC SHA-384/SHA-512, DH multi-group), +4 CI feature flags (md5/tls12+async/tlcp+async/dtlcp+async), Codecov 4→8 components. Total: 3947 (22 ignored).
 
 See `DEV_LOG.md` for detailed phase tables (including test, refactoring, and performance phases) and `PROMPT_LOG.md` for prompt/response log.

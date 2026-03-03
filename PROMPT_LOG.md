@@ -3888,3 +3888,26 @@ Targeted coverage gaps in connection_info, handshake enums, lib.rs constants, co
 - P80: SM9 pairing O(n²) fix — remove(0) → position()+index, pre-computed Q/yp_fp2 (5-10%)
 - All 3,913 tests pass (3,935 total), 22 ignored, 0 clippy/fmt warnings
 - 18 files modified, +1032 -193 lines
+
+---
+
+## Phase T73 — Quality Safety Net P4 (2026-03-03)
+
+**Prompt**: 请针对质量防护网的每一层，深度分析每一层，识别哪些地方是需要补充防护能力的？然后按照P0→P1→P2→P3的顺序，依次完成，每次完成一个任务后提交修改。
+
+**Result**:
+- P0: Security hardening — hash digest zeroize-on-drop (Sha256/384/512/Sha3-256/SM3), CBC decrypt unwrap elimination (5 paths), fuzz assertion hardening (HKDF/SLH-DSA)
+- P1-1: SM2/SM9 GM/T standard test vectors
+- P1-2: ML-KEM/ML-DSA frozen golden-value KAT (SHA-256 fingerprints for 512/768/1024 and 44/65/87)
+- P1-3: CRL end-to-end integration test (CA→CrlBuilder→DER/PEM→verify→revocation status)
+- P1-4: ECDSA/ECDH P-384/P-521 proptests (4 blocks, 10 cases each)
+- P1-5: SM4 modes fuzz target (CBC/GCM roundtrip + fuzzed decrypt, 5 corpus seeds)
+- P1-6: CI feature flag expansion (+4: md5/tls12+async/tlcp+async/dtlcp+async)
+- P2-1: X.509 certificate unit tests (+8: PEM roundtrip, truncated DER, Ed25519/RSA verify, wrong issuer, is_ca, DN equality)
+- P2-2: PKI/TLS proptest expansion (CRL build→parse roundtrip, anti-replay window invariants)
+- P2-3: HPKE/XMSS-MT integration tests (X25519 base mode seal/open, SHA-256 h=20 d=4 sign/verify)
+- P2-4: AES advanced modes fuzz (XTS/CFB/CTR/KeyWrap roundtrip + fuzzed unwrap, 6 corpus seeds)
+- P2-5: Coverage CI hardening (fail_ci_if_error: true, +4 Codecov components)
+- P3: DTLS cookie ct_eq (DTLS 1.2 + DTLCP), AES-CTR/HMAC-SHA384/SHA512/DH multi-group proptests
+- All 3,947 tests pass, 22 ignored, 0 clippy/fmt warnings
+- 65 fuzz targets, 429 corpus seeds, ~87 proptest blocks, ~59 CI feature tests, 8 Codecov components
