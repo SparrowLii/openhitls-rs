@@ -137,6 +137,11 @@ jobs:
       - run: cargo test -p hitls-tls --no-default-features --features tls12,tls13
       - run: cargo test -p hitls-crypto --no-default-features --features aes,modes,sha2
       - run: cargo test -p hitls-pki --no-default-features --features x509,pkcs8,cms,pkcs12
+      # T73: Async protocol feature combinations
+      - run: cargo test -p hitls-crypto --no-default-features --features md5
+      - run: cargo test -p hitls-tls --no-default-features --features tls12,async
+      - run: cargo test -p hitls-tls --no-default-features --features tlcp,async
+      - run: cargo test -p hitls-tls --no-default-features --features dtlcp,async
 
   audit:
     name: Security Audit
