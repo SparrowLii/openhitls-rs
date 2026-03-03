@@ -807,8 +807,10 @@ mod tests {
         use super::*;
         use proptest::prelude::*;
 
-        fn make_ed25519_ca() -> (super::super::Certificate, super::super::super::signing::SigningKey)
-        {
+        fn make_ed25519_ca() -> (
+            super::super::Certificate,
+            super::super::super::signing::SigningKey,
+        ) {
             let kp = hitls_crypto::ed25519::Ed25519KeyPair::generate().unwrap();
             let sk = super::super::super::signing::SigningKey::Ed25519(kp);
             let dn = DistinguishedName {

@@ -507,8 +507,7 @@ fn test_crl_builder_sign_parse_verify_roundtrip() {
         ],
     };
     let ca_cert =
-        CertificateBuilder::self_signed(ca_dn.clone(), &sk, 1_700_000_000, 1_800_000_000)
-            .unwrap();
+        CertificateBuilder::self_signed(ca_dn.clone(), &sk, 1_700_000_000, 1_800_000_000).unwrap();
     assert!(ca_cert.is_self_signed());
     assert!(ca_cert.is_ca());
 
