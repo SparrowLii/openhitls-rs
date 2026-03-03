@@ -583,3 +583,58 @@ fn test_crl_builder_sign_parse_verify_roundtrip() {
         "CRL signature must fail with wrong CA"
     );
 }
+
+/// HPKE end-to-end: X25519 base mode seal→open roundtrip.
+#[test]
+fn test_hpke_base_mode_seal_open_roundtrip() {
+    use hitls_crypto::hpke::HpkeCtx;
+
+    // Generate recipient X25519 key
+    let sk_r = hitls_crypto::x25519::X25519PrivateKey::generate().unwrap();
+    let pk_r_bytes = sk_r.public_key().as_bytes().to_vec();
+    let sk_r_bytes = sk_r.to_bytes();
+
+    let info = b"integration test info";
+    let aad = b"associated data";
+    let plaintext = b"Hello, HPKE integration test!";
+
+    // Sender: setup + seal (default suite: X25519/SHA256/AES128-GCM)
+    let (mut sender_ctx, enc): (HpkeCtx, Vec<u8>) =
+        HpkeCtx::setup_sender(&pk_r_bytes, info).unwrap();
+    let ciphertext: Vec<u8> = sender_ctx.seal(aad, plaintext).unwrap();
+
+    // Recipient: setup + open
+    let mut recipient_ctx = HpkeCtx::setup_recipient(&sk_r_bytes, &enc, info).unwrap();
+    let decrypted = recipient_ctx.open(aad, &ciphertext).unwrap();
+    assert_eq!(decrypted, plaintext, "HPKE seal/open roundtrip failed");
+
+    // Tampered ciphertext must fail
+    let mut bad_ct = ciphertext.clone();
+    bad_ct[0] ^= 0xFF;
+    let mut ctx2 = HpkeCtx::setup_recipient(&sk_r_bytes, &enc, info).unwrap();
+    assert!(ctx2.open(aad, &bad_ct).is_err(), "tampered ct must fail");
+}
+
+/// XMSS-MT end-to-end: multi-tree sign→verify roundtrip.
+#[test]
+fn test_xmss_mt_sign_verify_roundtrip() {
+    use hitls_types::XmssMtParamId;
+
+    // Use the smallest multi-tree variant: SHA-256 h=20 d=4
+    let param = XmssMtParamId::Sha2_20_4_256;
+    let mut kp = hitls_crypto::xmss::XmssMtKeyPair::generate(param).unwrap();
+    assert!(kp.remaining_signatures() > 0);
+
+    let msg = b"XMSS-MT integration test message";
+    let sig = kp.sign(msg).unwrap();
+
+    // Verify
+    assert!(kp.verify(msg, &sig).unwrap(), "XMSS-MT verify must pass");
+
+    // Verify with wrong message must fail
+    let result = kp.verify(b"wrong message", &sig);
+    assert!(
+        result.is_err() || !result.unwrap(),
+        "XMSS-MT verify must fail with wrong message"
+    );
+}
