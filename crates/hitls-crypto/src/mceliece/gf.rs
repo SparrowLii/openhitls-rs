@@ -66,7 +66,11 @@ pub(crate) fn gf_mul(a: GfElement, b: GfElement) -> GfElement {
     }
     let t = tables();
     let s = u32::from(t.log_table[a as usize]) + u32::from(t.log_table[b as usize]);
-    let s = if s >= u32::from(Q_1) { s - u32::from(Q_1) } else { s };
+    let s = if s >= u32::from(Q_1) {
+        s - u32::from(Q_1)
+    } else {
+        s
+    };
     t.exp_table[s as usize]
 }
 

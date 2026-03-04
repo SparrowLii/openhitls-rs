@@ -341,14 +341,14 @@ impl<S: Read + Write> Tls12ClientConnection<S> {
         // 9. Activate write encryption
         if flight.is_cbc && hs.use_encrypt_then_mac() {
             self.record_layer.activate_write_encryption12_etm(
-                flight.client_write_key.clone(),
-                flight.client_write_mac_key.clone(),
+                &flight.client_write_key,
+                &flight.client_write_mac_key,
                 flight.mac_len,
             )?;
         } else if flight.is_cbc {
             self.record_layer.activate_write_encryption12_cbc(
-                flight.client_write_key.clone(),
-                flight.client_write_mac_key.clone(),
+                &flight.client_write_key,
+                &flight.client_write_mac_key,
                 flight.mac_len,
             )?;
         } else {
@@ -398,14 +398,14 @@ impl<S: Read + Write> Tls12ClientConnection<S> {
         // 12. Activate read decryption
         if flight.is_cbc && hs.use_encrypt_then_mac() {
             self.record_layer.activate_read_decryption12_etm(
-                flight.server_write_key.clone(),
-                flight.server_write_mac_key.clone(),
+                &flight.server_write_key,
+                &flight.server_write_mac_key,
                 flight.mac_len,
             )?;
         } else if flight.is_cbc {
             self.record_layer.activate_read_decryption12_cbc(
-                flight.server_write_key.clone(),
-                flight.server_write_mac_key.clone(),
+                &flight.server_write_key,
+                &flight.server_write_mac_key,
                 flight.mac_len,
             )?;
         } else {
@@ -523,14 +523,14 @@ impl<S: Read + Write> Tls12ClientConnection<S> {
         // 2. Activate read decryption (server write key)
         if keys.is_cbc && hs.use_encrypt_then_mac() {
             self.record_layer.activate_read_decryption12_etm(
-                keys.server_write_key.clone(),
-                keys.server_write_mac_key.clone(),
+                &keys.server_write_key,
+                &keys.server_write_mac_key,
                 keys.mac_len,
             )?;
         } else if keys.is_cbc {
             self.record_layer.activate_read_decryption12_cbc(
-                keys.server_write_key.clone(),
-                keys.server_write_mac_key.clone(),
+                &keys.server_write_key,
+                &keys.server_write_mac_key,
                 keys.mac_len,
             )?;
         } else {
@@ -561,14 +561,14 @@ impl<S: Read + Write> Tls12ClientConnection<S> {
         // 5. Activate write encryption (client write key)
         if keys.is_cbc && hs.use_encrypt_then_mac() {
             self.record_layer.activate_write_encryption12_etm(
-                keys.client_write_key.clone(),
-                keys.client_write_mac_key.clone(),
+                &keys.client_write_key,
+                &keys.client_write_mac_key,
                 keys.mac_len,
             )?;
         } else if keys.is_cbc {
             self.record_layer.activate_write_encryption12_cbc(
-                keys.client_write_key.clone(),
-                keys.client_write_mac_key.clone(),
+                &keys.client_write_key,
+                &keys.client_write_mac_key,
                 keys.mac_len,
             )?;
         } else {
@@ -821,14 +821,14 @@ impl<S: Read + Write> Tls12ClientConnection<S> {
         // Activate write encryption (re-key)
         if flight.is_cbc && hs.use_encrypt_then_mac() {
             self.record_layer.activate_write_encryption12_etm(
-                flight.client_write_key.clone(),
-                flight.client_write_mac_key.clone(),
+                &flight.client_write_key,
+                &flight.client_write_mac_key,
                 flight.mac_len,
             )?;
         } else if flight.is_cbc {
             self.record_layer.activate_write_encryption12_cbc(
-                flight.client_write_key.clone(),
-                flight.client_write_mac_key.clone(),
+                &flight.client_write_key,
+                &flight.client_write_mac_key,
                 flight.mac_len,
             )?;
         } else {
@@ -877,14 +877,14 @@ impl<S: Read + Write> Tls12ClientConnection<S> {
         // Activate read decryption (re-key)
         if flight.is_cbc && hs.use_encrypt_then_mac() {
             self.record_layer.activate_read_decryption12_etm(
-                flight.server_write_key.clone(),
-                flight.server_write_mac_key.clone(),
+                &flight.server_write_key,
+                &flight.server_write_mac_key,
                 flight.mac_len,
             )?;
         } else if flight.is_cbc {
             self.record_layer.activate_read_decryption12_cbc(
-                flight.server_write_key.clone(),
-                flight.server_write_mac_key.clone(),
+                &flight.server_write_key,
+                &flight.server_write_mac_key,
                 flight.mac_len,
             )?;
         } else {

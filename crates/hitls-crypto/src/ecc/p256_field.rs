@@ -375,8 +375,9 @@ fn p256_mont_reduce(mut t: [u64; 8]) -> P256FieldElement {
         let mut carry: u64 = m;
 
         // j=1: P[1] = 0x0000_0000_FFFF_FFFF
-        let p =
-            u128::from(m) * u128::from(0x0000_0000_FFFF_FFFFu64) + u128::from(t[i + 1]) + u128::from(carry);
+        let p = u128::from(m) * u128::from(0x0000_0000_FFFF_FFFFu64)
+            + u128::from(t[i + 1])
+            + u128::from(carry);
         t[i + 1] = p as u64;
         carry = (p >> 64) as u64;
 
@@ -386,8 +387,9 @@ fn p256_mont_reduce(mut t: [u64; 8]) -> P256FieldElement {
         carry = (p >> 64) as u64;
 
         // j=3: P[3] = 0xFFFF_FFFF_0000_0001
-        let p =
-            u128::from(m) * u128::from(0xFFFF_FFFF_0000_0001u64) + u128::from(t[i + 3]) + u128::from(carry);
+        let p = u128::from(m) * u128::from(0xFFFF_FFFF_0000_0001u64)
+            + u128::from(t[i + 3])
+            + u128::from(carry);
         t[i + 3] = p as u64;
         carry = (p >> 64) as u64;
 

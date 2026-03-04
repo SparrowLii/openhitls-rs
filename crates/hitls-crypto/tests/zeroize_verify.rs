@@ -33,7 +33,7 @@ fn has_nonzero(data: &[u8]) -> bool {
 // ============================================================
 #[cfg(feature = "aes")]
 #[test]
-#[ignore]
+#[ignore = "requires unsafe memory inspection"]
 fn test_aes_key_zeroed_on_drop() {
     use hitls_crypto::aes::AesKey;
 
@@ -63,7 +63,7 @@ fn test_aes_key_zeroed_on_drop() {
 // ============================================================
 #[cfg(feature = "hmac")]
 #[test]
-#[ignore]
+#[ignore = "requires unsafe memory inspection"]
 fn test_hmac_key_zeroed_on_drop() {
     use hitls_crypto::hmac::Hmac;
     use hitls_crypto::sha2::Sha256;
@@ -91,7 +91,7 @@ fn test_hmac_key_zeroed_on_drop() {
 // ============================================================
 #[cfg(feature = "ecdsa")]
 #[test]
-#[ignore]
+#[ignore = "requires unsafe memory inspection"]
 fn test_ecdsa_private_key_zeroed_on_zeroize() {
     use hitls_crypto::ecdsa::EcdsaKeyPair;
     use hitls_types::EccCurveId;
@@ -121,7 +121,7 @@ fn test_ecdsa_private_key_zeroed_on_zeroize() {
 // ============================================================
 #[cfg(feature = "x25519")]
 #[test]
-#[ignore]
+#[ignore = "requires unsafe memory inspection"]
 fn test_x25519_private_key_zeroed_on_zeroize() {
     use hitls_crypto::x25519::X25519PrivateKey;
     use zeroize::Zeroize;

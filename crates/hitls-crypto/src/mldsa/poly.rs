@@ -278,9 +278,12 @@ pub(crate) fn unpack_t1(data: &[u8]) -> Poly {
     for i in 0..N / 4 {
         let idx = 4 * i;
         r[idx] = (i32::from(data[5 * i]) | (i32::from(data[5 * i + 1]) << 8)) & 0x3FF;
-        r[idx + 1] = ((i32::from(data[5 * i + 1]) >> 2) | (i32::from(data[5 * i + 2]) << 6)) & 0x3FF;
-        r[idx + 2] = ((i32::from(data[5 * i + 2]) >> 4) | (i32::from(data[5 * i + 3]) << 4)) & 0x3FF;
-        r[idx + 3] = ((i32::from(data[5 * i + 3]) >> 6) | (i32::from(data[5 * i + 4]) << 2)) & 0x3FF;
+        r[idx + 1] =
+            ((i32::from(data[5 * i + 1]) >> 2) | (i32::from(data[5 * i + 2]) << 6)) & 0x3FF;
+        r[idx + 2] =
+            ((i32::from(data[5 * i + 2]) >> 4) | (i32::from(data[5 * i + 3]) << 4)) & 0x3FF;
+        r[idx + 3] =
+            ((i32::from(data[5 * i + 3]) >> 6) | (i32::from(data[5 * i + 4]) << 2)) & 0x3FF;
     }
     r
 }
@@ -318,14 +321,16 @@ pub(crate) fn unpack_t0(data: &[u8]) -> Poly {
         r[8 * i + 1] = (i32::from(data[13 * i + 1]) >> 5)
             | (i32::from(data[13 * i + 2]) << 3)
             | ((i32::from(data[13 * i + 3]) & 0x03) << 11);
-        r[8 * i + 2] = (i32::from(data[13 * i + 3]) >> 2) | ((i32::from(data[13 * i + 4]) & 0x7F) << 6);
+        r[8 * i + 2] =
+            (i32::from(data[13 * i + 3]) >> 2) | ((i32::from(data[13 * i + 4]) & 0x7F) << 6);
         r[8 * i + 3] = (i32::from(data[13 * i + 4]) >> 7)
             | (i32::from(data[13 * i + 5]) << 1)
             | ((i32::from(data[13 * i + 6]) & 0x0F) << 9);
         r[8 * i + 4] = (i32::from(data[13 * i + 6]) >> 4)
             | (i32::from(data[13 * i + 7]) << 4)
             | ((i32::from(data[13 * i + 8]) & 0x01) << 12);
-        r[8 * i + 5] = (i32::from(data[13 * i + 8]) >> 1) | ((i32::from(data[13 * i + 9]) & 0x3F) << 7);
+        r[8 * i + 5] =
+            (i32::from(data[13 * i + 8]) >> 1) | ((i32::from(data[13 * i + 9]) & 0x3F) << 7);
         r[8 * i + 6] = (i32::from(data[13 * i + 9]) >> 6)
             | (i32::from(data[13 * i + 10]) << 2)
             | ((i32::from(data[13 * i + 11]) & 0x07) << 10);

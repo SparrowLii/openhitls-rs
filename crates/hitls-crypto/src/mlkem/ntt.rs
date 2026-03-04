@@ -378,7 +378,8 @@ mod tests {
         for i in 0..N {
             // montgomery_reduce(x) = x * R^{-1} mod q, undoing the extra R factor
             let recovered = montgomery_reduce(i32::from(f[i]));
-            let expected = ((i32::from(orig[i]) % i32::from(Q) + i32::from(Q)) % i32::from(Q)) as i16;
+            let expected =
+                ((i32::from(orig[i]) % i32::from(Q) + i32::from(Q)) % i32::from(Q)) as i16;
             let got = ((i32::from(recovered) % i32::from(Q) + i32::from(Q)) % i32::from(Q)) as i16;
             assert_eq!(
                 got, expected,

@@ -133,8 +133,8 @@ impl Drop for RecordEncryptorTlcpCbc {
 }
 
 impl RecordEncryptorTlcpCbc {
-    pub fn new(enc_key: Vec<u8>, mac_key: Vec<u8>) -> Result<Self, TlsError> {
-        let hmac = create_sm3_hmac(&mac_key)?;
+    pub fn new(enc_key: Vec<u8>, mac_key: &[u8]) -> Result<Self, TlsError> {
+        let hmac = create_sm3_hmac(mac_key)?;
         Ok(Self {
             enc_key,
             hmac,
@@ -211,8 +211,8 @@ impl Drop for RecordDecryptorTlcpCbc {
 }
 
 impl RecordDecryptorTlcpCbc {
-    pub fn new(enc_key: Vec<u8>, mac_key: Vec<u8>) -> Result<Self, TlsError> {
-        let hmac = create_sm3_hmac(&mac_key)?;
+    pub fn new(enc_key: Vec<u8>, mac_key: &[u8]) -> Result<Self, TlsError> {
+        let hmac = create_sm3_hmac(mac_key)?;
         Ok(Self {
             enc_key,
             hmac,
@@ -499,8 +499,8 @@ mod tests {
         let enc_key = vec![0x42u8; 16];
         let mac_key = vec![0xABu8; 32];
 
-        let mut enc = RecordEncryptorTlcpCbc::new(enc_key.clone(), mac_key.clone()).unwrap();
-        let mut dec = RecordDecryptorTlcpCbc::new(enc_key, mac_key).unwrap();
+        let mut enc = RecordEncryptorTlcpCbc::new(enc_key.clone(), &mac_key).unwrap();
+        let mut dec = RecordDecryptorTlcpCbc::new(enc_key, &mac_key).unwrap();
 
         let plaintext = b"hello TLCP CBC MAC-then-encrypt";
         let record = enc
@@ -522,9 +522,9 @@ mod tests {
         let enc_key = vec![0x42u8; 16];
         let mac_key = vec![0xABu8; 32];
 
-        let mut enc = RecordEncryptorTlcpCbc::new(enc_key.clone(), mac_key.clone()).unwrap();
+        let mut enc = RecordEncryptorTlcpCbc::new(enc_key.clone(), &mac_key).unwrap();
         // Use different mac_key for decryption → MAC mismatch
-        let mut dec = RecordDecryptorTlcpCbc::new(enc_key, vec![0xCDu8; 32]).unwrap();
+        let mut dec = RecordDecryptorTlcpCbc::new(enc_key, &[0xCDu8; 32]).unwrap();
 
         let record = enc
             .encrypt_record(ContentType::ApplicationData, b"secret")
@@ -537,8 +537,8 @@ mod tests {
         let enc_key = vec![0x42u8; 16];
         let mac_key = vec![0xABu8; 32];
 
-        let mut enc = RecordEncryptorTlcpCbc::new(enc_key.clone(), mac_key.clone()).unwrap();
-        let mut dec = RecordDecryptorTlcpCbc::new(enc_key, mac_key).unwrap();
+        let mut enc = RecordEncryptorTlcpCbc::new(enc_key.clone(), &mac_key).unwrap();
+        let mut dec = RecordDecryptorTlcpCbc::new(enc_key, &mac_key).unwrap();
 
         let mut record = enc
             .encrypt_record(ContentType::ApplicationData, b"secret data")
@@ -554,8 +554,8 @@ mod tests {
         let enc_key = vec![0x42u8; 16];
         let mac_key = vec![0xABu8; 32];
 
-        let mut enc = RecordEncryptorTlcpCbc::new(enc_key.clone(), mac_key.clone()).unwrap();
-        let mut dec = RecordDecryptorTlcpCbc::new(enc_key, mac_key).unwrap();
+        let mut enc = RecordEncryptorTlcpCbc::new(enc_key.clone(), &mac_key).unwrap();
+        let mut dec = RecordDecryptorTlcpCbc::new(enc_key, &mac_key).unwrap();
 
         let record = enc
             .encrypt_record(ContentType::ApplicationData, b"")
@@ -620,8 +620,8 @@ mod tests {
         let enc_key = vec![0x42u8; 16];
         let mac_key = vec![0xABu8; 32];
 
-        let mut enc = RecordEncryptorTlcpCbc::new(enc_key.clone(), mac_key.clone()).unwrap();
-        let mut dec = RecordDecryptorTlcpCbc::new(enc_key, mac_key).unwrap();
+        let mut enc = RecordEncryptorTlcpCbc::new(enc_key.clone(), &mac_key).unwrap();
+        let mut dec = RecordDecryptorTlcpCbc::new(enc_key, &mac_key).unwrap();
 
         for i in 0..5 {
             let msg = format!("message {i}");
@@ -639,7 +639,7 @@ mod tests {
     fn test_cbc_decrypt_fragment_too_short() {
         let enc_key = vec![0x42u8; 16];
         let mac_key = vec![0xABu8; 32];
-        let mut dec = RecordDecryptorTlcpCbc::new(enc_key, mac_key).unwrap();
+        let mut dec = RecordDecryptorTlcpCbc::new(enc_key, &mac_key).unwrap();
 
         // Minimum is SM4_BLOCK_SIZE + SM4_BLOCK_SIZE * 3 = 64 bytes
         let short_record = Record {
@@ -658,7 +658,7 @@ mod tests {
     fn test_cbc_decrypt_not_block_aligned() {
         let enc_key = vec![0x42u8; 16];
         let mac_key = vec![0xABu8; 32];
-        let mut dec = RecordDecryptorTlcpCbc::new(enc_key, mac_key).unwrap();
+        let mut dec = RecordDecryptorTlcpCbc::new(enc_key, &mac_key).unwrap();
 
         // IV(16) + encrypted data that is not a multiple of SM4_BLOCK_SIZE
         // 16 (IV) + 49 bytes (not multiple of 16) = 65 total, >= 64 minimum

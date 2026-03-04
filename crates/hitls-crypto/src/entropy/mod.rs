@@ -67,7 +67,7 @@ impl NoiseSource for SystemNoiseSource {
 }
 
 /// Configuration for the entropy source.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct EntropyConfig {
     /// Capacity of the entropy pool in bytes. Default: 4096.
     pub pool_capacity: usize,

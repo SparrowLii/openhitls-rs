@@ -372,21 +372,24 @@ fn sm2_mont_reduce(mut t: [u64; 8]) -> Sm2FieldElement {
         let mut carry: u64 = m;
 
         // j=1: P[1] = 0xFFFF_FFFF_0000_0000 (1 multiply)
-        let p =
-            u128::from(m) * u128::from(0xFFFF_FFFF_0000_0000u64) + u128::from(t[i + 1]) + u128::from(carry);
+        let p = u128::from(m) * u128::from(0xFFFF_FFFF_0000_0000u64)
+            + u128::from(t[i + 1])
+            + u128::from(carry);
         t[i + 1] = p as u64;
         carry = (p >> 64) as u64;
 
         // j=2: P[2] = 0xFFFF_FFFF_FFFF_FFFF (1 multiply)
         // m * P[2] + t[i+2] + carry fits in u128: max = (2^64-1)^2 + 2*(2^64-1) = 2^128-1.
-        let p =
-            u128::from(m) * u128::from(0xFFFF_FFFF_FFFF_FFFFu64) + u128::from(t[i + 2]) + u128::from(carry);
+        let p = u128::from(m) * u128::from(0xFFFF_FFFF_FFFF_FFFFu64)
+            + u128::from(t[i + 2])
+            + u128::from(carry);
         t[i + 2] = p as u64;
         carry = (p >> 64) as u64;
 
         // j=3: P[3] = 0xFFFF_FFFE_FFFF_FFFF (1 multiply)
-        let p =
-            u128::from(m) * u128::from(0xFFFF_FFFE_FFFF_FFFFu64) + u128::from(t[i + 3]) + u128::from(carry);
+        let p = u128::from(m) * u128::from(0xFFFF_FFFE_FFFF_FFFFu64)
+            + u128::from(t[i + 3])
+            + u128::from(carry);
         t[i + 3] = p as u64;
         carry = (p >> 64) as u64;
 

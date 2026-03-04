@@ -81,7 +81,7 @@ fn timing_t_test<I>(
 // Test 1: ChaCha20-Poly1305 tag verify — valid vs corrupted tag
 // ============================================================
 #[test]
-#[ignore]
+#[ignore = "timing-sensitive: constant-time verification"]
 fn ct_verify_chacha20_poly1305_tag() {
     use hitls_crypto::chacha20::ChaCha20Poly1305;
 
@@ -120,7 +120,7 @@ fn ct_verify_chacha20_poly1305_tag() {
 // Test 2: AES-CCM tag verify — valid vs corrupted tag
 // ============================================================
 #[test]
-#[ignore]
+#[ignore = "timing-sensitive: constant-time verification"]
 fn ct_verify_aes_ccm_tag() {
     use hitls_crypto::modes::ccm;
 
@@ -161,7 +161,7 @@ fn ct_verify_aes_ccm_tag() {
 // Tests that GCM decryption time is independent of ciphertext content
 // (not just tag validity, which timing.rs covers).
 #[test]
-#[ignore]
+#[ignore = "timing-sensitive: constant-time verification"]
 fn ct_verify_aes_gcm_ciphertext_independence() {
     use hitls_crypto::modes::gcm;
 

@@ -139,14 +139,18 @@ impl Fe25519 {
 
         let h0 = u128::from(f[0]) * u128::from(f[0]) + f1_38 * u128::from(f[4]) + f2_19 * f3_2;
 
-        let h1 =
-            f0_2 * u128::from(f[1]) + f2_19 * u128::from(f[4]) * 2 + 19u128 * u128::from(f[3]) * u128::from(f[3]);
+        let h1 = f0_2 * u128::from(f[1])
+            + f2_19 * u128::from(f[4]) * 2
+            + 19u128 * u128::from(f[3]) * u128::from(f[3]);
 
-        let h2 = f0_2 * u128::from(f[2]) + u128::from(f[1]) * u128::from(f[1]) + f3_38 * u128::from(f[4]);
+        let h2 = f0_2 * u128::from(f[2])
+            + u128::from(f[1]) * u128::from(f[1])
+            + f3_38 * u128::from(f[4]);
 
         let h3 = f0_2 * u128::from(f[3]) + f1_2 * u128::from(f[2]) + f4_19 * u128::from(f[4]);
 
-        let h4 = f0_2 * u128::from(f[4]) + f1_2 * u128::from(f[3]) + u128::from(f[2]) * u128::from(f[2]);
+        let h4 =
+            f0_2 * u128::from(f[4]) + f1_2 * u128::from(f[3]) + u128::from(f[2]) * u128::from(f[2]);
 
         Self::carry128([h0, h1, h2, h3, h4])
     }

@@ -386,7 +386,10 @@ impl DtlcpServerHandshake {
                 .as_ref()
                 .ok_or_else(|| TlsError::HandshakeFailed("no enc private key".into()))?;
 
-            let ServerPrivateKey::Sm2 { private_key: private_key_bytes } = enc_key else {
+            let ServerPrivateKey::Sm2 {
+                private_key: private_key_bytes,
+            } = enc_key
+            else {
                 return Err(TlsError::HandshakeFailed(
                     "enc private key must be SM2".into(),
                 ));

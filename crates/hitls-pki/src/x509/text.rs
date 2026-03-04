@@ -171,12 +171,7 @@ fn format_pubkey_info(spki: &SubjectPublicKeyInfo) -> String {
         out.push_str("            ED25519 Public-Key: (256 bit)\n");
     }
 
-    writeln!(
-        out,
-        "            pub:\n{}",
-        hex_dump(&spki.public_key, 16)
-    )
-    .unwrap();
+    writeln!(out, "            pub:\n{}", hex_dump(&spki.public_key, 16)).unwrap();
     out
 }
 
@@ -222,12 +217,7 @@ fn format_extension(ext: &X509Extension) -> String {
             }
             [2, 5, 29, 14] => {
                 // SubjectKeyIdentifier
-                writeln!(
-                    out,
-                    "            {}",
-                    hex_colon(parse_ski(&ext.value))
-                )
-                .unwrap();
+                writeln!(out, "            {}", hex_colon(parse_ski(&ext.value))).unwrap();
             }
             _ => {
                 // Raw hex for unrecognized extensions
@@ -320,18 +310,8 @@ impl Certificate {
         .unwrap();
         writeln!(out, "    Issuer: {}", format_dn(&self.issuer)).unwrap();
         out.push_str("    Validity\n");
-        writeln!(
-            out,
-            "        Not Before: {}",
-            format_time(self.not_before)
-        )
-        .unwrap();
-        writeln!(
-            out,
-            "        Not After : {}",
-            format_time(self.not_after)
-        )
-        .unwrap();
+        writeln!(out, "        Not Before: {}", format_time(self.not_before)).unwrap();
+        writeln!(out, "        Not After : {}", format_time(self.not_after)).unwrap();
         writeln!(out, "    Subject: {}", format_dn(&self.subject)).unwrap();
         out.push_str("    Subject Public Key Info:\n");
         out.push_str(&format_pubkey_info(&self.public_key));
@@ -382,12 +362,7 @@ impl CertificateRevocationList {
         )
         .unwrap();
         writeln!(out, "    Issuer: {}", format_dn(&self.issuer)).unwrap();
-        writeln!(
-            out,
-            "    Last Update: {}",
-            format_time(self.this_update)
-        )
-        .unwrap();
+        writeln!(out, "    Last Update: {}", format_time(self.this_update)).unwrap();
         if let Some(next) = self.next_update {
             writeln!(out, "    Next Update: {}", format_time(next)).unwrap();
         }
@@ -404,15 +379,10 @@ impl CertificateRevocationList {
         } else {
             out.push_str("Revoked Certificates:\n");
             for rc in &self.revoked_certs {
+                writeln!(out, "    Serial Number: {}", hex_colon(&rc.serial_number)).unwrap();
                 writeln!(
-            out,
-            "    Serial Number: {}",
-                    hex_colon(&rc.serial_number)
-                )
-                .unwrap();
-                writeln!(
-            out,
-            "        Revocation Date: {}",
+                    out,
+                    "        Revocation Date: {}",
                     format_time(rc.revocation_date)
                 )
                 .unwrap();

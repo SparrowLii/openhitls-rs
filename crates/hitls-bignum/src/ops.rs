@@ -472,7 +472,8 @@ fn knuth_div_rem(a: &[Limb], b: &[Limb]) -> (BigNum, BigNum) {
             q_limbs[j] -= 1;
             let mut carry: u64 = 0;
             for i in 0..n {
-                let sum = DoubleLimb::from(u[j + i]) + DoubleLimb::from(v[i]) + DoubleLimb::from(carry);
+                let sum =
+                    DoubleLimb::from(u[j + i]) + DoubleLimb::from(v[i]) + DoubleLimb::from(carry);
                 u[j + i] = sum as u64;
                 carry = (sum >> LIMB_BITS) as u64;
             }

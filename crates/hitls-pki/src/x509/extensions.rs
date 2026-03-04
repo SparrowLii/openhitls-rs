@@ -160,7 +160,8 @@ fn parse_basic_constraints(value: &[u8]) -> Result<BasicConstraints, PkiError> {
         let tag = dec
             .peek_tag()
             .map_err(|e| PkiError::Asn1Error(e.to_string()))?;
-        if tag.class == TagClass::Universal && tag.number == u32::from(hitls_utils::asn1::tags::BOOLEAN)
+        if tag.class == TagClass::Universal
+            && tag.number == u32::from(hitls_utils::asn1::tags::BOOLEAN)
         {
             is_ca = dec
                 .read_boolean()

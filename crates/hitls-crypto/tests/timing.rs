@@ -101,7 +101,7 @@ fn timing_t_test<I>(
 // Test 1: HMAC verify — valid vs invalid tag (same length)
 // ============================================================
 #[test]
-#[ignore]
+#[ignore = "timing-sensitive: constant-time verification"]
 fn test_hmac_verify_constant_time() {
     use hitls_crypto::hmac::Hmac;
     use hitls_crypto::sha2::Sha256;
@@ -136,7 +136,7 @@ fn test_hmac_verify_constant_time() {
 // Test 2: AES-GCM tag verify — valid vs corrupted tag
 // ============================================================
 #[test]
-#[ignore]
+#[ignore = "timing-sensitive: constant-time verification"]
 fn test_aes_gcm_tag_verify_constant_time() {
     use hitls_crypto::modes::gcm;
 
@@ -178,7 +178,7 @@ fn test_aes_gcm_tag_verify_constant_time() {
 // at the parse stage, so comparing valid-vs-invalid-signature timings
 // produces false positives and is not a meaningful security property.
 #[test]
-#[ignore]
+#[ignore = "timing-sensitive: constant-time verification"]
 fn test_ecdsa_verify_constant_time() {
     use hitls_crypto::ecdsa::EcdsaKeyPair;
     use hitls_types::EccCurveId;
@@ -217,7 +217,7 @@ fn test_ecdsa_verify_constant_time() {
 // Test 4: RSA PKCS#1 v1.5 verify — valid vs invalid signature
 // ============================================================
 #[test]
-#[ignore]
+#[ignore = "timing-sensitive: constant-time verification"]
 fn test_rsa_pkcs1_verify_constant_time() {
     use hitls_crypto::rsa::{RsaPadding, RsaPrivateKey};
 
@@ -252,7 +252,7 @@ fn test_rsa_pkcs1_verify_constant_time() {
 // Test 5: X25519 DH — different private keys, same public key
 // ============================================================
 #[test]
-#[ignore]
+#[ignore = "timing-sensitive: constant-time verification"]
 fn test_x25519_dh_constant_time() {
     use hitls_crypto::x25519::X25519PrivateKey;
 
@@ -289,7 +289,7 @@ fn test_x25519_dh_constant_time() {
 // Test 6: BigNum ct_eq — same vs different values
 // ============================================================
 #[test]
-#[ignore]
+#[ignore = "timing-sensitive: constant-time verification"]
 fn test_bignum_ct_eq_constant_time() {
     use hitls_bignum::BigNum;
 
@@ -320,7 +320,7 @@ fn test_bignum_ct_eq_constant_time() {
 // Test 7: RSA OAEP decrypt — valid vs corrupted maskedDB
 // ============================================================
 #[test]
-#[ignore]
+#[ignore = "timing-sensitive: constant-time verification"]
 fn test_rsa_oaep_decrypt_constant_time() {
     use hitls_crypto::rsa::{RsaPadding, RsaPrivateKey};
 
@@ -357,7 +357,7 @@ fn test_rsa_oaep_decrypt_constant_time() {
 // Test 8: RSA PKCS#1v15 decrypt — valid vs PS-too-short msg
 // ============================================================
 #[test]
-#[ignore]
+#[ignore = "timing-sensitive: constant-time verification"]
 fn test_rsa_pkcs1v15_decrypt_constant_time() {
     use hitls_crypto::rsa::{RsaPadding, RsaPrivateKey};
 

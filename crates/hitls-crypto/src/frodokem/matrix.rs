@@ -302,7 +302,8 @@ pub(crate) fn mul_bs(s_t: &[u16], c1: &[u16], params: &FrodoParams) -> Vec<u16> 
         for j in 0..n_bar {
             let mut sum = 0u32;
             for k in 0..n {
-                sum = sum.wrapping_add(u32::from(c1[i * n + k]).wrapping_mul(u32::from(s_t[j * n + k])));
+                sum = sum
+                    .wrapping_add(u32::from(c1[i * n + k]).wrapping_mul(u32::from(s_t[j * n + k])));
             }
             result[i * n_bar + j] = (sum as u16) & q_mask;
         }

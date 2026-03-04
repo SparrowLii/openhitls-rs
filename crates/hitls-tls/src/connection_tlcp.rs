@@ -104,7 +104,7 @@ pub(crate) fn activate_tlcp_write(
     if is_cbc {
         rl.activate_write_encryption_tlcp(TlcpEncryptor::Cbc(RecordEncryptorTlcpCbc::new(
             enc_key.to_vec(),
-            mac_key.to_vec(),
+            mac_key,
         )?));
     } else {
         rl.activate_write_encryption_tlcp(TlcpEncryptor::Gcm(RecordEncryptorTlcpGcm::new(
@@ -129,7 +129,7 @@ pub(crate) fn activate_tlcp_read(
     if is_cbc {
         rl.activate_read_decryption_tlcp(TlcpDecryptor::Cbc(RecordDecryptorTlcpCbc::new(
             enc_key.to_vec(),
-            mac_key.to_vec(),
+            mac_key,
         )?));
     } else {
         rl.activate_read_decryption_tlcp(TlcpDecryptor::Gcm(RecordDecryptorTlcpGcm::new(

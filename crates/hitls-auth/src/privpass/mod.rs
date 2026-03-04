@@ -258,7 +258,7 @@ impl Client {
     pub fn finalize_token(
         &self,
         response: &TokenResponse,
-        state: BlindState,
+        state: &BlindState,
     ) -> Result<Token, CryptoError> {
         let blind_sig = BigNum::from_bytes_be(&response.blind_sig);
 
@@ -443,7 +443,7 @@ mod tests {
         assert!(!response.blind_sig.is_empty());
 
         // Client unblinds the response to get the final token
-        let token = client.finalize_token(&response, state).unwrap();
+        let token = client.finalize_token(&response, &state).unwrap();
         assert_eq!(token.token_type, TokenType::PubliclyVerifiable);
         assert_eq!(token.nonce.len(), 32);
         assert!(!token.authenticator.is_empty());
@@ -464,7 +464,7 @@ mod tests {
 
         let (request, state) = client.create_token_request(challenge).unwrap();
         let response = issuer.issue(&request).unwrap();
-        let mut token = client.finalize_token(&response, state).unwrap();
+        let mut token = client.finalize_token(&response, &state).unwrap();
 
         // Tamper with the authenticator
         if let Some(byte) = token.authenticator.last_mut() {
@@ -486,7 +486,7 @@ mod tests {
 
         let (request, state) = client.create_token_request(challenge).unwrap();
         let response = issuer.issue(&request).unwrap();
-        let token = client.finalize_token(&response, state).unwrap();
+        let token = client.finalize_token(&response, &state).unwrap();
 
         // Verify with a different (wrong) public exponent
         // Use e=3 instead of e=65537
@@ -505,7 +505,7 @@ mod tests {
         // Issue token for "challenge1"
         let (request, state) = client.create_token_request(b"challenge1").unwrap();
         let response = issuer.issue(&request).unwrap();
-        let token = client.finalize_token(&response, state).unwrap();
+        let token = client.finalize_token(&response, &state).unwrap();
 
         // Verify against "challenge2" → should fail
         let valid = verify_token(&token, &n, &e, b"challenge2").unwrap();
@@ -613,7 +613,7 @@ mod tests {
         let response = TokenResponse {
             blind_sig: vec![0u8; 128],
         };
-        assert!(client.finalize_token(&response, state).is_err());
+        assert!(client.finalize_token(&response, &state).is_err());
     }
 
     #[test]
@@ -667,7 +667,7 @@ mod tests {
                 let client = Client::new(&n, &e).unwrap();
                 let (request, state) = client.create_token_request(&challenge).unwrap();
                 let response = issuer.issue(&request).unwrap();
-                let token = client.finalize_token(&response, state).unwrap();
+                let token = client.finalize_token(&response, &state).unwrap();
                 let valid = verify_token(&token, &n, &e, &challenge).unwrap();
                 prop_assert!(valid, "Token should verify for any challenge");
             }
@@ -683,7 +683,7 @@ mod tests {
                 let client = Client::new(&n, &e).unwrap();
                 let (request, state) = client.create_token_request(&challenge1).unwrap();
                 let response = issuer.issue(&request).unwrap();
-                let token = client.finalize_token(&response, state).unwrap();
+                let token = client.finalize_token(&response, &state).unwrap();
                 let valid = verify_token(&token, &n, &e, &challenge2).unwrap();
                 prop_assert!(!valid, "Token should NOT verify with wrong challenge");
             }

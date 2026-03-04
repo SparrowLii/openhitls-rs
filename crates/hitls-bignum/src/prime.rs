@@ -213,7 +213,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // Safe prime generation is slow
+    #[ignore = "slow: safe prime generation"]
     fn test_gen_prime_safe() {
         let p = BigNum::gen_prime(32, true).unwrap();
         assert!(p.is_probably_prime(10).unwrap());

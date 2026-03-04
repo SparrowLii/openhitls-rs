@@ -152,7 +152,8 @@ impl MontgomeryCtx {
             let m = scratch[0].wrapping_mul(np);
 
             // j = 0: low word cancels by Montgomery property
-            let prod0 = DoubleLimb::from(m) * DoubleLimb::from(n_mod[0]) + DoubleLimb::from(scratch[0]);
+            let prod0 =
+                DoubleLimb::from(m) * DoubleLimb::from(n_mod[0]) + DoubleLimb::from(scratch[0]);
             carry = (prod0 >> LIMB_BITS) as u64;
 
             for j in 1..n {
@@ -810,7 +811,9 @@ mod tests {
         for i in 0..n {
             let mut carry: u64 = 0;
             for j in 0..n {
-                let prod = u128::from(a[i]) * u128::from(a[j]) + u128::from(mul_out[i + j]) + u128::from(carry);
+                let prod = u128::from(a[i]) * u128::from(a[j])
+                    + u128::from(mul_out[i + j])
+                    + u128::from(carry);
                 mul_out[i + j] = prod as u64;
                 carry = (prod >> 64) as u64;
             }

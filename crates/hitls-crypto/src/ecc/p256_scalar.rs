@@ -361,7 +361,8 @@ fn scalar_mont_reduce(mut t: [u64; 8]) -> P256ScalarElement {
 
         let mut carry: u64 = 0;
         for j in 0..4 {
-            let product = u128::from(m) * u128::from(N[j]) + u128::from(t[i + j]) + u128::from(carry);
+            let product =
+                u128::from(m) * u128::from(N[j]) + u128::from(t[i + j]) + u128::from(carry);
             t[i + j] = product as u64;
             carry = (product >> 64) as u64;
         }

@@ -213,25 +213,25 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // Requires internet access
+    #[ignore = "requires internet access"]
     fn test_s_client_tls13_google() {
         run("google.com:443", None, "1.3", None, true, false, true).unwrap();
     }
 
     #[test]
-    #[ignore] // Requires internet access
+    #[ignore = "requires internet access"]
     fn test_s_client_tls12_google() {
         run("google.com:443", None, "1.2", None, true, false, true).unwrap();
     }
 
     #[test]
-    #[ignore] // Requires internet access
+    #[ignore = "requires internet access"]
     fn test_s_client_http_get_tls13() {
         run("httpbin.org:443", None, "1.3", None, true, true, true).unwrap();
     }
 
     #[test]
-    #[ignore] // Requires internet access
+    #[ignore = "requires internet access"]
     fn test_s_client_tls13_cloudflare() {
         run("cloudflare.com:443", None, "1.3", None, true, false, true).unwrap();
     }
@@ -289,7 +289,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // Requires internet access
+    #[ignore = "requires internet access"]
     fn test_s_client_tls12_with_alpn() {
         run(
             "google.com:443",

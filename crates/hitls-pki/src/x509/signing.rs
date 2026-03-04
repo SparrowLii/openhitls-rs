@@ -11,6 +11,7 @@ use crate::oid_mapping;
 // Hash algorithm dispatch
 // ---------------------------------------------------------------------------
 
+#[derive(Clone, Copy)]
 pub(crate) enum HashAlg {
     Sha1,
     Sha256,

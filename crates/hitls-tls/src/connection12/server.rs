@@ -168,7 +168,7 @@ impl<S: Read + Write> Tls12ServerConnection<S> {
 
         match result {
             ServerHelloResult::Full(flight) => {
-                self.do_full_handshake(&mut hs, flight)?;
+                self.do_full_handshake(&mut hs, &flight)?;
             }
             ServerHelloResult::Abbreviated(abbr) => {
                 self.do_abbreviated_handshake(&mut hs, abbr)?;
@@ -182,7 +182,7 @@ impl<S: Read + Write> Tls12ServerConnection<S> {
     fn do_full_handshake(
         &mut self,
         hs: &mut Tls12ServerHandshake,
-        flight: crate::handshake::server12::ServerFlightResult,
+        flight: &crate::handshake::server12::ServerFlightResult,
     ) -> Result<(), TlsError> {
         let suite = flight.suite;
 
@@ -285,14 +285,14 @@ impl<S: Read + Write> Tls12ServerConnection<S> {
         // 12. Activate read decryption (client write key)
         if keys.is_cbc && hs.use_encrypt_then_mac() {
             self.record_layer.activate_read_decryption12_etm(
-                keys.client_write_key.clone(),
-                keys.client_write_mac_key.clone(),
+                &keys.client_write_key,
+                &keys.client_write_mac_key,
                 keys.mac_len,
             )?;
         } else if keys.is_cbc {
             self.record_layer.activate_read_decryption12_cbc(
-                keys.client_write_key.clone(),
-                keys.client_write_mac_key.clone(),
+                &keys.client_write_key,
+                &keys.client_write_mac_key,
                 keys.mac_len,
             )?;
         } else {
@@ -333,14 +333,14 @@ impl<S: Read + Write> Tls12ServerConnection<S> {
         // 16. Activate write encryption (server write key)
         if keys.is_cbc && hs.use_encrypt_then_mac() {
             self.record_layer.activate_write_encryption12_etm(
-                keys.server_write_key.clone(),
-                keys.server_write_mac_key.clone(),
+                &keys.server_write_key,
+                &keys.server_write_mac_key,
                 keys.mac_len,
             )?;
         } else if keys.is_cbc {
             self.record_layer.activate_write_encryption12_cbc(
-                keys.server_write_key.clone(),
-                keys.server_write_mac_key.clone(),
+                &keys.server_write_key,
+                &keys.server_write_mac_key,
                 keys.mac_len,
             )?;
         } else {
@@ -449,14 +449,14 @@ impl<S: Read + Write> Tls12ServerConnection<S> {
         // 4. Activate write encryption (server write key)
         if abbr.is_cbc && hs.use_encrypt_then_mac() {
             self.record_layer.activate_write_encryption12_etm(
-                abbr.server_write_key.clone(),
-                abbr.server_write_mac_key.clone(),
+                &abbr.server_write_key,
+                &abbr.server_write_mac_key,
                 abbr.mac_len,
             )?;
         } else if abbr.is_cbc {
             self.record_layer.activate_write_encryption12_cbc(
-                abbr.server_write_key.clone(),
-                abbr.server_write_mac_key.clone(),
+                &abbr.server_write_key,
+                &abbr.server_write_mac_key,
                 abbr.mac_len,
             )?;
         } else {
@@ -487,14 +487,14 @@ impl<S: Read + Write> Tls12ServerConnection<S> {
         // 7. Activate read decryption (client write key)
         if abbr.is_cbc && hs.use_encrypt_then_mac() {
             self.record_layer.activate_read_decryption12_etm(
-                abbr.client_write_key.clone(),
-                abbr.client_write_mac_key.clone(),
+                &abbr.client_write_key,
+                &abbr.client_write_mac_key,
                 abbr.mac_len,
             )?;
         } else if abbr.is_cbc {
             self.record_layer.activate_read_decryption12_cbc(
-                abbr.client_write_key.clone(),
-                abbr.client_write_mac_key.clone(),
+                &abbr.client_write_key,
+                &abbr.client_write_mac_key,
                 abbr.mac_len,
             )?;
         } else {
@@ -566,7 +566,7 @@ impl<S: Read + Write> Tls12ServerConnection<S> {
     }
 
     /// Perform server-side renegotiation with the received ClientHello.
-    fn do_server_renegotiation(&mut self, ch_data: Vec<u8>) -> Result<(), TlsError> {
+    fn do_server_renegotiation(&mut self, ch_data: &[u8]) -> Result<(), TlsError> {
         let mut hs = Tls12ServerHandshake::new(self.config.clone());
         hs.setup_renegotiation(
             std::mem::take(&mut self.client_verify_data),
@@ -579,7 +579,7 @@ impl<S: Read + Write> Tls12ServerConnection<S> {
             .as_ref()
             .map(|c| c.lock().unwrap());
         let result = hs.process_client_hello_resumable(
-            &ch_data,
+            ch_data,
             cache_ref
                 .as_deref()
                 .map(|c| c as &dyn crate::session::SessionCache),
@@ -588,7 +588,7 @@ impl<S: Read + Write> Tls12ServerConnection<S> {
 
         match result {
             ServerHelloResult::Full(flight) => {
-                self.do_server_renego_full(&mut hs, flight)?;
+                self.do_server_renego_full(&mut hs, &flight)?;
             }
             ServerHelloResult::Abbreviated(_) => {
                 return Err(TlsError::HandshakeFailed(
@@ -604,7 +604,7 @@ impl<S: Read + Write> Tls12ServerConnection<S> {
     fn do_server_renego_full(
         &mut self,
         hs: &mut Tls12ServerHandshake,
-        flight: crate::handshake::server12::ServerFlightResult,
+        flight: &crate::handshake::server12::ServerFlightResult,
     ) -> Result<(), TlsError> {
         let suite = flight.suite;
 
@@ -707,14 +707,14 @@ impl<S: Read + Write> Tls12ServerConnection<S> {
         // Activate read decryption (re-key with client write key)
         if keys.is_cbc && hs.use_encrypt_then_mac() {
             self.record_layer.activate_read_decryption12_etm(
-                keys.client_write_key.clone(),
-                keys.client_write_mac_key.clone(),
+                &keys.client_write_key,
+                &keys.client_write_mac_key,
                 keys.mac_len,
             )?;
         } else if keys.is_cbc {
             self.record_layer.activate_read_decryption12_cbc(
-                keys.client_write_key.clone(),
-                keys.client_write_mac_key.clone(),
+                &keys.client_write_key,
+                &keys.client_write_mac_key,
                 keys.mac_len,
             )?;
         } else {
@@ -745,14 +745,14 @@ impl<S: Read + Write> Tls12ServerConnection<S> {
         // Activate write encryption (re-key with server write key)
         if keys.is_cbc && hs.use_encrypt_then_mac() {
             self.record_layer.activate_write_encryption12_etm(
-                keys.server_write_key.clone(),
-                keys.server_write_mac_key.clone(),
+                &keys.server_write_key,
+                &keys.server_write_mac_key,
                 keys.mac_len,
             )?;
         } else if keys.is_cbc {
             self.record_layer.activate_write_encryption12_cbc(
-                keys.server_write_key.clone(),
-                keys.server_write_mac_key.clone(),
+                &keys.server_write_key,
+                &keys.server_write_mac_key,
                 keys.mac_len,
             )?;
         } else {
@@ -885,7 +885,7 @@ impl<S: Read + Write> TlsConnection for Tls12ServerConnection<S> {
                         let (hs_type, _, total) = parse_handshake_header(&plaintext)?;
                         if hs_type == HandshakeType::ClientHello {
                             let ch_data = plaintext[..total].to_vec();
-                            self.do_server_renegotiation(ch_data)?;
+                            self.do_server_renegotiation(&ch_data)?;
                             continue;
                         }
                         return Err(TlsError::HandshakeFailed(format!(

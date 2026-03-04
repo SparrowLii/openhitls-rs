@@ -202,7 +202,8 @@ pub(crate) fn poly_decompress(data: &[u8], d: u32) -> Poly {
                 r[8 * i + 1] =
                     decompress_coeff(((u16::from(b[1]) >> 3) | (u16::from(b[2]) << 5)) & mask, 11);
                 r[8 * i + 2] = decompress_coeff(
-                    ((u16::from(b[2]) >> 6) | (u16::from(b[3]) << 2) | (u16::from(b[4]) << 10)) & mask,
+                    ((u16::from(b[2]) >> 6) | (u16::from(b[3]) << 2) | (u16::from(b[4]) << 10))
+                        & mask,
                     11,
                 );
                 r[8 * i + 3] =
@@ -210,13 +211,16 @@ pub(crate) fn poly_decompress(data: &[u8], d: u32) -> Poly {
                 r[8 * i + 4] =
                     decompress_coeff(((u16::from(b[5]) >> 4) | (u16::from(b[6]) << 4)) & mask, 11);
                 r[8 * i + 5] = decompress_coeff(
-                    ((u16::from(b[6]) >> 7) | (u16::from(b[7]) << 1) | (u16::from(b[8]) << 9)) & mask,
+                    ((u16::from(b[6]) >> 7) | (u16::from(b[7]) << 1) | (u16::from(b[8]) << 9))
+                        & mask,
                     11,
                 );
                 r[8 * i + 6] =
                     decompress_coeff(((u16::from(b[8]) >> 2) | (u16::from(b[9]) << 6)) & mask, 11);
-                r[8 * i + 7] =
-                    decompress_coeff(((u16::from(b[9]) >> 5) | (u16::from(b[10]) << 3)) & mask, 11);
+                r[8 * i + 7] = decompress_coeff(
+                    ((u16::from(b[9]) >> 5) | (u16::from(b[10]) << 3)) & mask,
+                    11,
+                );
             }
         }
         _ => {
@@ -532,7 +536,8 @@ mod tests {
             let encoded = byte_encode(&poly, d);
             let decoded = byte_decode(&encoded, d);
             for i in 0..N {
-                let expected = ((i32::from(poly[i]) % i32::from(Q) + i32::from(Q)) % i32::from(Q)) as u16;
+                let expected =
+                    ((i32::from(poly[i]) % i32::from(Q) + i32::from(Q)) % i32::from(Q)) as u16;
                 let expected_masked = expected & ((1u16 << d) - 1);
                 assert_eq!(
                     decoded[i] as u16, expected_masked,

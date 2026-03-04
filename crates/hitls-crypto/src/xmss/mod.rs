@@ -468,7 +468,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // h=16 builds 65536 leaves — ~61s even with opt-level=2
+    #[ignore = "slow: h=16 builds 65536 leaves, ~61s even with opt-level=2"]
     fn test_xmss_sha2_16_256_roundtrip() {
         let mut kp = XmssKeyPair::generate(XmssParamId::Sha2_16_256).unwrap();
         let msg = b"test message for XMSS SHA2-16-256";

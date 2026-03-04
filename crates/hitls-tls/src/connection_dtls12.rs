@@ -326,7 +326,7 @@ pub fn dtls12_handshake_in_memory(
 
     match server_result {
         DtlsServerHelloResult::Full(flight) => {
-            do_full_handshake(&mut ctx, flight)?;
+            do_full_handshake(&mut ctx, &flight)?;
         }
         DtlsServerHelloResult::Abbreviated(mut abbr) => {
             do_abbreviated_handshake(&mut ctx, &mut abbr)?;
@@ -348,7 +348,7 @@ struct DtlsHandshakeContext<'a> {
 /// Full DTLS 1.2 handshake flow (after ServerHello result).
 fn do_full_handshake(
     ctx: &mut DtlsHandshakeContext,
-    flight: crate::handshake::server_dtls12::DtlsServerFlightResult,
+    flight: &crate::handshake::server_dtls12::DtlsServerFlightResult,
 ) -> Result<(), TlsError> {
     let suite = flight.suite;
 

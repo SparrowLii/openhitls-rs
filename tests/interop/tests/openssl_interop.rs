@@ -37,7 +37,7 @@ fn free_port() -> u16 {
 // ============================================================
 
 #[test]
-#[ignore]
+#[ignore = "requires external openssl tool"]
 fn test_openssl_s_client_tls13() {
     use hitls_tls::config::TlsConfig;
     use hitls_tls::connection::TlsServerConnection;
@@ -125,7 +125,7 @@ fn test_openssl_s_client_tls13() {
 // ============================================================
 
 #[test]
-#[ignore]
+#[ignore = "requires external openssl tool"]
 fn test_openssl_s_server_tls12() {
     use hitls_tls::config::TlsConfig;
     use hitls_tls::connection12::Tls12ClientConnection;

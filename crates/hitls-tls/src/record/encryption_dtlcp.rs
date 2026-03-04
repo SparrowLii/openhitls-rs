@@ -248,8 +248,8 @@ impl Drop for DtlcpRecordEncryptorCbc {
 }
 
 impl DtlcpRecordEncryptorCbc {
-    pub fn new(enc_key: Vec<u8>, mac_key: Vec<u8>) -> Result<Self, TlsError> {
-        let hmac = create_sm3_hmac(&mac_key)?;
+    pub fn new(enc_key: Vec<u8>, mac_key: &[u8]) -> Result<Self, TlsError> {
+        let hmac = create_sm3_hmac(mac_key)?;
         Ok(Self { enc_key, hmac })
     }
 
@@ -311,8 +311,8 @@ impl Drop for DtlcpRecordDecryptorCbc {
 }
 
 impl DtlcpRecordDecryptorCbc {
-    pub fn new(enc_key: Vec<u8>, mac_key: Vec<u8>) -> Result<Self, TlsError> {
-        let hmac = create_sm3_hmac(&mac_key)?;
+    pub fn new(enc_key: Vec<u8>, mac_key: &[u8]) -> Result<Self, TlsError> {
+        let hmac = create_sm3_hmac(mac_key)?;
         Ok(Self { enc_key, hmac })
     }
 
@@ -451,8 +451,8 @@ mod tests {
     fn test_dtlcp_cbc_encrypt_decrypt() {
         let enc_key = vec![0x42u8; 16];
         let mac_key = vec![0x99u8; 32];
-        let mut encryptor = DtlcpRecordEncryptorCbc::new(enc_key.clone(), mac_key.clone()).unwrap();
-        let mut decryptor = DtlcpRecordDecryptorCbc::new(enc_key, mac_key).unwrap();
+        let mut encryptor = DtlcpRecordEncryptorCbc::new(enc_key.clone(), &mac_key).unwrap();
+        let mut decryptor = DtlcpRecordDecryptorCbc::new(enc_key, &mac_key).unwrap();
 
         let plaintext = b"hello DTLCP CBC";
         let record = encryptor
@@ -485,8 +485,8 @@ mod tests {
     fn test_dtlcp_cbc_tampered_mac() {
         let enc_key = vec![0x42u8; 16];
         let mac_key = vec![0x99u8; 32];
-        let mut encryptor = DtlcpRecordEncryptorCbc::new(enc_key.clone(), mac_key.clone()).unwrap();
-        let mut decryptor = DtlcpRecordDecryptorCbc::new(enc_key, vec![0xAAu8; 32]).unwrap(); // wrong key
+        let mut encryptor = DtlcpRecordEncryptorCbc::new(enc_key.clone(), &mac_key).unwrap();
+        let mut decryptor = DtlcpRecordDecryptorCbc::new(enc_key, &[0xAAu8; 32]).unwrap(); // wrong key
 
         let record = encryptor
             .encrypt_record(ContentType::ApplicationData, b"test", 0, 0)
@@ -540,7 +540,7 @@ mod tests {
     fn test_dtlcp_cbc_record_too_short() {
         let enc_key = vec![0x42u8; 16];
         let mac_key = vec![0x99u8; 32];
-        let mut dec = DtlcpRecordDecryptorCbc::new(enc_key, mac_key).unwrap();
+        let mut dec = DtlcpRecordDecryptorCbc::new(enc_key, &mac_key).unwrap();
 
         // CBC needs at least IV(16) + 3 blocks(48) = 64 bytes
         let record = DtlsRecord {
@@ -559,7 +559,7 @@ mod tests {
     fn test_dtlcp_cbc_not_block_aligned() {
         let enc_key = vec![0x42u8; 16];
         let mac_key = vec![0x99u8; 32];
-        let mut dec = DtlcpRecordDecryptorCbc::new(enc_key, mac_key).unwrap();
+        let mut dec = DtlcpRecordDecryptorCbc::new(enc_key, &mac_key).unwrap();
 
         // IV(16) + 65 bytes (not multiple of 16)
         let mut fragment = vec![0u8; 16 + 65];
@@ -606,10 +606,9 @@ mod tests {
     fn test_dtlcp_dispatch_cbc_variant() {
         let enc_key = vec![0x42u8; 16];
         let mac_key = vec![0x99u8; 32];
-        let mut enc = DtlcpEncryptor::Cbc(
-            DtlcpRecordEncryptorCbc::new(enc_key.clone(), mac_key.clone()).unwrap(),
-        );
-        let mut dec = DtlcpDecryptor::Cbc(DtlcpRecordDecryptorCbc::new(enc_key, mac_key).unwrap());
+        let mut enc =
+            DtlcpEncryptor::Cbc(DtlcpRecordEncryptorCbc::new(enc_key.clone(), &mac_key).unwrap());
+        let mut dec = DtlcpDecryptor::Cbc(DtlcpRecordDecryptorCbc::new(enc_key, &mac_key).unwrap());
 
         let msg = b"CBC dispatch";
         let record = enc
@@ -649,8 +648,8 @@ mod tests {
     fn test_cbc_sequential_records() {
         let enc_key = vec![0x42u8; 16];
         let mac_key = vec![0x99u8; 32];
-        let mut enc = DtlcpRecordEncryptorCbc::new(enc_key.clone(), mac_key.clone()).unwrap();
-        let mut dec = DtlcpRecordDecryptorCbc::new(enc_key, mac_key).unwrap();
+        let mut enc = DtlcpRecordEncryptorCbc::new(enc_key.clone(), &mac_key).unwrap();
+        let mut dec = DtlcpRecordDecryptorCbc::new(enc_key, &mac_key).unwrap();
 
         for seq in 0..5u64 {
             let msg = format!("seq={seq}");
@@ -667,8 +666,8 @@ mod tests {
     fn test_cbc_large_plaintext_roundtrip() {
         let enc_key = vec![0x42u8; 16];
         let mac_key = vec![0x99u8; 32];
-        let mut enc = DtlcpRecordEncryptorCbc::new(enc_key.clone(), mac_key.clone()).unwrap();
-        let mut dec = DtlcpRecordDecryptorCbc::new(enc_key, mac_key).unwrap();
+        let mut enc = DtlcpRecordEncryptorCbc::new(enc_key.clone(), &mac_key).unwrap();
+        let mut dec = DtlcpRecordDecryptorCbc::new(enc_key, &mac_key).unwrap();
 
         let msg = vec![0xBBu8; 4096];
         let record = enc
