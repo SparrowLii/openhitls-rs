@@ -54,7 +54,7 @@ const RCON: [u32; 10] = [
 ];
 
 fn xtime(x: u8) -> u8 {
-    ((x as u16) << 1 ^ if x & 0x80 != 0 { 0x1b } else { 0 }) as u8
+    (u16::from(x) << 1 ^ if x & 0x80 != 0 { 0x1b } else { 0 }) as u8
 }
 
 fn gf_mul(mut a: u8, mut b: u8) -> u8 {

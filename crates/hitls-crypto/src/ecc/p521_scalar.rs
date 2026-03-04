@@ -315,7 +315,7 @@ impl P521ScalarElement {
             let mut carry: u64 = 0;
             for j in 0..NLIMBS {
                 let product =
-                    (a[i] as u128) * (b[j] as u128) + (t[i + j] as u128) + (carry as u128);
+                    u128::from(a[i]) * u128::from(b[j]) + u128::from(t[i + j]) + u128::from(carry);
                 t[i + j] = product as u64;
                 carry = (product >> 64) as u64;
             }
@@ -334,7 +334,7 @@ impl P521ScalarElement {
         for i in 0..NLIMBS {
             let mut carry = 0u64;
             for j in (i + 1)..NLIMBS {
-                let prod = (a[i] as u128) * (a[j] as u128) + (t[i + j] as u128) + (carry as u128);
+                let prod = u128::from(a[i]) * u128::from(a[j]) + u128::from(t[i + j]) + u128::from(carry);
                 t[i + j] = prod as u64;
                 carry = (prod >> 64) as u64;
             }
@@ -350,12 +350,12 @@ impl P521ScalarElement {
         // Add diagonal terms
         let mut carry = 0u128;
         for i in 0..NLIMBS {
-            let diag = (a[i] as u128) * (a[i] as u128);
-            let sum = (t[2 * i] as u128) + (diag & 0xFFFF_FFFF_FFFF_FFFF) + carry;
+            let diag = u128::from(a[i]) * u128::from(a[i]);
+            let sum = u128::from(t[2 * i]) + (diag & 0xFFFF_FFFF_FFFF_FFFF) + carry;
             t[2 * i] = sum as u64;
             carry = (sum >> 64) + (diag >> 64);
 
-            let sum2 = (t[2 * i + 1] as u128) + carry;
+            let sum2 = u128::from(t[2 * i + 1]) + carry;
             t[2 * i + 1] = sum2 as u64;
             carry = sum2 >> 64;
         }
@@ -373,7 +373,7 @@ fn scalar_mont_reduce(mut t: [u64; 2 * NLIMBS]) -> P521ScalarElement {
 
         let mut carry: u64 = 0;
         for j in 0..NLIMBS {
-            let product = (m as u128) * (N[j] as u128) + (t[i + j] as u128) + (carry as u128);
+            let product = u128::from(m) * u128::from(N[j]) + u128::from(t[i + j]) + u128::from(carry);
             t[i + j] = product as u64;
             carry = (product >> 64) as u64;
         }
@@ -382,7 +382,7 @@ fn scalar_mont_reduce(mut t: [u64; 2 * NLIMBS]) -> P521ScalarElement {
             if carry == 0 {
                 break;
             }
-            let s = (*item as u128) + (carry as u128);
+            let s = u128::from(*item) + u128::from(carry);
             *item = s as u64;
             carry = (s >> 64) as u64;
         }
@@ -408,7 +408,7 @@ fn add_limbs(a: &[u64; NLIMBS], b: &[u64; NLIMBS]) -> ([u64; NLIMBS], u64) {
     let mut r = [0u64; NLIMBS];
     let mut carry = 0u64;
     for i in 0..NLIMBS {
-        let sum = (a[i] as u128) + (b[i] as u128) + (carry as u128);
+        let sum = u128::from(a[i]) + u128::from(b[i]) + u128::from(carry);
         r[i] = sum as u64;
         carry = (sum >> 64) as u64;
     }
@@ -433,7 +433,7 @@ fn cmp_limbs(a: &[u64; NLIMBS], b: &[u64; NLIMBS]) -> Ordering {
 fn sub_borrow_limbs(a: &mut [u64; NLIMBS], b: &[u64; NLIMBS]) {
     let mut borrow = 0i128;
     for i in 0..NLIMBS {
-        let diff = (a[i] as i128) - (b[i] as i128) + borrow;
+        let diff = i128::from(a[i]) - i128::from(b[i]) + borrow;
         a[i] = diff as u64;
         borrow = diff >> 64;
     }

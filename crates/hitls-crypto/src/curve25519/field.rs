@@ -85,40 +85,40 @@ impl Fe25519 {
         let g = &rhs.0;
 
         // Pre-multiply limbs that will be multiplied by 19
-        let g1_19 = 19u128 * g[1] as u128;
-        let g2_19 = 19u128 * g[2] as u128;
-        let g3_19 = 19u128 * g[3] as u128;
-        let g4_19 = 19u128 * g[4] as u128;
+        let g1_19 = 19u128 * u128::from(g[1]);
+        let g2_19 = 19u128 * u128::from(g[2]);
+        let g3_19 = 19u128 * u128::from(g[3]);
+        let g4_19 = 19u128 * u128::from(g[4]);
 
-        let h0 = f[0] as u128 * g[0] as u128
-            + g1_19 * f[4] as u128
-            + g2_19 * f[3] as u128
-            + g3_19 * f[2] as u128
-            + g4_19 * f[1] as u128;
+        let h0 = u128::from(f[0]) * u128::from(g[0])
+            + g1_19 * u128::from(f[4])
+            + g2_19 * u128::from(f[3])
+            + g3_19 * u128::from(f[2])
+            + g4_19 * u128::from(f[1]);
 
-        let h1 = f[0] as u128 * g[1] as u128
-            + f[1] as u128 * g[0] as u128
-            + g2_19 * f[4] as u128
-            + g3_19 * f[3] as u128
-            + g4_19 * f[2] as u128;
+        let h1 = u128::from(f[0]) * u128::from(g[1])
+            + u128::from(f[1]) * u128::from(g[0])
+            + g2_19 * u128::from(f[4])
+            + g3_19 * u128::from(f[3])
+            + g4_19 * u128::from(f[2]);
 
-        let h2 = f[0] as u128 * g[2] as u128
-            + f[1] as u128 * g[1] as u128
-            + f[2] as u128 * g[0] as u128
-            + g3_19 * f[4] as u128
-            + g4_19 * f[3] as u128;
+        let h2 = u128::from(f[0]) * u128::from(g[2])
+            + u128::from(f[1]) * u128::from(g[1])
+            + u128::from(f[2]) * u128::from(g[0])
+            + g3_19 * u128::from(f[4])
+            + g4_19 * u128::from(f[3]);
 
-        let h3 = f[0] as u128 * g[3] as u128
-            + f[1] as u128 * g[2] as u128
-            + f[2] as u128 * g[1] as u128
-            + f[3] as u128 * g[0] as u128
-            + g4_19 * f[4] as u128;
+        let h3 = u128::from(f[0]) * u128::from(g[3])
+            + u128::from(f[1]) * u128::from(g[2])
+            + u128::from(f[2]) * u128::from(g[1])
+            + u128::from(f[3]) * u128::from(g[0])
+            + g4_19 * u128::from(f[4]);
 
-        let h4 = f[0] as u128 * g[4] as u128
-            + f[1] as u128 * g[3] as u128
-            + f[2] as u128 * g[2] as u128
-            + f[3] as u128 * g[1] as u128
-            + f[4] as u128 * g[0] as u128;
+        let h4 = u128::from(f[0]) * u128::from(g[4])
+            + u128::from(f[1]) * u128::from(g[3])
+            + u128::from(f[2]) * u128::from(g[2])
+            + u128::from(f[3]) * u128::from(g[1])
+            + u128::from(f[4]) * u128::from(g[0]);
 
         Self::carry128([h0, h1, h2, h3, h4])
     }
@@ -127,26 +127,26 @@ impl Fe25519 {
     pub fn square(&self) -> Fe25519 {
         let f = &self.0;
 
-        let f0_2 = 2 * f[0] as u128;
-        let f1_2 = 2 * f[1] as u128;
-        let f2_2 = 2 * f[2] as u128;
-        let f3_2 = 2 * f[3] as u128;
+        let f0_2 = 2 * u128::from(f[0]);
+        let f1_2 = 2 * u128::from(f[1]);
+        let f2_2 = 2 * u128::from(f[2]);
+        let f3_2 = 2 * u128::from(f[3]);
 
-        let f1_38 = 38u128 * f[1] as u128;
-        let f2_19 = 19u128 * f[2] as u128;
-        let f3_38 = 38u128 * f[3] as u128;
-        let f4_19 = 19u128 * f[4] as u128;
+        let f1_38 = 38u128 * u128::from(f[1]);
+        let f2_19 = 19u128 * u128::from(f[2]);
+        let f3_38 = 38u128 * u128::from(f[3]);
+        let f4_19 = 19u128 * u128::from(f[4]);
 
-        let h0 = f[0] as u128 * f[0] as u128 + f1_38 * f[4] as u128 + f2_19 * f3_2;
+        let h0 = u128::from(f[0]) * u128::from(f[0]) + f1_38 * u128::from(f[4]) + f2_19 * f3_2;
 
         let h1 =
-            f0_2 * f[1] as u128 + f2_19 * f[4] as u128 * 2 + 19u128 * f[3] as u128 * f[3] as u128;
+            f0_2 * u128::from(f[1]) + f2_19 * u128::from(f[4]) * 2 + 19u128 * u128::from(f[3]) * u128::from(f[3]);
 
-        let h2 = f0_2 * f[2] as u128 + f[1] as u128 * f[1] as u128 + f3_38 * f[4] as u128;
+        let h2 = f0_2 * u128::from(f[2]) + u128::from(f[1]) * u128::from(f[1]) + f3_38 * u128::from(f[4]);
 
-        let h3 = f0_2 * f[3] as u128 + f1_2 * f[2] as u128 + f4_19 * f[4] as u128;
+        let h3 = f0_2 * u128::from(f[3]) + f1_2 * u128::from(f[2]) + f4_19 * u128::from(f[4]);
 
-        let h4 = f0_2 * f[4] as u128 + f1_2 * f[3] as u128 + f[2] as u128 * f[2] as u128;
+        let h4 = f0_2 * u128::from(f[4]) + f1_2 * u128::from(f[3]) + u128::from(f[2]) * u128::from(f[2]);
 
         Self::carry128([h0, h1, h2, h3, h4])
     }
@@ -163,11 +163,11 @@ impl Fe25519 {
     /// Multiply by the constant 121666 (used in X25519, a24 = (A-2)/4 = 121665, a24+1 = 121666).
     pub fn mul121666(&self) -> Fe25519 {
         let c: u64 = 121666;
-        let h0 = self.0[0] as u128 * c as u128;
-        let h1 = self.0[1] as u128 * c as u128;
-        let h2 = self.0[2] as u128 * c as u128;
-        let h3 = self.0[3] as u128 * c as u128;
-        let h4 = self.0[4] as u128 * c as u128;
+        let h0 = u128::from(self.0[0]) * u128::from(c);
+        let h1 = u128::from(self.0[1]) * u128::from(c);
+        let h2 = u128::from(self.0[2]) * u128::from(c);
+        let h3 = u128::from(self.0[3]) * u128::from(c);
+        let h4 = u128::from(self.0[4]) * u128::from(c);
         Self::carry128([h0, h1, h2, h3, h4])
     }
 
@@ -199,7 +199,7 @@ impl Fe25519 {
         r[0] += (c as u64) * 19;
 
         // One more carry from r[0] if needed
-        c = (r[0] >> 51) as u128;
+        c = u128::from(r[0] >> 51);
         r[0] &= MASK51;
         r[1] += c as u64;
 
@@ -324,7 +324,7 @@ impl Fe25519 {
         let load8 = |b: &[u8]| -> u64 {
             let mut r = 0u64;
             for (i, &byte) in b.iter().enumerate().take(8.min(b.len())) {
-                r |= (byte as u64) << (8 * i);
+                r |= u64::from(byte) << (8 * i);
             }
             r
         };
@@ -360,7 +360,7 @@ impl Fe25519 {
 
     /// Constant-time conditional swap: swap self and other if swap == 1.
     pub fn conditional_swap(&mut self, other: &mut Fe25519, swap: u8) {
-        let mask = (-(swap as i64)) as u64;
+        let mask = (-i64::from(swap)) as u64;
         for i in 0..5 {
             let t = mask & (self.0[i] ^ other.0[i]);
             self.0[i] ^= t;

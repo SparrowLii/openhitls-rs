@@ -12,8 +12,8 @@ impl BigNum {
         let mut result: u8 = 1;
 
         // Compare sign
-        result &= (self.is_negative() as u8)
-            .ct_eq(&(other.is_negative() as u8))
+        result &= u8::from(self.is_negative())
+            .ct_eq(&u8::from(other.is_negative()))
             .unwrap_u8();
 
         // Compare limbs
@@ -36,7 +36,7 @@ impl BigNum {
 
     /// Constant-time conditional select: returns `a` if choice == 0, `b` if choice == 1.
     pub fn ct_select(a: &BigNum, b: &BigNum, choice: Choice) -> BigNum {
-        let mask = (choice.unwrap_u8() as u64).wrapping_neg(); // 0 or 0xFFFF...
+        let mask = u64::from(choice.unwrap_u8()).wrapping_neg(); // 0 or 0xFFFF...
         let max_len = a.limbs().len().max(b.limbs().len());
         let mut limbs = vec![0u64; max_len];
 
@@ -46,8 +46,8 @@ impl BigNum {
             *limb = av ^ (mask & (av ^ bv));
         }
 
-        let neg_a = a.is_negative() as u64;
-        let neg_b = b.is_negative() as u64;
+        let neg_a = u64::from(a.is_negative());
+        let neg_b = u64::from(b.is_negative());
         let neg = neg_a ^ (mask & (neg_a ^ neg_b));
 
         let mut result = BigNum::from_limbs(limbs);
@@ -75,11 +75,11 @@ impl BigNum {
             let (d1, b1) = a.overflowing_sub(b);
             let (d2, b2) = d1.overflowing_sub(borrow);
             *d = d2;
-            borrow = (b1 as u64) + (b2 as u64);
+            borrow = u64::from(b1) + u64::from(b2);
         }
 
         // If borrow == 0, self >= modulus, use diff; otherwise use self
-        let use_diff = Choice::from((borrow == 0) as u8);
+        let use_diff = Choice::from(u8::from(borrow == 0));
         let diff_bn = BigNum::from_limbs(diff);
         BigNum::ct_select(self, &diff_bn, use_diff)
     }

@@ -405,7 +405,7 @@ impl P384FieldElement {
             let mut carry: u64 = 0;
             for j in 0..6 {
                 let product =
-                    (a[i] as u128) * (b[j] as u128) + (t[i + j] as u128) + (carry as u128);
+                    u128::from(a[i]) * u128::from(b[j]) + u128::from(t[i + j]) + u128::from(carry);
                 t[i + j] = product as u64;
                 carry = (product >> 64) as u64;
             }
@@ -427,67 +427,67 @@ impl P384FieldElement {
 
         // Row 0: a[0] * a[1..6]
         let mut carry: u64;
-        let p = (a[0] as u128) * (a[1] as u128);
+        let p = u128::from(a[0]) * u128::from(a[1]);
         t[1] = p as u64;
         carry = (p >> 64) as u64;
 
-        let p = (a[0] as u128) * (a[2] as u128) + (carry as u128);
+        let p = u128::from(a[0]) * u128::from(a[2]) + u128::from(carry);
         t[2] = p as u64;
         carry = (p >> 64) as u64;
 
-        let p = (a[0] as u128) * (a[3] as u128) + (carry as u128);
+        let p = u128::from(a[0]) * u128::from(a[3]) + u128::from(carry);
         t[3] = p as u64;
         carry = (p >> 64) as u64;
 
-        let p = (a[0] as u128) * (a[4] as u128) + (carry as u128);
+        let p = u128::from(a[0]) * u128::from(a[4]) + u128::from(carry);
         t[4] = p as u64;
         carry = (p >> 64) as u64;
 
-        let p = (a[0] as u128) * (a[5] as u128) + (carry as u128);
+        let p = u128::from(a[0]) * u128::from(a[5]) + u128::from(carry);
         t[5] = p as u64;
         t[6] = (p >> 64) as u64;
 
         // Row 1: a[1] * a[2..6]
-        let p = (a[1] as u128) * (a[2] as u128) + (t[3] as u128);
+        let p = u128::from(a[1]) * u128::from(a[2]) + u128::from(t[3]);
         t[3] = p as u64;
         carry = (p >> 64) as u64;
 
-        let p = (a[1] as u128) * (a[3] as u128) + (t[4] as u128) + (carry as u128);
+        let p = u128::from(a[1]) * u128::from(a[3]) + u128::from(t[4]) + u128::from(carry);
         t[4] = p as u64;
         carry = (p >> 64) as u64;
 
-        let p = (a[1] as u128) * (a[4] as u128) + (t[5] as u128) + (carry as u128);
+        let p = u128::from(a[1]) * u128::from(a[4]) + u128::from(t[5]) + u128::from(carry);
         t[5] = p as u64;
         carry = (p >> 64) as u64;
 
-        let p = (a[1] as u128) * (a[5] as u128) + (t[6] as u128) + (carry as u128);
+        let p = u128::from(a[1]) * u128::from(a[5]) + u128::from(t[6]) + u128::from(carry);
         t[6] = p as u64;
         t[7] = (p >> 64) as u64;
 
         // Row 2: a[2] * a[3..6]
-        let p = (a[2] as u128) * (a[3] as u128) + (t[5] as u128);
+        let p = u128::from(a[2]) * u128::from(a[3]) + u128::from(t[5]);
         t[5] = p as u64;
         carry = (p >> 64) as u64;
 
-        let p = (a[2] as u128) * (a[4] as u128) + (t[6] as u128) + (carry as u128);
+        let p = u128::from(a[2]) * u128::from(a[4]) + u128::from(t[6]) + u128::from(carry);
         t[6] = p as u64;
         carry = (p >> 64) as u64;
 
-        let p = (a[2] as u128) * (a[5] as u128) + (t[7] as u128) + (carry as u128);
+        let p = u128::from(a[2]) * u128::from(a[5]) + u128::from(t[7]) + u128::from(carry);
         t[7] = p as u64;
         t[8] = (p >> 64) as u64;
 
         // Row 3: a[3] * a[4..6]
-        let p = (a[3] as u128) * (a[4] as u128) + (t[7] as u128);
+        let p = u128::from(a[3]) * u128::from(a[4]) + u128::from(t[7]);
         t[7] = p as u64;
         carry = (p >> 64) as u64;
 
-        let p = (a[3] as u128) * (a[5] as u128) + (t[8] as u128) + (carry as u128);
+        let p = u128::from(a[3]) * u128::from(a[5]) + u128::from(t[8]) + u128::from(carry);
         t[8] = p as u64;
         t[9] = (p >> 64) as u64;
 
         // Row 4: a[4] * a[5]
-        let p = (a[4] as u128) * (a[5] as u128) + (t[9] as u128);
+        let p = u128::from(a[4]) * u128::from(a[5]) + u128::from(t[9]);
         t[9] = p as u64;
         t[10] = (p >> 64) as u64;
 
@@ -506,51 +506,51 @@ impl P384FieldElement {
         // t[0] stays 0
 
         // Add diagonal terms a[i]^2 at positions (2*i, 2*i+1).
-        let d = (a[0] as u128) * (a[0] as u128);
+        let d = u128::from(a[0]) * u128::from(a[0]);
         t[0] = d as u64;
         let mut c = d >> 64;
 
-        let s = (t[1] as u128) + c;
+        let s = u128::from(t[1]) + c;
         t[1] = s as u64;
         c = s >> 64;
 
-        let d = (a[1] as u128) * (a[1] as u128) + (t[2] as u128) + c;
+        let d = u128::from(a[1]) * u128::from(a[1]) + u128::from(t[2]) + c;
         t[2] = d as u64;
         c = d >> 64;
 
-        let s = (t[3] as u128) + c;
+        let s = u128::from(t[3]) + c;
         t[3] = s as u64;
         c = s >> 64;
 
-        let d = (a[2] as u128) * (a[2] as u128) + (t[4] as u128) + c;
+        let d = u128::from(a[2]) * u128::from(a[2]) + u128::from(t[4]) + c;
         t[4] = d as u64;
         c = d >> 64;
 
-        let s = (t[5] as u128) + c;
+        let s = u128::from(t[5]) + c;
         t[5] = s as u64;
         c = s >> 64;
 
-        let d = (a[3] as u128) * (a[3] as u128) + (t[6] as u128) + c;
+        let d = u128::from(a[3]) * u128::from(a[3]) + u128::from(t[6]) + c;
         t[6] = d as u64;
         c = d >> 64;
 
-        let s = (t[7] as u128) + c;
+        let s = u128::from(t[7]) + c;
         t[7] = s as u64;
         c = s >> 64;
 
-        let d = (a[4] as u128) * (a[4] as u128) + (t[8] as u128) + c;
+        let d = u128::from(a[4]) * u128::from(a[4]) + u128::from(t[8]) + c;
         t[8] = d as u64;
         c = d >> 64;
 
-        let s = (t[9] as u128) + c;
+        let s = u128::from(t[9]) + c;
         t[9] = s as u64;
         c = s >> 64;
 
-        let d = (a[5] as u128) * (a[5] as u128) + (t[10] as u128) + c;
+        let d = u128::from(a[5]) * u128::from(a[5]) + u128::from(t[10]) + c;
         t[10] = d as u64;
         c = d >> 64;
 
-        t[11] = ((t[11] as u128) + c) as u64;
+        t[11] = (u128::from(t[11]) + c) as u64;
 
         p384_mont_reduce(t)
     }
@@ -574,36 +574,36 @@ fn p384_mont_reduce(mut t: [u64; 12]) -> P384FieldElement {
     let mut overflow: u64 = 0;
 
     for i in 0..6 {
-        let m = (t[i] as u128).wrapping_mul(N0 as u128) as u64;
+        let m = u128::from(t[i]).wrapping_mul(u128::from(N0)) as u64;
 
         // j=0: P[0] = 0x00000000FFFFFFFF
-        let p = (m as u128) * (P[0] as u128) + (t[i] as u128);
+        let p = u128::from(m) * u128::from(P[0]) + u128::from(t[i]);
         // Low 64 bits should cancel t[i]; carry propagates.
         debug_assert_eq!(p as u64, 0);
         let mut carry = (p >> 64) as u64;
 
         // j=1: P[1] = 0xFFFFFFFF00000000
-        let p = (m as u128) * (P[1] as u128) + (t[i + 1] as u128) + (carry as u128);
+        let p = u128::from(m) * u128::from(P[1]) + u128::from(t[i + 1]) + u128::from(carry);
         t[i + 1] = p as u64;
         carry = (p >> 64) as u64;
 
         // j=2: P[2] = 0xFFFFFFFFFFFFFFFE
-        let p = (m as u128) * (P[2] as u128) + (t[i + 2] as u128) + (carry as u128);
+        let p = u128::from(m) * u128::from(P[2]) + u128::from(t[i + 2]) + u128::from(carry);
         t[i + 2] = p as u64;
         carry = (p >> 64) as u64;
 
         // j=3: P[3] = 0xFFFFFFFFFFFFFFFF
-        let p = (m as u128) * (P[3] as u128) + (t[i + 3] as u128) + (carry as u128);
+        let p = u128::from(m) * u128::from(P[3]) + u128::from(t[i + 3]) + u128::from(carry);
         t[i + 3] = p as u64;
         carry = (p >> 64) as u64;
 
         // j=4: P[4] = 0xFFFFFFFFFFFFFFFF
-        let p = (m as u128) * (P[4] as u128) + (t[i + 4] as u128) + (carry as u128);
+        let p = u128::from(m) * u128::from(P[4]) + u128::from(t[i + 4]) + u128::from(carry);
         t[i + 4] = p as u64;
         carry = (p >> 64) as u64;
 
         // j=5: P[5] = 0xFFFFFFFFFFFFFFFF
-        let p = (m as u128) * (P[5] as u128) + (t[i + 5] as u128) + (carry as u128);
+        let p = u128::from(m) * u128::from(P[5]) + u128::from(t[i + 5]) + u128::from(carry);
         t[i + 5] = p as u64;
         carry = (p >> 64) as u64;
 
@@ -612,7 +612,7 @@ fn p384_mont_reduce(mut t: [u64; 12]) -> P384FieldElement {
             if carry == 0 {
                 break;
             }
-            let s = (*item as u128) + (carry as u128);
+            let s = u128::from(*item) + u128::from(carry);
             *item = s as u64;
             carry = (s >> 64) as u64;
         }
@@ -641,7 +641,7 @@ fn add_u384(a: &[u64; 6], b: &[u64; 6]) -> ([u64; 6], u64) {
     let mut carry = 0u64;
 
     for i in 0..6 {
-        let sum = (a[i] as u128) + (b[i] as u128) + (carry as u128);
+        let sum = u128::from(a[i]) + u128::from(b[i]) + u128::from(carry);
         r[i] = sum as u64;
         carry = (sum >> 64) as u64;
     }
@@ -655,7 +655,7 @@ fn sub_u384(a: &[u64; 6], b: &[u64; 6]) -> ([u64; 6], u64) {
     let mut borrow = 0i128;
 
     for i in 0..6 {
-        let diff = (a[i] as i128) - (b[i] as i128) + borrow;
+        let diff = i128::from(a[i]) - i128::from(b[i]) + borrow;
         r[i] = diff as u64;
         borrow = diff >> 64; // arithmetic shift: -1 if borrow, 0 otherwise
     }
@@ -678,7 +678,7 @@ fn cmp_u384(a: &[u64; 6], b: &[u64; 6]) -> Ordering {
 fn add_carry_u384(a: &mut [u64; 6], b: &[u64; 6]) {
     let mut carry = 0u64;
     for i in 0..6 {
-        let sum = (a[i] as u128) + (b[i] as u128) + (carry as u128);
+        let sum = u128::from(a[i]) + u128::from(b[i]) + u128::from(carry);
         a[i] = sum as u64;
         carry = (sum >> 64) as u64;
     }
@@ -688,7 +688,7 @@ fn add_carry_u384(a: &mut [u64; 6], b: &[u64; 6]) {
 fn sub_borrow_u384(a: &mut [u64; 6], b: &[u64; 6]) {
     let mut borrow = 0i128;
     for i in 0..6 {
-        let diff = (a[i] as i128) - (b[i] as i128) + borrow;
+        let diff = i128::from(a[i]) - i128::from(b[i]) + borrow;
         a[i] = diff as u64;
         borrow = diff >> 64;
     }

@@ -201,9 +201,9 @@ impl BigNum {
         for i in 0..n {
             let mut carry: u64 = 0;
             for j in (i + 1)..n {
-                let prod = a[i] as DoubleLimb * a[j] as DoubleLimb
-                    + result[i + j] as DoubleLimb
-                    + carry as DoubleLimb;
+                let prod = DoubleLimb::from(a[i]) * DoubleLimb::from(a[j])
+                    + DoubleLimb::from(result[i + j])
+                    + DoubleLimb::from(carry);
                 result[i + j] = prod as Limb;
                 carry = (prod >> LIMB_BITS) as u64;
             }
@@ -213,7 +213,7 @@ impl BigNum {
         // Double the cross products
         let mut carry = 0u64;
         for limb in result.iter_mut() {
-            let shifted = (*limb as DoubleLimb) * 2 + carry as DoubleLimb;
+            let shifted = DoubleLimb::from(*limb) * 2 + DoubleLimb::from(carry);
             *limb = shifted as Limb;
             carry = (shifted >> LIMB_BITS) as u64;
         }
@@ -221,11 +221,11 @@ impl BigNum {
         // Add diagonal terms a[i]^2
         let mut carry: u64 = 0;
         for i in 0..n {
-            let prod = a[i] as DoubleLimb * a[i] as DoubleLimb
-                + result[2 * i] as DoubleLimb
-                + carry as DoubleLimb;
+            let prod = DoubleLimb::from(a[i]) * DoubleLimb::from(a[i])
+                + DoubleLimb::from(result[2 * i])
+                + DoubleLimb::from(carry);
             result[2 * i] = prod as Limb;
-            let sum = (prod >> LIMB_BITS) as DoubleLimb + result[2 * i + 1] as DoubleLimb;
+            let sum = (prod >> LIMB_BITS) as DoubleLimb + DoubleLimb::from(result[2 * i + 1]);
             result[2 * i + 1] = sum as Limb;
             carry = (sum >> LIMB_BITS) as u64;
         }
@@ -270,7 +270,7 @@ fn add_unsigned(a: &[Limb], b: &[Limb]) -> BigNum {
     for i in 0..max_len {
         let av = if i < a.len() { a[i] } else { 0 };
         let bv = if i < b.len() { b[i] } else { 0 };
-        let sum = av as DoubleLimb + bv as DoubleLimb + carry as DoubleLimb;
+        let sum = DoubleLimb::from(av) + DoubleLimb::from(bv) + DoubleLimb::from(carry);
         limbs[i] = sum as Limb;
         carry = (sum >> LIMB_BITS) as u64;
     }
@@ -314,7 +314,7 @@ fn sub_unsigned(a: &[Limb], b: &[Limb]) -> BigNum {
         let (diff, b1) = lv.overflowing_sub(sv);
         let (diff2, b2) = diff.overflowing_sub(borrow);
         limbs[i] = diff2;
-        borrow = (b1 as u64) + (b2 as u64);
+        borrow = u64::from(b1) + u64::from(b2);
     }
 
     let mut bn = BigNum::from_u64(0);
@@ -337,9 +337,9 @@ fn mul_unsigned(a: &[Limb], b: &[Limb]) -> BigNum {
     for i in 0..a.len() {
         let mut carry: u64 = 0;
         for j in 0..b.len() {
-            let prod = a[i] as DoubleLimb * b[j] as DoubleLimb
-                + limbs[i + j] as DoubleLimb
-                + carry as DoubleLimb;
+            let prod = DoubleLimb::from(a[i]) * DoubleLimb::from(b[j])
+                + DoubleLimb::from(limbs[i + j])
+                + DoubleLimb::from(carry);
             limbs[i + j] = prod as Limb;
             carry = (prod >> LIMB_BITS) as u64;
         }
@@ -429,10 +429,10 @@ fn knuth_div_rem(a: &[Limb], b: &[Limb]) -> (BigNum, BigNum) {
     // D2-D7. Main loop
     for j in (0..=m).rev() {
         // D3. Estimate quotient digit qhat
-        let u_hi = u[j + n] as DoubleLimb;
-        let u_lo = u[j + n - 1] as DoubleLimb;
+        let u_hi = DoubleLimb::from(u[j + n]);
+        let u_lo = DoubleLimb::from(u[j + n - 1]);
         let dividend = (u_hi << LIMB_BITS) | u_lo;
-        let v_top = v[n - 1] as DoubleLimb;
+        let v_top = DoubleLimb::from(v[n - 1]);
 
         let mut qhat = dividend / v_top;
         let mut rhat = dividend % v_top;
@@ -441,8 +441,8 @@ fn knuth_div_rem(a: &[Limb], b: &[Limb]) -> (BigNum, BigNum) {
         loop {
             if qhat >= (1u128 << LIMB_BITS)
                 || (n >= 2
-                    && qhat * v[n - 2] as DoubleLimb
-                        > ((rhat << LIMB_BITS) | u[j + n - 2] as DoubleLimb))
+                    && qhat * DoubleLimb::from(v[n - 2])
+                        > ((rhat << LIMB_BITS) | DoubleLimb::from(u[j + n - 2])))
             {
                 qhat -= 1;
                 rhat += v_top;
@@ -456,12 +456,12 @@ fn knuth_div_rem(a: &[Limb], b: &[Limb]) -> (BigNum, BigNum) {
         // D4. Multiply and subtract: u[j..j+n] -= qhat * v
         let mut borrow: i128 = 0;
         for i in 0..n {
-            let prod = qhat * v[i] as DoubleLimb;
-            let diff = u[j + i] as i128 - borrow - prod as u64 as i128;
+            let prod = qhat * DoubleLimb::from(v[i]);
+            let diff = i128::from(u[j + i]) - borrow - i128::from(prod as u64);
             u[j + i] = diff as u64;
             borrow = (prod >> LIMB_BITS) as i128 - (diff >> LIMB_BITS);
         }
-        let diff = u[j + n] as i128 - borrow;
+        let diff = i128::from(u[j + n]) - borrow;
         u[j + n] = diff as u64;
 
         // D5. Set quotient digit
@@ -472,7 +472,7 @@ fn knuth_div_rem(a: &[Limb], b: &[Limb]) -> (BigNum, BigNum) {
             q_limbs[j] -= 1;
             let mut carry: u64 = 0;
             for i in 0..n {
-                let sum = u[j + i] as DoubleLimb + v[i] as DoubleLimb + carry as DoubleLimb;
+                let sum = DoubleLimb::from(u[j + i]) + DoubleLimb::from(v[i]) + DoubleLimb::from(carry);
                 u[j + i] = sum as u64;
                 carry = (sum >> LIMB_BITS) as u64;
             }
@@ -502,9 +502,9 @@ fn div_rem_single(a: &[Limb], a_len: usize, d: u64) -> (BigNum, BigNum) {
     let mut q = vec![0u64; a_len];
     let mut rem: u64 = 0;
     for i in (0..a_len).rev() {
-        let dividend = (rem as DoubleLimb) << LIMB_BITS | a[i] as DoubleLimb;
-        q[i] = (dividend / d as DoubleLimb) as u64;
-        rem = (dividend % d as DoubleLimb) as u64;
+        let dividend = DoubleLimb::from(rem) << LIMB_BITS | DoubleLimb::from(a[i]);
+        q[i] = (dividend / DoubleLimb::from(d)) as u64;
+        rem = (dividend % DoubleLimb::from(d)) as u64;
     }
     (BigNum::from_limbs(q), BigNum::from_u64(rem))
 }

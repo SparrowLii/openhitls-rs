@@ -240,7 +240,7 @@ fn format_basic_constraints(value: &[u8]) -> String {
         let path_len = dec
             .read_integer()
             .ok()
-            .map(|bytes| bytes.iter().fold(0u64, |acc, &b| (acc << 8) | b as u64));
+            .map(|bytes| bytes.iter().fold(0u64, |acc, &b| (acc << 8) | u64::from(b)));
         let pl_str = path_len
             .map(|p| p.to_string())
             .unwrap_or_else(|| "none".to_string());
@@ -260,10 +260,10 @@ fn format_key_usage_ext(value: &[u8]) -> String {
     if let Ok((_unused_bits, bit_data)) = dec.read_bit_string() {
         let mut ku: u16 = 0;
         if !bit_data.is_empty() {
-            ku |= (bit_data[0] as u16) << 8;
+            ku |= u16::from(bit_data[0]) << 8;
         }
         if bit_data.len() > 1 {
-            ku |= bit_data[1] as u16;
+            ku |= u16::from(bit_data[1]);
         }
         format!("            {}\n", format_key_usage(ku))
     } else {

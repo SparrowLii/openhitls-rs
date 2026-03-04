@@ -28,7 +28,7 @@ impl Tag {
                 Tag {
                     class,
                     constructed,
-                    number: low_bits as u32,
+                    number: u32::from(low_bits),
                 },
                 1,
             ))
@@ -42,7 +42,7 @@ impl Tag {
                 }
                 let byte = input[i];
                 number = number.checked_shl(7).ok_or(CryptoError::DecodeAsn1Fail)?
-                    | (byte & 0x7F) as u32;
+                    | u32::from(byte & 0x7F);
                 i += 1;
                 if (byte & 0x80) == 0 {
                     break;

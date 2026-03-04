@@ -168,7 +168,7 @@ impl EntropySource {
         for _ in 0..health::STARTUP_TEST_SAMPLES {
             self.source.read(&mut sample_buf)?;
             if let Some(ref mut ht) = self.health {
-                ht.test_sample(sample_buf[0] as u64)?;
+                ht.test_sample(u64::from(sample_buf[0]))?;
             }
         }
         // Reset health tests after startup (don't carry startup state)
@@ -195,7 +195,7 @@ impl EntropySource {
             // Health-test each byte
             if let Some(ref mut ht) = self.health {
                 for &byte in &raw[offset..offset + read] {
-                    ht.test_sample(byte as u64)?;
+                    ht.test_sample(u64::from(byte))?;
                 }
             }
 

@@ -18,7 +18,7 @@ pub(crate) fn base_b(x: &[u8], b: u32, out_len: usize) -> Vec<u32> {
 
     for _ in 0..out_len {
         while bit < b && xi < x.len() {
-            o = (o << 8) | (x[xi] as u64);
+            o = (o << 8) | u64::from(x[xi]);
             bit += 8;
             xi += 1;
         }

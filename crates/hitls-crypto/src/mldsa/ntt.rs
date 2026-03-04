@@ -63,7 +63,7 @@ pub(crate) const ZETAS: [i32; 256] = [
 #[inline]
 pub(crate) fn montgomery_reduce(a: i64) -> i32 {
     let t = (a as i32).wrapping_mul(QINV);
-    ((a - t as i64 * Q as i64) >> 32) as i32
+    ((a - i64::from(t) * i64::from(Q)) >> 32) as i32
 }
 
 /// Reduce a modulo q to range roughly (-q, q).
@@ -91,7 +91,7 @@ pub(crate) fn freeze(a: i32) -> i32 {
 /// Multiply a and b in Montgomery domain: a * b * R^{-1} mod q.
 #[inline]
 pub(crate) fn fqmul(a: i32, b: i32) -> i32 {
-    montgomery_reduce(a as i64 * b as i64)
+    montgomery_reduce(i64::from(a) * i64::from(b))
 }
 
 /// Forward NTT (Cooley-Tukey butterflies, 8 layers).
@@ -282,7 +282,7 @@ mod tests {
         ntt(&mut f);
         invntt(&mut f);
         for i in 0..N {
-            let recovered = montgomery_reduce(f[i] as i64);
+            let recovered = montgomery_reduce(i64::from(f[i]));
             let expected = ((orig[i] % Q) + Q) % Q;
             let got = ((recovered % Q) + Q) % Q;
             assert_eq!(
@@ -396,7 +396,7 @@ mod tests {
 
         /// Normalize to [0, q) for comparison.
         fn normalize(x: i32) -> i32 {
-            ((x as i64 % Q as i64 + Q as i64) % Q as i64) as i32
+            ((i64::from(x) % i64::from(Q) + i64::from(Q)) % i64::from(Q)) as i32
         }
 
         #[test]
@@ -527,7 +527,7 @@ mod tests {
                 ntt_neon::invntt_neon(&mut f);
             }
             for i in 0..N {
-                let recovered = montgomery_reduce(f[i] as i64);
+                let recovered = montgomery_reduce(i64::from(f[i]));
                 let expected = normalize(orig[i]);
                 let got = normalize(recovered);
                 assert_eq!(

@@ -60,20 +60,20 @@ pub(crate) fn unpack(input: &[u8], count: usize, logq: u8) -> Vec<u16> {
             let base_out = i * 8;
             let b = &input[base_in..base_in + 15];
 
-            out[base_out] = (b[0] as u16 | ((b[1] as u16) << 8)) & mask;
+            out[base_out] = (u16::from(b[0]) | (u16::from(b[1]) << 8)) & mask;
             out[base_out + 1] =
-                ((b[1] as u16) >> 7 | ((b[2] as u16) << 1) | ((b[3] as u16) << 9)) & mask;
+                (u16::from(b[1]) >> 7 | (u16::from(b[2]) << 1) | (u16::from(b[3]) << 9)) & mask;
             out[base_out + 2] =
-                ((b[3] as u16) >> 6 | ((b[4] as u16) << 2) | ((b[5] as u16) << 10)) & mask;
+                (u16::from(b[3]) >> 6 | (u16::from(b[4]) << 2) | (u16::from(b[5]) << 10)) & mask;
             out[base_out + 3] =
-                ((b[5] as u16) >> 5 | ((b[6] as u16) << 3) | ((b[7] as u16) << 11)) & mask;
+                (u16::from(b[5]) >> 5 | (u16::from(b[6]) << 3) | (u16::from(b[7]) << 11)) & mask;
             out[base_out + 4] =
-                ((b[7] as u16) >> 4 | ((b[8] as u16) << 4) | ((b[9] as u16) << 12)) & mask;
+                (u16::from(b[7]) >> 4 | (u16::from(b[8]) << 4) | (u16::from(b[9]) << 12)) & mask;
             out[base_out + 5] =
-                ((b[9] as u16) >> 3 | ((b[10] as u16) << 5) | ((b[11] as u16) << 13)) & mask;
+                (u16::from(b[9]) >> 3 | (u16::from(b[10]) << 5) | (u16::from(b[11]) << 13)) & mask;
             out[base_out + 6] =
-                ((b[11] as u16) >> 2 | ((b[12] as u16) << 6) | ((b[13] as u16) << 14)) & mask;
-            out[base_out + 7] = ((b[13] as u16) >> 1 | ((b[14] as u16) << 7)) & mask;
+                (u16::from(b[11]) >> 2 | (u16::from(b[12]) << 6) | (u16::from(b[13]) << 14)) & mask;
+            out[base_out + 7] = (u16::from(b[13]) >> 1 | (u16::from(b[14]) << 7)) & mask;
         }
     }
     out
@@ -97,7 +97,7 @@ pub(crate) fn encode(mu: &[u8], params: &FrodoParams) -> Vec<u16> {
             let byte_idx = bit_idx / 8;
             let bit_pos = bit_idx % 8;
             if byte_idx < mu.len() {
-                val |= (((mu[byte_idx] >> bit_pos) & 1) as u16) << b;
+                val |= u16::from((mu[byte_idx] >> bit_pos) & 1) << b;
             }
         }
         out[i] = val << shift;
@@ -166,7 +166,7 @@ pub(crate) fn ct_verify(a: &[u8], b: &[u8]) -> u8 {
 
 /// Constant-time select: if selector == 0, return a; else return b.
 pub(crate) fn ct_select(a: &[u8], b: &[u8], selector: u8) -> Vec<u8> {
-    let mask = (selector as u16).wrapping_neg() as u8; // 0x00 or 0xFF
+    let mask = u16::from(selector).wrapping_neg() as u8; // 0x00 or 0xFF
     a.iter()
         .zip(b.iter())
         .map(|(&x, &y)| x ^ (mask & (x ^ y)))

@@ -65,8 +65,8 @@ pub(crate) fn gf_mul(a: GfElement, b: GfElement) -> GfElement {
         return 0;
     }
     let t = tables();
-    let s = t.log_table[a as usize] as u32 + t.log_table[b as usize] as u32;
-    let s = if s >= Q_1 as u32 { s - Q_1 as u32 } else { s };
+    let s = u32::from(t.log_table[a as usize]) + u32::from(t.log_table[b as usize]);
+    let s = if s >= u32::from(Q_1) { s - u32::from(Q_1) } else { s };
     t.exp_table[s as usize]
 }
 
@@ -77,8 +77,8 @@ pub(crate) fn gf_inv(a: GfElement) -> GfElement {
         return 0; // 0 has no inverse
     }
     let t = tables();
-    let l = t.log_table[a as usize] as u32;
-    t.exp_table[(Q_1 as u32 - l) as usize]
+    let l = u32::from(t.log_table[a as usize]);
+    t.exp_table[(u32::from(Q_1) - l) as usize]
 }
 
 /// GF(2^13) division.
@@ -99,12 +99,12 @@ pub(crate) fn gf_pow(base: GfElement, exp: i32) -> GfElement {
         return 0;
     }
     let t = tables();
-    let l = t.log_table[base as usize] as u64;
-    let mut e = exp as i64 % Q_1 as i64;
+    let l = u64::from(t.log_table[base as usize]);
+    let mut e = i64::from(exp) % i64::from(Q_1);
     if e < 0 {
-        e += Q_1 as i64;
+        e += i64::from(Q_1);
     }
-    let s = (l * e as u64) % Q_1 as u64;
+    let s = (l * e as u64) % u64::from(Q_1);
     t.exp_table[s as usize]
 }
 

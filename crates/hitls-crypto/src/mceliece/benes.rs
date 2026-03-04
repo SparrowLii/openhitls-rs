@@ -66,7 +66,7 @@ pub(crate) fn support_from_cbits(
         let mut val: u16 = 0;
         for b in (0..w).rev() {
             val <<= 1;
-            val |= get_bit_from_vec(&planes[b], j) as u16;
+            val |= u16::from(get_bit_from_vec(&planes[b], j));
         }
         gf_l[j] = val;
     }
@@ -184,7 +184,7 @@ fn benes_controlbits(
 
     // Prepare parent keys
     for i in 0..nu {
-        area_a[i] = ((pi[i] as i32 as u32) << 16).wrapping_add(i as u32);
+        area_a[i] = ((i32::from(pi[i]) as u32) << 16).wrapping_add(i as u32);
     }
     sort_u32_le(area_a)?;
 
@@ -193,7 +193,7 @@ fn benes_controlbits(
     for j in 0..nu / 2 {
         let x = 2 * j;
         let fj = (area_b[x] & 1) as u8;
-        let tmp_fx = x as u32 + fj as u32;
+        let tmp_fx = x as u32 + u32::from(fj);
         let tmp_fx1 = tmp_fx ^ 1;
 
         write_1bit_le(out, current_pos, fj);
@@ -210,7 +210,7 @@ fn benes_controlbits(
     for k in 0..nu / 2 {
         let y = 2 * k;
         let lk = (area_b[y] & 1) as u8;
-        let tmp_ly = y as u32 + lk as u32;
+        let tmp_ly = y as u32 + u32::from(lk);
         let tmp_ly1 = tmp_ly ^ 1;
 
         write_1bit_le(out, current_pos, lk);

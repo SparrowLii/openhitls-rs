@@ -63,11 +63,11 @@ impl P521FieldElement {
         for (i, limb) in limbs[..8].iter_mut().enumerate() {
             let base = 65 - i * 8;
             for j in 0..8 {
-                *limb |= (bytes[base - j] as u64) << (j * 8);
+                *limb |= u64::from(bytes[base - j]) << (j * 8);
             }
         }
         // Top limb (limb 8): bytes[0..2] (2 bytes, but only 9 bits)
-        limbs[8] = ((bytes[0] as u64) << 8) | (bytes[1] as u64);
+        limbs[8] = (u64::from(bytes[0]) << 8) | u64::from(bytes[1]);
         Self(limbs)
     }
 
@@ -93,7 +93,7 @@ impl P521FieldElement {
         let mut r = [0u64; NLIMBS];
         let mut carry = 0u64;
         for ((r_limb, &a), &b) in r.iter_mut().zip(&self.0).zip(&other.0) {
-            let sum = (a as u128) + (b as u128) + (carry as u128);
+            let sum = u128::from(a) + u128::from(b) + u128::from(carry);
             *r_limb = sum as u64;
             carry = (sum >> 64) as u64;
         }
@@ -106,7 +106,7 @@ impl P521FieldElement {
             if c == 0 {
                 break;
             }
-            let sum = (*limb as u128) + (c as u128);
+            let sum = u128::from(*limb) + u128::from(c);
             *limb = sum as u64;
             c = (sum >> 64) as u64;
         }
@@ -114,7 +114,7 @@ impl P521FieldElement {
         let top2 = r[8] >> 9;
         r[8] &= TOP_MASK;
         if top2 != 0 {
-            let sum = (r[0] as u128) + (top2 as u128);
+            let sum = u128::from(r[0]) + u128::from(top2);
             r[0] = sum as u64;
             // No further propagation needed since top2 <= 1
         }
@@ -128,7 +128,7 @@ impl P521FieldElement {
         let mut r = [0u64; NLIMBS];
         let mut borrow = 0i128;
         for ((r_limb, &a), &b) in r.iter_mut().zip(&self.0).zip(&other.0) {
-            let diff = (a as i128) - (b as i128) + borrow;
+            let diff = i128::from(a) - i128::from(b) + borrow;
             *r_limb = diff as u64;
             borrow = diff >> 64;
         }
@@ -136,7 +136,7 @@ impl P521FieldElement {
             // Result was negative, add p = 2^521 - 1
             let mut carry = 0u128;
             for i in 0..NLIMBS {
-                let sum = (r[i] as u128) + (P[i] as u128) + carry;
+                let sum = u128::from(r[i]) + u128::from(P[i]) + carry;
                 r[i] = sum as u64;
                 carry = sum >> 64;
             }
@@ -153,7 +153,7 @@ impl P521FieldElement {
         let mut r = [0u64; NLIMBS];
         let mut borrow = 0i128;
         for i in 0..NLIMBS {
-            let diff = (P[i] as i128) - (self.0[i] as i128) + borrow;
+            let diff = i128::from(P[i]) - i128::from(self.0[i]) + borrow;
             r[i] = diff as u64;
             borrow = diff >> 64;
         }
@@ -173,7 +173,7 @@ impl P521FieldElement {
         for i in 0..NLIMBS {
             let mut carry = 0u64;
             for j in 0..NLIMBS {
-                let prod = (a[i] as u128) * (b[j] as u128) + (t[i + j] as u128) + (carry as u128);
+                let prod = u128::from(a[i]) * u128::from(b[j]) + u128::from(t[i + j]) + u128::from(carry);
                 t[i + j] = prod as u64;
                 carry = (prod >> 64) as u64;
             }
@@ -194,7 +194,7 @@ impl P521FieldElement {
         for i in 0..NLIMBS {
             let mut carry = 0u64;
             for j in (i + 1)..NLIMBS {
-                let prod = (a[i] as u128) * (a[j] as u128) + (t[i + j] as u128) + (carry as u128);
+                let prod = u128::from(a[i]) * u128::from(a[j]) + u128::from(t[i + j]) + u128::from(carry);
                 t[i + j] = prod as u64;
                 carry = (prod >> 64) as u64;
             }
@@ -210,12 +210,12 @@ impl P521FieldElement {
         // Add diagonal terms a[i]²
         let mut carry = 0u128;
         for i in 0..NLIMBS {
-            let diag = (a[i] as u128) * (a[i] as u128);
-            let sum = (t[2 * i] as u128) + (diag & 0xFFFF_FFFF_FFFF_FFFF) + carry;
+            let diag = u128::from(a[i]) * u128::from(a[i]);
+            let sum = u128::from(t[2 * i]) + (diag & 0xFFFF_FFFF_FFFF_FFFF) + carry;
             t[2 * i] = sum as u64;
             carry = (sum >> 64) + (diag >> 64);
 
-            let sum2 = (t[2 * i + 1] as u128) + carry;
+            let sum2 = u128::from(t[2 * i + 1]) + carry;
             t[2 * i + 1] = sum2 as u64;
             carry = sum2 >> 64;
         }
@@ -304,7 +304,7 @@ fn mersenne_reduce(t: [u64; 18]) -> P521FieldElement {
     let mut r = [0u64; NLIMBS];
     let mut carry = 0u128;
     for i in 0..NLIMBS {
-        let sum = (low[i] as u128) + (high[i] as u128) + carry;
+        let sum = u128::from(low[i]) + u128::from(high[i]) + carry;
         r[i] = sum as u64;
         carry = sum >> 64;
     }
@@ -314,12 +314,12 @@ fn mersenne_reduce(t: [u64; 18]) -> P521FieldElement {
     r[8] &= TOP_MASK;
     let c = top_overflow + (carry as u64);
     if c > 0 {
-        let sum = (r[0] as u128) + (c as u128);
+        let sum = u128::from(r[0]) + u128::from(c);
         r[0] = sum as u64;
         if (sum >> 64) != 0 {
             // Propagate carry (extremely rare)
             for limb in r.iter_mut().skip(1) {
-                let s = (*limb as u128) + 1;
+                let s = u128::from(*limb) + 1;
                 *limb = s as u64;
                 if (s >> 64) == 0 {
                     break;
@@ -360,7 +360,7 @@ fn cmp_u521(a: &[u64; NLIMBS], b: &[u64; NLIMBS]) -> Ordering {
 fn sub_borrow_u521(a: &mut [u64; NLIMBS], b: &[u64; NLIMBS]) {
     let mut borrow = 0i128;
     for i in 0..NLIMBS {
-        let diff = (a[i] as i128) - (b[i] as i128) + borrow;
+        let diff = i128::from(a[i]) - i128::from(b[i]) + borrow;
         a[i] = diff as u64;
         borrow = diff >> 64;
     }

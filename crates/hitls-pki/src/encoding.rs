@@ -77,7 +77,7 @@ pub(crate) fn enc_raw_parts(parts: &[&[u8]]) -> Vec<u8> {
 pub(crate) fn bytes_to_u32(bytes: &[u8]) -> u32 {
     bytes
         .iter()
-        .fold(0u32, |acc, &b| acc.wrapping_shl(8) | b as u32)
+        .fold(0u32, |acc, &b| acc.wrapping_shl(8) | u32::from(b))
 }
 
 #[cfg(test)]

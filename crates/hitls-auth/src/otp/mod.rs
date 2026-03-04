@@ -124,10 +124,10 @@ impl Totp {
     pub fn verify(&self, otp: u32, timestamp: u64, window: u32) -> Result<bool, CryptoError> {
         let counter = timestamp / self.period;
         for i in 0..=window {
-            if counter >= i as u64 && self.hotp.generate(counter - i as u64)? == otp {
+            if counter >= u64::from(i) && self.hotp.generate(counter - u64::from(i))? == otp {
                 return Ok(true);
             }
-            if i > 0 && self.hotp.generate(counter + i as u64)? == otp {
+            if i > 0 && self.hotp.generate(counter + u64::from(i))? == otp {
                 return Ok(true);
             }
         }

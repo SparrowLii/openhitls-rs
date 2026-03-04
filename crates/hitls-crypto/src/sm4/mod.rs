@@ -399,12 +399,12 @@ mod tests {
         assert_eq!(XBOX_0[0], expected_0);
 
         // SBOX[0x71] (index 0x71 = 113) = SBOX[113] = 0x21
-        let expected_113 = l_transform(SBOX[113] as u32);
+        let expected_113 = l_transform(u32::from(SBOX[113]));
         assert_eq!(XBOX_0[113], expected_113);
 
         // Verify all 256 entries
         for i in 0..256 {
-            let expected = l_transform(SBOX[i] as u32);
+            let expected = l_transform(u32::from(SBOX[i]));
             assert_eq!(XBOX_0[i], expected, "XBOX_0[{i}] mismatch");
         }
     }

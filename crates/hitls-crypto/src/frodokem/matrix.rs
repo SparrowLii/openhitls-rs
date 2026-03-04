@@ -47,9 +47,9 @@ fn gen_a_mul_add_shake(
         // Multiply: out[i+r][k] += sum_j a_rows[r][j] * s[j][k]
         for r in 0..rows_this {
             for j in 0..n {
-                let a_val = a_rows[r * n + j] as u32;
+                let a_val = u32::from(a_rows[r * n + j]);
                 for k in 0..n_bar {
-                    let s_val = s[j * n_bar + k] as u32;
+                    let s_val = u32::from(s[j * n_bar + k]);
                     out[(i + r) * n_bar + k] = out[(i + r) * n_bar + k]
                         .wrapping_add((a_val.wrapping_mul(s_val)) as u16)
                         & q_mask;
@@ -105,9 +105,9 @@ fn gen_a_mul_add_aes(
 
         for r in 0..rows_this {
             for j in 0..n {
-                let a_val = a_rows[r * n + j] as u32;
+                let a_val = u32::from(a_rows[r * n + j]);
                 for k in 0..n_bar {
-                    let s_val = s[j * n_bar + k] as u32;
+                    let s_val = u32::from(s[j * n_bar + k]);
                     out[(i + r) * n_bar + k] = out[(i + r) * n_bar + k]
                         .wrapping_add((a_val.wrapping_mul(s_val)) as u16)
                         & q_mask;
@@ -173,9 +173,9 @@ pub(crate) fn mul_add_sa_plus_e(
                 // out[k][j] += S'[k][i+r] * A[i+r][j]
                 for r in 0..rows_this {
                     for k in 0..n_bar {
-                        let sp_val = sp[k * n + i + r] as u32;
+                        let sp_val = u32::from(sp[k * n + i + r]);
                         for j in 0..n {
-                            let a_val = a_rows[r * n + j] as u32;
+                            let a_val = u32::from(a_rows[r * n + j]);
                             out[k * n + j] = out[k * n + j]
                                 .wrapping_add((sp_val.wrapping_mul(a_val)) as u16)
                                 & q_mask;
@@ -211,9 +211,9 @@ pub(crate) fn mul_add_sa_plus_e(
 
                 for r in 0..rows_this {
                     for k in 0..n_bar {
-                        let sp_val = sp[k * n + i + r] as u32;
+                        let sp_val = u32::from(sp[k * n + i + r]);
                         for j in 0..n {
-                            let a_val = a_rows[r * n + j] as u32;
+                            let a_val = u32::from(a_rows[r * n + j]);
                             out[k * n + j] = out[k * n + j]
                                 .wrapping_add((sp_val.wrapping_mul(a_val)) as u16)
                                 & q_mask;
@@ -244,9 +244,9 @@ pub(crate) fn mul_add_sb_plus_e(
     // V = S'(n_bar×n) · B(n×n_bar) + E''(n_bar×n_bar)
     for i in 0..n_bar {
         for j in 0..n {
-            let sp_val = sp[i * n + j] as u32;
+            let sp_val = u32::from(sp[i * n + j]);
             for k in 0..n_bar {
-                let b_val = b[j * n_bar + k] as u32;
+                let b_val = u32::from(b[j * n_bar + k]);
                 out[i * n_bar + k] =
                     out[i * n_bar + k].wrapping_add((sp_val.wrapping_mul(b_val)) as u16) & q_mask;
             }
@@ -302,7 +302,7 @@ pub(crate) fn mul_bs(s_t: &[u16], c1: &[u16], params: &FrodoParams) -> Vec<u16> 
         for j in 0..n_bar {
             let mut sum = 0u32;
             for k in 0..n {
-                sum = sum.wrapping_add((c1[i * n + k] as u32).wrapping_mul(s_t[j * n + k] as u32));
+                sum = sum.wrapping_add(u32::from(c1[i * n + k]).wrapping_mul(u32::from(s_t[j * n + k])));
             }
             result[i * n_bar + j] = (sum as u16) & q_mask;
         }

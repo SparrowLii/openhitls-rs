@@ -160,7 +160,7 @@ fn parse_basic_constraints(value: &[u8]) -> Result<BasicConstraints, PkiError> {
         let tag = dec
             .peek_tag()
             .map_err(|e| PkiError::Asn1Error(e.to_string()))?;
-        if tag.class == TagClass::Universal && tag.number == hitls_utils::asn1::tags::BOOLEAN as u32
+        if tag.class == TagClass::Universal && tag.number == u32::from(hitls_utils::asn1::tags::BOOLEAN)
         {
             is_ca = dec
                 .read_boolean()
@@ -173,7 +173,7 @@ fn parse_basic_constraints(value: &[u8]) -> Result<BasicConstraints, PkiError> {
             .map_err(|e| PkiError::Asn1Error(e.to_string()))?;
         let mut val: u32 = 0;
         for &b in bytes {
-            val = val.checked_shl(8).unwrap_or(u32::MAX) | b as u32;
+            val = val.checked_shl(8).unwrap_or(u32::MAX) | u32::from(b);
         }
         path_len_constraint = Some(val);
     }
@@ -192,10 +192,10 @@ fn parse_key_usage(value: &[u8]) -> Result<KeyUsage, PkiError> {
         .map_err(|e| PkiError::Asn1Error(e.to_string()))?;
     let mut mask: u16 = 0;
     if !data.is_empty() {
-        mask |= data[0] as u16;
+        mask |= u16::from(data[0]);
     }
     if data.len() > 1 {
-        mask |= (data[1] as u16) << 8;
+        mask |= u16::from(data[1]) << 8;
     }
     // Clear unused bits in the last byte
     if unused_bits > 0 && unused_bits < 16 && !data.is_empty() {
@@ -203,7 +203,7 @@ fn parse_key_usage(value: &[u8]) -> Result<KeyUsage, PkiError> {
         if last_idx == 0 {
             mask &= !((1u16 << unused_bits) - 1);
         } else if last_idx == 1 {
-            let high = (data[last_idx] as u16) << 8;
+            let high = u16::from(data[last_idx]) << 8;
             let cleared = high & !((1u16 << unused_bits) - 1);
             mask = (mask & 0x00FF) | cleared;
         }
@@ -504,10 +504,10 @@ pub(crate) fn parse_crl_distribution_points(
                 let unused = r_tlv.value[0];
                 let mut mask: u16 = 0;
                 if r_tlv.value.len() > 1 {
-                    mask |= r_tlv.value[1] as u16;
+                    mask |= u16::from(r_tlv.value[1]);
                 }
                 if r_tlv.value.len() > 2 {
-                    mask |= (r_tlv.value[2] as u16) << 8;
+                    mask |= u16::from(r_tlv.value[2]) << 8;
                 }
                 if unused > 0 && unused < 16 {
                     // Clear unused bits
@@ -594,10 +594,10 @@ pub(crate) fn parse_issuing_distribution_point(
             let _unused = tlv.value[0];
             let mut mask: u16 = 0;
             if tlv.value.len() > 1 {
-                mask |= tlv.value[1] as u16;
+                mask |= u16::from(tlv.value[1]);
             }
             if tlv.value.len() > 2 {
-                mask |= (tlv.value[2] as u16) << 8;
+                mask |= u16::from(tlv.value[2]) << 8;
             }
             only_some_reasons = Some(mask);
         }

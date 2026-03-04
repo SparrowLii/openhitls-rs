@@ -267,12 +267,12 @@ fn datetime_to_unix(
     // Days from year 0 to the start of the given year (Gregorian)
     let y = if month <= 2 { year - 1 } else { year };
     let m = if month <= 2 { month + 9 } else { month - 3 };
-    let days = 365 * y as i64 + y as i64 / 4 - y as i64 / 100
-        + y as i64 / 400
-        + (m as i64 * 306 + 5) / 10
-        + (day as i64 - 1)
+    let days = 365 * i64::from(y) + i64::from(y) / 4 - i64::from(y) / 100
+        + i64::from(y) / 400
+        + (i64::from(m) * 306 + 5) / 10
+        + (i64::from(day) - 1)
         - 719468; // offset so epoch = 1970-01-01
-    Ok(days * 86400 + hour as i64 * 3600 + min as i64 * 60 + sec as i64)
+    Ok(days * 86400 + i64::from(hour) * 3600 + i64::from(min) * 60 + i64::from(sec))
 }
 
 #[cfg(test)]

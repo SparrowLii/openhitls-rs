@@ -137,13 +137,13 @@ impl MontgomeryCtx {
             let mut carry: u64 = 0;
             for j in 0..n {
                 let bj = if j < b_len { b[j] } else { 0 };
-                let prod = ai as DoubleLimb * bj as DoubleLimb
-                    + scratch[j] as DoubleLimb
-                    + carry as DoubleLimb;
+                let prod = DoubleLimb::from(ai) * DoubleLimb::from(bj)
+                    + DoubleLimb::from(scratch[j])
+                    + DoubleLimb::from(carry);
                 scratch[j] = prod as Limb;
                 carry = (prod >> LIMB_BITS) as u64;
             }
-            let sum = scratch[n] as DoubleLimb + carry as DoubleLimb;
+            let sum = DoubleLimb::from(scratch[n]) + DoubleLimb::from(carry);
             scratch[n] = sum as Limb;
             scratch[n + 1] = (sum >> LIMB_BITS) as u64;
 
@@ -152,17 +152,17 @@ impl MontgomeryCtx {
             let m = scratch[0].wrapping_mul(np);
 
             // j = 0: low word cancels by Montgomery property
-            let prod0 = m as DoubleLimb * n_mod[0] as DoubleLimb + scratch[0] as DoubleLimb;
+            let prod0 = DoubleLimb::from(m) * DoubleLimb::from(n_mod[0]) + DoubleLimb::from(scratch[0]);
             carry = (prod0 >> LIMB_BITS) as u64;
 
             for j in 1..n {
-                let prod = m as DoubleLimb * n_mod[j] as DoubleLimb
-                    + scratch[j] as DoubleLimb
-                    + carry as DoubleLimb;
+                let prod = DoubleLimb::from(m) * DoubleLimb::from(n_mod[j])
+                    + DoubleLimb::from(scratch[j])
+                    + DoubleLimb::from(carry);
                 scratch[j - 1] = prod as Limb;
                 carry = (prod >> LIMB_BITS) as u64;
             }
-            let sum = scratch[n] as DoubleLimb + carry as DoubleLimb;
+            let sum = DoubleLimb::from(scratch[n]) + DoubleLimb::from(carry);
             scratch[n - 1] = sum as Limb;
             scratch[n] = scratch[n + 1] + (sum >> LIMB_BITS) as u64;
         }
@@ -195,31 +195,31 @@ impl MontgomeryCtx {
             // Step 1: scratch += ai * b
             let mut carry: u64 = 0;
             for j in 0..n {
-                let prod = ai as DoubleLimb * *b.get_unchecked(j) as DoubleLimb
-                    + *scratch.get_unchecked(j) as DoubleLimb
-                    + carry as DoubleLimb;
+                let prod = DoubleLimb::from(ai) * DoubleLimb::from(*b.get_unchecked(j))
+                    + DoubleLimb::from(*scratch.get_unchecked(j))
+                    + DoubleLimb::from(carry);
                 *scratch.get_unchecked_mut(j) = prod as Limb;
                 carry = (prod >> LIMB_BITS) as u64;
             }
-            let sum = *scratch.get_unchecked(n) as DoubleLimb + carry as DoubleLimb;
+            let sum = DoubleLimb::from(*scratch.get_unchecked(n)) + DoubleLimb::from(carry);
             *scratch.get_unchecked_mut(n) = sum as Limb;
             *scratch.get_unchecked_mut(n + 1) = (sum >> LIMB_BITS) as u64;
 
             // Step 2: Montgomery reduction shift
             let m = scratch.get_unchecked(0).wrapping_mul(np);
 
-            let prod0 = m as DoubleLimb * *n_mod.get_unchecked(0) as DoubleLimb
-                + *scratch.get_unchecked(0) as DoubleLimb;
+            let prod0 = DoubleLimb::from(m) * DoubleLimb::from(*n_mod.get_unchecked(0))
+                + DoubleLimb::from(*scratch.get_unchecked(0));
             carry = (prod0 >> LIMB_BITS) as u64;
 
             for j in 1..n {
-                let prod = m as DoubleLimb * *n_mod.get_unchecked(j) as DoubleLimb
-                    + *scratch.get_unchecked(j) as DoubleLimb
-                    + carry as DoubleLimb;
+                let prod = DoubleLimb::from(m) * DoubleLimb::from(*n_mod.get_unchecked(j))
+                    + DoubleLimb::from(*scratch.get_unchecked(j))
+                    + DoubleLimb::from(carry);
                 *scratch.get_unchecked_mut(j - 1) = prod as Limb;
                 carry = (prod >> LIMB_BITS) as u64;
             }
-            let sum = *scratch.get_unchecked(n) as DoubleLimb + carry as DoubleLimb;
+            let sum = DoubleLimb::from(*scratch.get_unchecked(n)) + DoubleLimb::from(carry);
             *scratch.get_unchecked_mut(n - 1) = sum as Limb;
             *scratch.get_unchecked_mut(n) =
                 *scratch.get_unchecked(n + 1) + (sum >> LIMB_BITS) as u64;
@@ -529,9 +529,9 @@ fn sqr_limbs(a: &[u64], n: usize, out: &mut [u64]) {
             let ai = *a.get_unchecked(i);
             let mut carry: u64 = 0;
             for j in (i + 1)..n {
-                let prod = ai as DoubleLimb * *a.get_unchecked(j) as DoubleLimb
-                    + *out.get_unchecked(i + j) as DoubleLimb
-                    + carry as DoubleLimb;
+                let prod = DoubleLimb::from(ai) * DoubleLimb::from(*a.get_unchecked(j))
+                    + DoubleLimb::from(*out.get_unchecked(i + j))
+                    + DoubleLimb::from(carry);
                 *out.get_unchecked_mut(i + j) = prod as Limb;
                 carry = (prod >> LIMB_BITS) as u64;
             }
@@ -550,11 +550,11 @@ fn sqr_limbs(a: &[u64], n: usize, out: &mut [u64]) {
         carry = 0;
         for i in 0..n {
             let ai = *a.get_unchecked(i);
-            let prod = ai as DoubleLimb * ai as DoubleLimb
-                + *out.get_unchecked(2 * i) as DoubleLimb
-                + carry as DoubleLimb;
+            let prod = DoubleLimb::from(ai) * DoubleLimb::from(ai)
+                + DoubleLimb::from(*out.get_unchecked(2 * i))
+                + DoubleLimb::from(carry);
             *out.get_unchecked_mut(2 * i) = prod as Limb;
-            let sum = (prod >> LIMB_BITS) + *out.get_unchecked(2 * i + 1) as DoubleLimb;
+            let sum = (prod >> LIMB_BITS) + DoubleLimb::from(*out.get_unchecked(2 * i + 1));
             *out.get_unchecked_mut(2 * i + 1) = sum as Limb;
             carry = (sum >> LIMB_BITS) as u64;
         }
@@ -584,7 +584,7 @@ fn limbs_sub_in_place(result: &mut [u64], b: &[u64], n: usize) {
         let (diff, b1) = result[i].overflowing_sub(bv);
         let (diff2, b2) = diff.overflowing_sub(borrow);
         result[i] = diff2;
-        borrow = (b1 as u64) + (b2 as u64);
+        borrow = u64::from(b1) + u64::from(b2);
     }
 }
 
@@ -810,7 +810,7 @@ mod tests {
         for i in 0..n {
             let mut carry: u64 = 0;
             for j in 0..n {
-                let prod = a[i] as u128 * a[j] as u128 + mul_out[i + j] as u128 + carry as u128;
+                let prod = u128::from(a[i]) * u128::from(a[j]) + u128::from(mul_out[i + j]) + u128::from(carry);
                 mul_out[i + j] = prod as u64;
                 carry = (prod >> 64) as u64;
             }

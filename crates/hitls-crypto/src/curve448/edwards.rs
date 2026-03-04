@@ -424,7 +424,7 @@ fn point_add_mixed(a: &GeExtended448, b: &Ed448TablePoint) -> GeExtended448 {
 fn ct_select_table(table: &[Ed448TablePoint; 16], index: u8) -> Ed448TablePoint {
     let mut result = Ed448TablePoint::identity();
     for i in 1..16u8 {
-        let mask = (((i ^ index) as i64).wrapping_sub(1) >> 63) as u64;
+        let mask = (i64::from(i ^ index).wrapping_sub(1) >> 63) as u64;
         result.ct_assign(&table[i as usize], mask);
     }
     result

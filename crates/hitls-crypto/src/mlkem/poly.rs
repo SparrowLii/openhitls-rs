@@ -58,14 +58,14 @@ pub(crate) fn sample_cbd(buf: &[u8], eta: usize) -> Result<Poly, CryptoError> {
 #[inline]
 fn compress_coeff(x: i16, d: u32) -> u16 {
     // Ensure x is in [0, q)
-    let x = ((x as i32 % Q as i32) + Q as i32) as u32;
-    (((x as u64) << d).wrapping_add(Q as u64 / 2) / Q as u64) as u16 & ((1u16 << d) - 1)
+    let x = ((i32::from(x) % i32::from(Q)) + i32::from(Q)) as u32;
+    ((u64::from(x) << d).wrapping_add(Q as u64 / 2) / Q as u64) as u16 & ((1u16 << d) - 1)
 }
 
 /// Decompress a coefficient: round(y * q / 2^d).
 #[inline]
 fn decompress_coeff(y: u16, d: u32) -> i16 {
-    ((y as u32 * Q as u32 + (1 << (d - 1))) >> d) as i16
+    ((u32::from(y) * Q as u32 + (1 << (d - 1))) >> d) as i16
 }
 
 /// Compress a polynomial into caller-provided buffer (zero-allocation).
@@ -156,8 +156,8 @@ pub(crate) fn poly_decompress(data: &[u8], d: u32) -> Poly {
         4 => {
             // 1 byte → 2 coefficients
             for i in 0..N / 2 {
-                r[2 * i] = decompress_coeff(data[i] as u16 & 0xF, 4);
-                r[2 * i + 1] = decompress_coeff((data[i] >> 4) as u16, 4);
+                r[2 * i] = decompress_coeff(u16::from(data[i]) & 0xF, 4);
+                r[2 * i + 1] = decompress_coeff(u16::from(data[i] >> 4), 4);
             }
         }
         5 => {
@@ -165,18 +165,18 @@ pub(crate) fn poly_decompress(data: &[u8], d: u32) -> Poly {
             for i in 0..N / 8 {
                 let b = &data[5 * i..5 * i + 5];
                 let mask = (1u16 << 5) - 1;
-                r[8 * i] = decompress_coeff(b[0] as u16 & mask, 5);
+                r[8 * i] = decompress_coeff(u16::from(b[0]) & mask, 5);
                 r[8 * i + 1] =
-                    decompress_coeff(((b[0] as u16 >> 5) | ((b[1] as u16) << 3)) & mask, 5);
-                r[8 * i + 2] = decompress_coeff((b[1] as u16 >> 2) & mask, 5);
+                    decompress_coeff(((u16::from(b[0]) >> 5) | (u16::from(b[1]) << 3)) & mask, 5);
+                r[8 * i + 2] = decompress_coeff((u16::from(b[1]) >> 2) & mask, 5);
                 r[8 * i + 3] =
-                    decompress_coeff(((b[1] as u16 >> 7) | ((b[2] as u16) << 1)) & mask, 5);
+                    decompress_coeff(((u16::from(b[1]) >> 7) | (u16::from(b[2]) << 1)) & mask, 5);
                 r[8 * i + 4] =
-                    decompress_coeff(((b[2] as u16 >> 4) | ((b[3] as u16) << 4)) & mask, 5);
-                r[8 * i + 5] = decompress_coeff((b[3] as u16 >> 1) & mask, 5);
+                    decompress_coeff(((u16::from(b[2]) >> 4) | (u16::from(b[3]) << 4)) & mask, 5);
+                r[8 * i + 5] = decompress_coeff((u16::from(b[3]) >> 1) & mask, 5);
                 r[8 * i + 6] =
-                    decompress_coeff(((b[3] as u16 >> 6) | ((b[4] as u16) << 2)) & mask, 5);
-                r[8 * i + 7] = decompress_coeff((b[4] as u16 >> 3) & mask, 5);
+                    decompress_coeff(((u16::from(b[3]) >> 6) | (u16::from(b[4]) << 2)) & mask, 5);
+                r[8 * i + 7] = decompress_coeff((u16::from(b[4]) >> 3) & mask, 5);
             }
         }
         10 => {
@@ -184,13 +184,13 @@ pub(crate) fn poly_decompress(data: &[u8], d: u32) -> Poly {
             let mask = (1u16 << 10) - 1;
             for i in 0..N / 4 {
                 let b = &data[5 * i..5 * i + 5];
-                r[4 * i] = decompress_coeff((b[0] as u16 | ((b[1] as u16) << 8)) & mask, 10);
+                r[4 * i] = decompress_coeff((u16::from(b[0]) | (u16::from(b[1]) << 8)) & mask, 10);
                 r[4 * i + 1] =
-                    decompress_coeff(((b[1] as u16 >> 2) | ((b[2] as u16) << 6)) & mask, 10);
+                    decompress_coeff(((u16::from(b[1]) >> 2) | (u16::from(b[2]) << 6)) & mask, 10);
                 r[4 * i + 2] =
-                    decompress_coeff(((b[2] as u16 >> 4) | ((b[3] as u16) << 4)) & mask, 10);
+                    decompress_coeff(((u16::from(b[2]) >> 4) | (u16::from(b[3]) << 4)) & mask, 10);
                 r[4 * i + 3] =
-                    decompress_coeff(((b[3] as u16 >> 6) | ((b[4] as u16) << 2)) & mask, 10);
+                    decompress_coeff(((u16::from(b[3]) >> 6) | (u16::from(b[4]) << 2)) & mask, 10);
             }
         }
         11 => {
@@ -198,25 +198,25 @@ pub(crate) fn poly_decompress(data: &[u8], d: u32) -> Poly {
             let mask = (1u16 << 11) - 1;
             for i in 0..N / 8 {
                 let b = &data[11 * i..11 * i + 11];
-                r[8 * i] = decompress_coeff((b[0] as u16 | ((b[1] as u16) << 8)) & mask, 11);
+                r[8 * i] = decompress_coeff((u16::from(b[0]) | (u16::from(b[1]) << 8)) & mask, 11);
                 r[8 * i + 1] =
-                    decompress_coeff(((b[1] as u16 >> 3) | ((b[2] as u16) << 5)) & mask, 11);
+                    decompress_coeff(((u16::from(b[1]) >> 3) | (u16::from(b[2]) << 5)) & mask, 11);
                 r[8 * i + 2] = decompress_coeff(
-                    ((b[2] as u16 >> 6) | ((b[3] as u16) << 2) | ((b[4] as u16) << 10)) & mask,
+                    ((u16::from(b[2]) >> 6) | (u16::from(b[3]) << 2) | (u16::from(b[4]) << 10)) & mask,
                     11,
                 );
                 r[8 * i + 3] =
-                    decompress_coeff(((b[4] as u16 >> 1) | ((b[5] as u16) << 7)) & mask, 11);
+                    decompress_coeff(((u16::from(b[4]) >> 1) | (u16::from(b[5]) << 7)) & mask, 11);
                 r[8 * i + 4] =
-                    decompress_coeff(((b[5] as u16 >> 4) | ((b[6] as u16) << 4)) & mask, 11);
+                    decompress_coeff(((u16::from(b[5]) >> 4) | (u16::from(b[6]) << 4)) & mask, 11);
                 r[8 * i + 5] = decompress_coeff(
-                    ((b[6] as u16 >> 7) | ((b[7] as u16) << 1) | ((b[8] as u16) << 9)) & mask,
+                    ((u16::from(b[6]) >> 7) | (u16::from(b[7]) << 1) | (u16::from(b[8]) << 9)) & mask,
                     11,
                 );
                 r[8 * i + 6] =
-                    decompress_coeff(((b[8] as u16 >> 2) | ((b[9] as u16) << 6)) & mask, 11);
+                    decompress_coeff(((u16::from(b[8]) >> 2) | (u16::from(b[9]) << 6)) & mask, 11);
                 r[8 * i + 7] =
-                    decompress_coeff(((b[9] as u16 >> 5) | ((b[10] as u16) << 3)) & mask, 11);
+                    decompress_coeff(((u16::from(b[9]) >> 5) | (u16::from(b[10]) << 3)) & mask, 11);
             }
         }
         _ => {
@@ -244,7 +244,7 @@ pub(crate) fn byte_encode_into(poly: &Poly, d: usize, out: &mut [u8]) {
     // Normalize coefficient to [0, q)
     #[inline]
     fn normalize(c: i16) -> u16 {
-        ((c as i32 % Q as i32 + Q as i32) % Q as i32) as u16
+        ((i32::from(c) % i32::from(Q) + i32::from(Q)) % i32::from(Q)) as u16
     }
 
     match d {
@@ -303,7 +303,7 @@ pub(crate) fn byte_decode(data: &[u8], d: usize) -> Poly {
             for i in 0..N / 8 {
                 let byte = data[i];
                 for j in 0..8 {
-                    r[8 * i + j] = ((byte >> j) & 1) as i16;
+                    r[8 * i + j] = i16::from((byte >> j) & 1);
                 }
             }
         }
@@ -311,8 +311,8 @@ pub(crate) fn byte_decode(data: &[u8], d: usize) -> Poly {
             // 3 bytes → 2 coefficients (NTT decoding)
             for i in 0..N / 2 {
                 let b = &data[3 * i..3 * i + 3];
-                r[2 * i] = (b[0] as i16 | ((b[1] as i16 & 0xF) << 8)) & 0xFFF;
-                r[2 * i + 1] = ((b[1] as i16 >> 4) | ((b[2] as i16) << 4)) & 0xFFF;
+                r[2 * i] = (i16::from(b[0]) | ((i16::from(b[1]) & 0xF) << 8)) & 0xFFF;
+                r[2 * i + 1] = ((i16::from(b[1]) >> 4) | (i16::from(b[2]) << 4)) & 0xFFF;
             }
         }
         _ => {
@@ -377,8 +377,8 @@ pub(crate) fn rej_sample(xof: &mut Shake128) -> Poly {
         xof.squeeze_into(&mut block);
         let mut pos = 0;
         while pos + 2 < block.len() && ctr < N {
-            let d1 = (block[pos] as u16) | ((block[pos + 1] as u16 & 0x0F) << 8);
-            let d2 = ((block[pos + 1] as u16) >> 4) | ((block[pos + 2] as u16) << 4);
+            let d1 = u16::from(block[pos]) | ((u16::from(block[pos + 1]) & 0x0F) << 8);
+            let d2 = (u16::from(block[pos + 1]) >> 4) | (u16::from(block[pos + 2]) << 4);
             pos += 3;
             if d1 < Q as u16 {
                 r[ctr] = d1 as i16;
@@ -510,13 +510,13 @@ mod tests {
             let c = compress_coeff(x, d);
             let y = decompress_coeff(c, d);
             // The error should be small: |x - y| < q / 2^d
-            let err = ((x - y) as i32 + Q as i32) % Q as i32;
-            let err = if err > Q as i32 / 2 {
-                Q as i32 - err
+            let err = (i32::from(x - y) + i32::from(Q)) % i32::from(Q);
+            let err = if err > i32::from(Q) / 2 {
+                i32::from(Q) - err
             } else {
                 err
             };
-            let max_err = Q as i32 / (1 << d) + 1;
+            let max_err = i32::from(Q) / (1 << d) + 1;
             assert!(err <= max_err, "d={d}: err={err} > max_err={max_err}");
         }
     }
@@ -532,7 +532,7 @@ mod tests {
             let encoded = byte_encode(&poly, d);
             let decoded = byte_decode(&encoded, d);
             for i in 0..N {
-                let expected = ((poly[i] as i32 % Q as i32 + Q as i32) % Q as i32) as u16;
+                let expected = ((i32::from(poly[i]) % i32::from(Q) + i32::from(Q)) % i32::from(Q)) as u16;
                 let expected_masked = expected & ((1u16 << d) - 1);
                 assert_eq!(
                     decoded[i] as u16, expected_masked,
@@ -596,11 +596,11 @@ mod tests {
             let decompressed = poly_decompress(&compressed, d);
             // Each coefficient error should be bounded by q / 2^(d+1)
             for i in 0..N {
-                let orig = ((poly[i] as i32 % Q as i32) + Q as i32) % Q as i32;
-                let recov = decompressed[i] as i32;
-                let err = (orig - recov + Q as i32) % Q as i32;
-                let err = err.min(Q as i32 - err);
-                let max_err = Q as i32 / (1 << d) + 1;
+                let orig = ((i32::from(poly[i]) % i32::from(Q)) + i32::from(Q)) % i32::from(Q);
+                let recov = i32::from(decompressed[i]);
+                let err = (orig - recov + i32::from(Q)) % i32::from(Q);
+                let err = err.min(i32::from(Q) - err);
+                let max_err = i32::from(Q) / (1 << d) + 1;
                 assert!(
                     err <= max_err,
                     "d={d}, i={i}: err={err} > max_err={max_err}"

@@ -30,7 +30,7 @@ pub struct DtlsHandshakeHeader {
 }
 
 fn read_u24(data: &[u8]) -> u32 {
-    ((data[0] as u32) << 16) | ((data[1] as u32) << 8) | (data[2] as u32)
+    (u32::from(data[0]) << 16) | (u32::from(data[1]) << 8) | u32::from(data[2])
 }
 
 fn write_u24(buf: &mut Vec<u8>, val: u32) {

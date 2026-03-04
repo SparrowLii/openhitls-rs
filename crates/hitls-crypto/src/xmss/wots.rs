@@ -17,7 +17,7 @@ fn base_w(x: &[u8], out_len: usize) -> Vec<u32> {
 
     for _ in 0..out_len {
         while bit < 4 && xi < x.len() {
-            o = (o << 8) | (x[xi] as u64);
+            o = (o << 8) | u64::from(x[xi]);
             bit += 8;
             xi += 1;
         }

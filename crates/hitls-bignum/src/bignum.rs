@@ -52,7 +52,7 @@ impl BigNum {
         for (i, &byte) in bytes.iter().rev().enumerate() {
             let limb_idx = i / 8;
             let bit_pos = (i % 8) * 8;
-            limbs[limb_idx] |= (byte as u64) << bit_pos;
+            limbs[limb_idx] |= u64::from(byte) << bit_pos;
         }
 
         let mut bn = Self {
@@ -235,12 +235,12 @@ impl BigNum {
             if i == 0 {
                 // Skip leading zero in first byte
                 if b >> 4 != 0 {
-                    s.push(char::from_digit((b >> 4) as u32, 16).unwrap());
+                    s.push(char::from_digit(u32::from(b >> 4), 16).unwrap());
                 }
-                s.push(char::from_digit((b & 0x0f) as u32, 16).unwrap());
+                s.push(char::from_digit(u32::from(b & 0x0f), 16).unwrap());
             } else {
-                s.push(char::from_digit((b >> 4) as u32, 16).unwrap());
-                s.push(char::from_digit((b & 0x0f) as u32, 16).unwrap());
+                s.push(char::from_digit(u32::from(b >> 4), 16).unwrap());
+                s.push(char::from_digit(u32::from(b & 0x0f), 16).unwrap());
             }
         }
         s
@@ -263,7 +263,7 @@ impl BigNum {
         let ten = Self::from_u64(10);
         let mut acc = Self::zero();
         for &b in s.as_bytes() {
-            let digit = Self::from_u64((b - b'0') as u64);
+            let digit = Self::from_u64(u64::from(b - b'0'));
             acc = acc.mul(&ten).add(&digit);
         }
         if neg && !acc.is_zero() {

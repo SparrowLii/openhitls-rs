@@ -86,7 +86,7 @@ pub(crate) fn fixed_weight_vector(params: &McElieceParams) -> Result<Vec<u8>, Cr
             if pos_list.len() >= t {
                 break;
             }
-            let v = (rand_bytes[i * 2] as u16 | ((rand_bytes[i * 2 + 1] as u16) << 8)) & Q_1;
+            let v = (u16::from(rand_bytes[i * 2]) | (u16::from(rand_bytes[i * 2 + 1]) << 8)) & Q_1;
             if (v as usize) < n {
                 pos_list.push(v);
             }

@@ -380,7 +380,7 @@ fn strip_leading_zero(bytes: &[u8]) -> &[u8] {
 fn parse_small_int(bytes: &[u8]) -> u32 {
     let mut result: u32 = 0;
     for &b in bytes {
-        result = (result << 8) | b as u32;
+        result = (result << 8) | u32::from(b);
     }
     result
 }

@@ -39,21 +39,21 @@ pub(crate) const ZETAS: [i16; 128] = [
 #[inline]
 pub(crate) fn montgomery_reduce(a: i32) -> i16 {
     let t = (a as i16).wrapping_mul(QINV);
-    ((a - t as i32 * Q as i32) >> 16) as i16
+    ((a - i32::from(t) * i32::from(Q)) >> 16) as i16
 }
 
 /// Barrett reduction: reduce a modulo q to [-q/2, q/2].
 #[inline]
 pub(crate) fn barrett_reduce(a: i16) -> i16 {
-    let v = ((1i32 << 26) + Q as i32 / 2) / Q as i32; // 20159
-    let t = ((a as i32 * v + (1 << 25)) >> 26) as i16;
+    let v = ((1i32 << 26) + i32::from(Q) / 2) / i32::from(Q); // 20159
+    let t = ((i32::from(a) * v + (1 << 25)) >> 26) as i16;
     a - t * Q
 }
 
 /// Multiply a and b in Montgomery domain: a * b * R^{-1} mod q.
 #[inline]
 pub(crate) fn fqmul(a: i16, b: i16) -> i16 {
-    montgomery_reduce(a as i32 * b as i32)
+    montgomery_reduce(i32::from(a) * i32::from(b))
 }
 
 /// Forward NTT (Cooley-Tukey butterflies).
@@ -377,9 +377,9 @@ mod tests {
         invntt(&mut f);
         for i in 0..N {
             // montgomery_reduce(x) = x * R^{-1} mod q, undoing the extra R factor
-            let recovered = montgomery_reduce(f[i] as i32);
-            let expected = ((orig[i] as i32 % Q as i32 + Q as i32) % Q as i32) as i16;
-            let got = ((recovered as i32 % Q as i32 + Q as i32) % Q as i32) as i16;
+            let recovered = montgomery_reduce(i32::from(f[i]));
+            let expected = ((i32::from(orig[i]) % i32::from(Q) + i32::from(Q)) % i32::from(Q)) as i16;
+            let got = ((i32::from(recovered) % i32::from(Q) + i32::from(Q)) % i32::from(Q)) as i16;
             assert_eq!(
                 got, expected,
                 "Mismatch at {i}: got {got}, expected {expected}"
@@ -412,7 +412,7 @@ mod tests {
 
         /// Normalize to [0, q) for comparison.
         fn normalize(x: i16) -> i16 {
-            ((x as i32 % Q as i32 + Q as i32) % Q as i32) as i16
+            ((i32::from(x) % i32::from(Q) + i32::from(Q)) % i32::from(Q)) as i16
         }
 
         #[test]

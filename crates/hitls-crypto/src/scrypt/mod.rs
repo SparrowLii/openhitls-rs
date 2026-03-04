@@ -32,8 +32,8 @@ pub fn scrypt(
         return Err(CryptoError::InvalidArg(""));
     }
     // r * p must not overflow
-    let rp = (r as u64)
-        .checked_mul(p as u64)
+    let rp = u64::from(r)
+        .checked_mul(u64::from(p))
         .ok_or(CryptoError::InvalidArg(""))?;
     if rp >= (1 << 30) {
         return Err(CryptoError::InvalidArg(""));

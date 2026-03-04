@@ -9,9 +9,9 @@ pub fn encode(input: &[u8]) -> String {
     let mut output = String::with_capacity(input.len().div_ceil(3) * 4);
 
     for chunk in input.chunks(3) {
-        let b0 = chunk[0] as u32;
-        let b1 = if chunk.len() > 1 { chunk[1] as u32 } else { 0 };
-        let b2 = if chunk.len() > 2 { chunk[2] as u32 } else { 0 };
+        let b0 = u32::from(chunk[0]);
+        let b1 = if chunk.len() > 1 { u32::from(chunk[1]) } else { 0 };
+        let b2 = if chunk.len() > 2 { u32::from(chunk[2]) } else { 0 };
 
         let triple = (b0 << 16) | (b1 << 8) | b2;
 
@@ -85,9 +85,9 @@ pub fn decode(input: &str) -> Result<Vec<u8>, CryptoError> {
 
 fn decode_char(c: u8) -> Result<u32, CryptoError> {
     match c {
-        b'A'..=b'Z' => Ok((c - b'A') as u32),
-        b'a'..=b'z' => Ok((c - b'a' + 26) as u32),
-        b'0'..=b'9' => Ok((c - b'0' + 52) as u32),
+        b'A'..=b'Z' => Ok(u32::from(c - b'A')),
+        b'a'..=b'z' => Ok(u32::from(c - b'a' + 26)),
+        b'0'..=b'9' => Ok(u32::from(c - b'0' + 52)),
         b'+' => Ok(62),
         b'/' => Ok(63),
         _ => Err(CryptoError::InvalidArg("")),

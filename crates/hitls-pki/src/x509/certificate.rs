@@ -243,7 +243,7 @@ pub(crate) fn parse_extensions(ext_data: &[u8]) -> Result<Vec<X509Extension>, Pk
             let tag = ext_dec
                 .peek_tag()
                 .map_err(|e| PkiError::Asn1Error(e.to_string()))?;
-            if tag.class == TagClass::Universal && tag.number == tags::BOOLEAN as u32 {
+            if tag.class == TagClass::Universal && tag.number == u32::from(tags::BOOLEAN) {
                 ext_dec
                     .read_boolean()
                     .map_err(|e| PkiError::Asn1Error(e.to_string()))?

@@ -88,9 +88,9 @@ pub(crate) fn rej_ntt_poly(rho: &[u8; 32], i: u8, j: u8) -> Poly {
         xof.squeeze_into(&mut block);
         let mut pos = 0;
         while pos + 2 < block.len() && ctr < N {
-            let mut t = (block[pos] as u32)
-                | ((block[pos + 1] as u32) << 8)
-                | ((block[pos + 2] as u32) << 16);
+            let mut t = u32::from(block[pos])
+                | (u32::from(block[pos + 1]) << 8)
+                | (u32::from(block[pos + 2]) << 16);
             t &= 0x7F_FFFF; // 23-bit candidate
             pos += 3;
             if t < Q as u32 {
@@ -129,8 +129,8 @@ pub(crate) fn rej_bounded_poly(sigma: &[u8], eta: usize, nonce: u16) -> Poly {
         xof.squeeze_into(&mut block);
         let mut pos = 0;
         while pos < block.len() && ctr < N {
-            let b0 = (block[pos] & 0x0F) as i32;
-            let b1 = (block[pos] >> 4) as i32;
+            let b0 = i32::from(block[pos] & 0x0F);
+            let b1 = i32::from(block[pos] >> 4);
             pos += 1;
             if eta == 2 {
                 if b0 < 15 {
@@ -173,27 +173,27 @@ pub(crate) fn sample_mask_poly(seed: &[u8], nonce: u16, gamma1: i32) -> Poly {
         // Pack 4 coefficients per 9 bytes (4 × 18 = 72 bits = 9 bytes)
         for i in 0..N / 4 {
             let off = 9 * i;
-            r[4 * i] = (buf[off] as i32)
-                | ((buf[off + 1] as i32) << 8)
-                | ((buf[off + 2] as i32 & 0x03) << 16);
+            r[4 * i] = i32::from(buf[off])
+                | (i32::from(buf[off + 1]) << 8)
+                | ((i32::from(buf[off + 2]) & 0x03) << 16);
             r[4 * i] &= 0x3FFFF;
             r[4 * i] = gamma1 - r[4 * i];
 
-            r[4 * i + 1] = ((buf[off + 2] as i32) >> 2)
-                | ((buf[off + 3] as i32) << 6)
-                | ((buf[off + 4] as i32 & 0x0F) << 14);
+            r[4 * i + 1] = (i32::from(buf[off + 2]) >> 2)
+                | (i32::from(buf[off + 3]) << 6)
+                | ((i32::from(buf[off + 4]) & 0x0F) << 14);
             r[4 * i + 1] &= 0x3FFFF;
             r[4 * i + 1] = gamma1 - r[4 * i + 1];
 
-            r[4 * i + 2] = ((buf[off + 4] as i32) >> 4)
-                | ((buf[off + 5] as i32) << 4)
-                | ((buf[off + 6] as i32 & 0x3F) << 12);
+            r[4 * i + 2] = (i32::from(buf[off + 4]) >> 4)
+                | (i32::from(buf[off + 5]) << 4)
+                | ((i32::from(buf[off + 6]) & 0x3F) << 12);
             r[4 * i + 2] &= 0x3FFFF;
             r[4 * i + 2] = gamma1 - r[4 * i + 2];
 
-            r[4 * i + 3] = ((buf[off + 6] as i32) >> 6)
-                | ((buf[off + 7] as i32) << 2)
-                | ((buf[off + 8] as i32) << 10);
+            r[4 * i + 3] = (i32::from(buf[off + 6]) >> 6)
+                | (i32::from(buf[off + 7]) << 2)
+                | (i32::from(buf[off + 8]) << 10);
             r[4 * i + 3] &= 0x3FFFF;
             r[4 * i + 3] = gamma1 - r[4 * i + 3];
         }
@@ -201,14 +201,14 @@ pub(crate) fn sample_mask_poly(seed: &[u8], nonce: u16, gamma1: i32) -> Poly {
         // bits == 20: Pack 4 coefficients per 10 bytes (5 bytes per 2 coefficients)
         for i in 0..N / 2 {
             let off = 5 * i;
-            r[2 * i] = (buf[off] as i32)
-                | ((buf[off + 1] as i32) << 8)
-                | ((buf[off + 2] as i32 & 0x0F) << 16);
+            r[2 * i] = i32::from(buf[off])
+                | (i32::from(buf[off + 1]) << 8)
+                | ((i32::from(buf[off + 2]) & 0x0F) << 16);
             r[2 * i] &= 0xFFFFF;
             r[2 * i] = gamma1 - r[2 * i];
-            r[2 * i + 1] = ((buf[off + 2] as i32) >> 4)
-                | ((buf[off + 3] as i32) << 4)
-                | ((buf[off + 4] as i32) << 12);
+            r[2 * i + 1] = (i32::from(buf[off + 2]) >> 4)
+                | (i32::from(buf[off + 3]) << 4)
+                | (i32::from(buf[off + 4]) << 12);
             r[2 * i + 1] &= 0xFFFFF;
             r[2 * i + 1] = gamma1 - r[2 * i + 1];
         }
@@ -229,7 +229,7 @@ pub(crate) fn sample_in_ball(seed: &[u8], tau: usize) -> Poly {
     xof.squeeze_into(&mut buf);
     let mut signs: u64 = 0;
     for (i, &byte) in buf[..8].iter().enumerate() {
-        signs |= (byte as u64) << (8 * i);
+        signs |= u64::from(byte) << (8 * i);
     }
     let mut buf_pos = 8;
 
@@ -277,10 +277,10 @@ pub(crate) fn unpack_t1(data: &[u8]) -> Poly {
     let mut r = [0i32; N];
     for i in 0..N / 4 {
         let idx = 4 * i;
-        r[idx] = ((data[5 * i] as i32) | ((data[5 * i + 1] as i32) << 8)) & 0x3FF;
-        r[idx + 1] = (((data[5 * i + 1] as i32) >> 2) | ((data[5 * i + 2] as i32) << 6)) & 0x3FF;
-        r[idx + 2] = (((data[5 * i + 2] as i32) >> 4) | ((data[5 * i + 3] as i32) << 4)) & 0x3FF;
-        r[idx + 3] = (((data[5 * i + 3] as i32) >> 6) | ((data[5 * i + 4] as i32) << 2)) & 0x3FF;
+        r[idx] = (i32::from(data[5 * i]) | (i32::from(data[5 * i + 1]) << 8)) & 0x3FF;
+        r[idx + 1] = ((i32::from(data[5 * i + 1]) >> 2) | (i32::from(data[5 * i + 2]) << 6)) & 0x3FF;
+        r[idx + 2] = ((i32::from(data[5 * i + 2]) >> 4) | (i32::from(data[5 * i + 3]) << 4)) & 0x3FF;
+        r[idx + 3] = ((i32::from(data[5 * i + 3]) >> 6) | (i32::from(data[5 * i + 4]) << 2)) & 0x3FF;
     }
     r
 }
@@ -314,22 +314,22 @@ pub(crate) fn pack_t0(poly: &Poly) -> Vec<u8> {
 pub(crate) fn unpack_t0(data: &[u8]) -> Poly {
     let mut r = [0i32; N];
     for i in 0..N / 8 {
-        r[8 * i] = (data[13 * i] as i32) | ((data[13 * i + 1] as i32 & 0x1F) << 8);
-        r[8 * i + 1] = ((data[13 * i + 1] as i32) >> 5)
-            | ((data[13 * i + 2] as i32) << 3)
-            | ((data[13 * i + 3] as i32 & 0x03) << 11);
-        r[8 * i + 2] = ((data[13 * i + 3] as i32) >> 2) | ((data[13 * i + 4] as i32 & 0x7F) << 6);
-        r[8 * i + 3] = ((data[13 * i + 4] as i32) >> 7)
-            | ((data[13 * i + 5] as i32) << 1)
-            | ((data[13 * i + 6] as i32 & 0x0F) << 9);
-        r[8 * i + 4] = ((data[13 * i + 6] as i32) >> 4)
-            | ((data[13 * i + 7] as i32) << 4)
-            | ((data[13 * i + 8] as i32 & 0x01) << 12);
-        r[8 * i + 5] = ((data[13 * i + 8] as i32) >> 1) | ((data[13 * i + 9] as i32 & 0x3F) << 7);
-        r[8 * i + 6] = ((data[13 * i + 9] as i32) >> 6)
-            | ((data[13 * i + 10] as i32) << 2)
-            | ((data[13 * i + 11] as i32 & 0x07) << 10);
-        r[8 * i + 7] = ((data[13 * i + 11] as i32) >> 3) | ((data[13 * i + 12] as i32) << 5);
+        r[8 * i] = i32::from(data[13 * i]) | ((i32::from(data[13 * i + 1]) & 0x1F) << 8);
+        r[8 * i + 1] = (i32::from(data[13 * i + 1]) >> 5)
+            | (i32::from(data[13 * i + 2]) << 3)
+            | ((i32::from(data[13 * i + 3]) & 0x03) << 11);
+        r[8 * i + 2] = (i32::from(data[13 * i + 3]) >> 2) | ((i32::from(data[13 * i + 4]) & 0x7F) << 6);
+        r[8 * i + 3] = (i32::from(data[13 * i + 4]) >> 7)
+            | (i32::from(data[13 * i + 5]) << 1)
+            | ((i32::from(data[13 * i + 6]) & 0x0F) << 9);
+        r[8 * i + 4] = (i32::from(data[13 * i + 6]) >> 4)
+            | (i32::from(data[13 * i + 7]) << 4)
+            | ((i32::from(data[13 * i + 8]) & 0x01) << 12);
+        r[8 * i + 5] = (i32::from(data[13 * i + 8]) >> 1) | ((i32::from(data[13 * i + 9]) & 0x3F) << 7);
+        r[8 * i + 6] = (i32::from(data[13 * i + 9]) >> 6)
+            | (i32::from(data[13 * i + 10]) << 2)
+            | ((i32::from(data[13 * i + 11]) & 0x07) << 10);
+        r[8 * i + 7] = (i32::from(data[13 * i + 11]) >> 3) | (i32::from(data[13 * i + 12]) << 5);
         // Convert from unsigned to signed
         for j in 0..8 {
             r[8 * i + j] = (1 << (D - 1)) - (r[8 * i + j] & 0x1FFF);
@@ -370,14 +370,14 @@ pub(crate) fn unpack_eta(data: &[u8], eta: usize) -> Poly {
     let mut r = [0i32; N];
     if eta == 2 {
         for i in 0..N / 8 {
-            r[8 * i] = (data[3 * i] & 0x07) as i32;
-            r[8 * i + 1] = ((data[3 * i] >> 3) & 0x07) as i32;
-            r[8 * i + 2] = (((data[3 * i] >> 6) | (data[3 * i + 1] << 2)) & 0x07) as i32;
-            r[8 * i + 3] = ((data[3 * i + 1] >> 1) & 0x07) as i32;
-            r[8 * i + 4] = ((data[3 * i + 1] >> 4) & 0x07) as i32;
-            r[8 * i + 5] = (((data[3 * i + 1] >> 7) | (data[3 * i + 2] << 1)) & 0x07) as i32;
-            r[8 * i + 6] = ((data[3 * i + 2] >> 2) & 0x07) as i32;
-            r[8 * i + 7] = ((data[3 * i + 2] >> 5) & 0x07) as i32;
+            r[8 * i] = i32::from(data[3 * i] & 0x07);
+            r[8 * i + 1] = i32::from((data[3 * i] >> 3) & 0x07);
+            r[8 * i + 2] = i32::from(((data[3 * i] >> 6) | (data[3 * i + 1] << 2)) & 0x07);
+            r[8 * i + 3] = i32::from((data[3 * i + 1] >> 1) & 0x07);
+            r[8 * i + 4] = i32::from((data[3 * i + 1] >> 4) & 0x07);
+            r[8 * i + 5] = i32::from(((data[3 * i + 1] >> 7) | (data[3 * i + 2] << 1)) & 0x07);
+            r[8 * i + 6] = i32::from((data[3 * i + 2] >> 2) & 0x07);
+            r[8 * i + 7] = i32::from((data[3 * i + 2] >> 5) & 0x07);
             for j in 0..8 {
                 r[8 * i + j] = eta as i32 - r[8 * i + j];
             }
@@ -385,8 +385,8 @@ pub(crate) fn unpack_eta(data: &[u8], eta: usize) -> Poly {
     } else {
         // eta == 4
         for i in 0..N / 2 {
-            r[2 * i] = (data[i] & 0x0F) as i32;
-            r[2 * i + 1] = (data[i] >> 4) as i32;
+            r[2 * i] = i32::from(data[i] & 0x0F);
+            r[2 * i + 1] = i32::from(data[i] >> 4);
             r[2 * i] = eta as i32 - r[2 * i];
             r[2 * i + 1] = eta as i32 - r[2 * i + 1];
         }
@@ -440,18 +440,18 @@ pub(crate) fn unpack_z(data: &[u8], gamma1: i32) -> Poly {
     let mut r = [0i32; N];
     if gamma1 == (1 << 17) {
         for i in 0..N / 4 {
-            r[4 * i] = (data[9 * i] as i32)
-                | ((data[9 * i + 1] as i32) << 8)
-                | ((data[9 * i + 2] as i32 & 0x03) << 16);
-            r[4 * i + 1] = ((data[9 * i + 2] as i32) >> 2)
-                | ((data[9 * i + 3] as i32) << 6)
-                | ((data[9 * i + 4] as i32 & 0x0F) << 14);
-            r[4 * i + 2] = ((data[9 * i + 4] as i32) >> 4)
-                | ((data[9 * i + 5] as i32) << 4)
-                | ((data[9 * i + 6] as i32 & 0x3F) << 12);
-            r[4 * i + 3] = ((data[9 * i + 6] as i32) >> 6)
-                | ((data[9 * i + 7] as i32) << 2)
-                | ((data[9 * i + 8] as i32) << 10);
+            r[4 * i] = i32::from(data[9 * i])
+                | (i32::from(data[9 * i + 1]) << 8)
+                | ((i32::from(data[9 * i + 2]) & 0x03) << 16);
+            r[4 * i + 1] = (i32::from(data[9 * i + 2]) >> 2)
+                | (i32::from(data[9 * i + 3]) << 6)
+                | ((i32::from(data[9 * i + 4]) & 0x0F) << 14);
+            r[4 * i + 2] = (i32::from(data[9 * i + 4]) >> 4)
+                | (i32::from(data[9 * i + 5]) << 4)
+                | ((i32::from(data[9 * i + 6]) & 0x3F) << 12);
+            r[4 * i + 3] = (i32::from(data[9 * i + 6]) >> 6)
+                | (i32::from(data[9 * i + 7]) << 2)
+                | (i32::from(data[9 * i + 8]) << 10);
             for j in 0..4 {
                 r[4 * i + j] &= 0x3FFFF;
                 r[4 * i + j] = gamma1 - r[4 * i + j];
@@ -460,12 +460,12 @@ pub(crate) fn unpack_z(data: &[u8], gamma1: i32) -> Poly {
     } else {
         // gamma1 == 2^19
         for i in 0..N / 2 {
-            r[2 * i] = (data[5 * i] as i32)
-                | ((data[5 * i + 1] as i32) << 8)
-                | ((data[5 * i + 2] as i32 & 0x0F) << 16);
-            r[2 * i + 1] = ((data[5 * i + 2] as i32) >> 4)
-                | ((data[5 * i + 3] as i32) << 4)
-                | ((data[5 * i + 4] as i32) << 12);
+            r[2 * i] = i32::from(data[5 * i])
+                | (i32::from(data[5 * i + 1]) << 8)
+                | ((i32::from(data[5 * i + 2]) & 0x0F) << 16);
+            r[2 * i + 1] = (i32::from(data[5 * i + 2]) >> 4)
+                | (i32::from(data[5 * i + 3]) << 4)
+                | (i32::from(data[5 * i + 4]) << 12);
             r[2 * i] &= 0xFFFFF;
             r[2 * i + 1] &= 0xFFFFF;
             r[2 * i] = gamma1 - r[2 * i];

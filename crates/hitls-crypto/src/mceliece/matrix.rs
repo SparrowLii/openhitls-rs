@@ -343,7 +343,7 @@ fn cols_permutation(
     for j in 0..MU {
         for k in (j + 1)..64 {
             let same = same_mask(k as u32, ctz_list[j]);
-            let d = ((pi[row + j] ^ pi[row + k]) as i64) & (same as i64);
+            let d = i64::from(pi[row + j] ^ pi[row + k]) & (same as i64);
             pi[row + j] ^= d as i16;
             pi[row + k] ^= d as i16;
         }
@@ -392,7 +392,7 @@ fn cols_permutation(
 #[inline]
 fn same_mask(k: u32, val: u32) -> u64 {
     let diff = k ^ val;
-    let nz = (diff as i64 >> 63) | ((-(diff as i64)) >> 63);
+    let nz = (i64::from(diff) >> 63) | ((-i64::from(diff)) >> 63);
     !(nz as u64)
 }
 

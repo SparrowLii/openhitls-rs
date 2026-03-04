@@ -56,7 +56,7 @@ impl Fe448 {
 
         let mut r = [0u128; 8];
         for i in 0..8 {
-            r[i] = (self.0[i] as u128 + two_p[i] as u128) - rhs.0[i] as u128;
+            r[i] = (u128::from(self.0[i]) + u128::from(two_p[i])) - u128::from(rhs.0[i]);
         }
 
         // Carry propagate with Goldilocks folding
@@ -69,18 +69,18 @@ impl Fe448 {
         }
         // Wrap carry: 2^448 ≡ 2^224 + 1
         // carry goes to limb 0 and limb 4 independently
-        let val = out[0] as i128 + carry;
+        let val = i128::from(out[0]) + carry;
         out[0] = (val as u64) & MASK56;
         let c_lo = val >> 56;
         if c_lo != 0 {
-            out[1] = ((out[1] as i128) + c_lo) as u64;
+            out[1] = (i128::from(out[1]) + c_lo) as u64;
         }
 
-        let val = out[4] as i128 + carry;
+        let val = i128::from(out[4]) + carry;
         out[4] = (val as u64) & MASK56;
         let c_hi = val >> 56;
         if c_hi != 0 {
-            out[5] = ((out[5] as i128) + c_hi) as u64;
+            out[5] = (i128::from(out[5]) + c_hi) as u64;
         }
 
         Fe448(out)
@@ -159,7 +159,7 @@ impl Fe448 {
     pub fn mul_small(&self, c: u32) -> Fe448 {
         let mut acc = [0u128; 8];
         for (i, a) in acc.iter_mut().enumerate() {
-            *a = self.0[i] as u128 * c as u128;
+            *a = u128::from(self.0[i]) * u128::from(c);
         }
         // Carry propagate
         let mut r = [0u64; 8];
@@ -318,7 +318,7 @@ impl Fe448 {
 
     /// Constant-time conditional swap: swap self and other if swap == 1.
     pub fn conditional_swap(&mut self, other: &mut Fe448, swap: u8) {
-        let mask = (-(swap as i64)) as u64;
+        let mask = (-i64::from(swap)) as u64;
         for i in 0..8 {
             let t = mask & (self.0[i] ^ other.0[i]);
             self.0[i] ^= t;
@@ -345,7 +345,7 @@ fn mul_4x4(a: [u64; 4], b: [u64; 4]) -> [i128; 7] {
     let mut r = [0i128; 7];
     for i in 0..4 {
         for j in 0..4 {
-            r[i + j] += a[i] as i128 * b[j] as i128;
+            r[i + j] += i128::from(a[i]) * i128::from(b[j]);
         }
     }
     r
@@ -357,12 +357,12 @@ fn sqr_4x4(a: [u64; 4]) -> [i128; 7] {
     let mut r = [0i128; 7];
     // Diagonal terms
     for i in 0..4 {
-        r[2 * i] += a[i] as i128 * a[i] as i128;
+        r[2 * i] += i128::from(a[i]) * i128::from(a[i]);
     }
     // Doubled cross terms
     for i in 0..4 {
         for j in (i + 1)..4 {
-            r[i + j] += 2 * (a[i] as i128 * a[j] as i128);
+            r[i + j] += 2 * (i128::from(a[i]) * i128::from(a[j]));
         }
     }
     r

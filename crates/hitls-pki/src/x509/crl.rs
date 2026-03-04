@@ -118,7 +118,7 @@ impl CertificateRevocationList {
             let tag = tbs_dec
                 .peek_tag()
                 .map_err(|e| PkiError::InvalidCrl(e.to_string()))?;
-            if tag.class == TagClass::Universal && tag.number == tags::INTEGER as u32 {
+            if tag.class == TagClass::Universal && tag.number == u32::from(tags::INTEGER) {
                 let ver_bytes = tbs_dec
                     .read_integer()
                     .map_err(|e| PkiError::InvalidCrl(e.to_string()))?;
@@ -146,8 +146,8 @@ impl CertificateRevocationList {
                 .peek_tag()
                 .map_err(|e| PkiError::InvalidCrl(e.to_string()))?;
             if tag.class == TagClass::Universal
-                && (tag.number == tags::UTC_TIME as u32
-                    || tag.number == tags::GENERALIZED_TIME as u32)
+                && (tag.number == u32::from(tags::UTC_TIME)
+                    || tag.number == u32::from(tags::GENERALIZED_TIME))
             {
                 // Try to read the time; if the TLV has zero-length value, treat as absent
                 tbs_dec.read_time().ok()
@@ -391,7 +391,7 @@ fn parse_revoked_entry(dec: &mut Decoder) -> Result<RevokedCertificate, PkiError
                 let tag = ext_dec
                     .peek_tag()
                     .map_err(|e| PkiError::InvalidCrl(e.to_string()))?;
-                if tag.class == TagClass::Universal && tag.number == tags::BOOLEAN as u32 {
+                if tag.class == TagClass::Universal && tag.number == u32::from(tags::BOOLEAN) {
                     ext_dec
                         .read_boolean()
                         .map_err(|e| PkiError::InvalidCrl(e.to_string()))?

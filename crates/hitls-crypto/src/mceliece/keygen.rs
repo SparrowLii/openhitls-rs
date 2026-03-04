@@ -168,7 +168,7 @@ fn generate_irreducible_poly(
     let mut f = vec![0u16; t];
     for i in 0..t {
         if i * 2 + 1 < random_bits.len() {
-            let le = random_bits[2 * i] as u16 | ((random_bits[2 * i + 1] as u16) << 8);
+            let le = u16::from(random_bits[2 * i]) | (u16::from(random_bits[2 * i + 1]) << 8);
             f[i] = le & ((1u16 << m) - 1);
         }
     }

@@ -54,7 +54,7 @@ fn get_tree_and_leaf_idx(digest: &[u8], k: usize, a: usize, h: usize, d: usize) 
 fn to_int_mod(b: &[u8], m: usize) -> u64 {
     let mut ret: u64 = 0;
     for &byte in b {
-        ret = (ret << 8) | (byte as u64);
+        ret = (ret << 8) | u64::from(byte);
     }
     if m < 64 {
         ret & ((1u64 << m) - 1)

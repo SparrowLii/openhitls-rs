@@ -764,7 +764,7 @@ pub(crate) fn parse_extensions_list(data: &[u8]) -> Result<Vec<Extension>, TlsEr
 
 /// Read a 3-byte big-endian integer.
 pub(crate) fn read_u24(data: &[u8]) -> u32 {
-    ((data[0] as u32) << 16) | ((data[1] as u32) << 8) | (data[2] as u32)
+    (u32::from(data[0]) << 16) | (u32::from(data[1]) << 8) | u32::from(data[2])
 }
 
 // ---------------------------------------------------------------------------

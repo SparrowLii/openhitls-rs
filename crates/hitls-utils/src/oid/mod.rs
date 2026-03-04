@@ -39,7 +39,7 @@ impl Oid {
             return Err(CryptoError::DecodeAsn1Fail);
         }
         let mut arcs = Vec::new();
-        let first = data[0] as u32;
+        let first = u32::from(data[0]);
         arcs.push(first / 40);
         arcs.push(first % 40);
 
@@ -92,7 +92,7 @@ fn encode_arc(buf: &mut Vec<u8>, mut value: u32) {
 fn decode_arc(data: &[u8]) -> Result<(u32, usize), CryptoError> {
     let mut value: u32 = 0;
     for (i, &byte) in data.iter().enumerate() {
-        value = value.checked_shl(7).ok_or(CryptoError::DecodeAsn1Fail)? | (byte & 0x7F) as u32;
+        value = value.checked_shl(7).ok_or(CryptoError::DecodeAsn1Fail)? | u32::from(byte & 0x7F);
         if (byte & 0x80) == 0 {
             return Ok((value, i + 1));
         }

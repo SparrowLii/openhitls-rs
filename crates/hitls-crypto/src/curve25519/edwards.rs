@@ -290,7 +290,7 @@ fn ct_select_niels(table: &[NielsPoint; 16], index: u8) -> NielsPoint {
     let mut result = NielsPoint::identity();
     for i in 1..16u8 {
         // mask = all-1s if i == index, all-0s otherwise
-        let mask = (((i ^ index) as i64).wrapping_sub(1) >> 63) as u64;
+        let mask = (i64::from(i ^ index).wrapping_sub(1) >> 63) as u64;
         result.ct_assign(&table[i as usize], mask);
     }
     result

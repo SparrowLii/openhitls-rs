@@ -119,11 +119,11 @@ fn v_add(v: &mut [u8], addend: &[u8]) {
     let mut carry: u16 = 0;
     for i in (0..len).rev() {
         let a = if i >= len - alen {
-            addend[i - (len - alen)] as u16
+            u16::from(addend[i - (len - alen)])
         } else {
             0
         };
-        let sum = v[i] as u16 + a + carry;
+        let sum = u16::from(v[i]) + a + carry;
         v[i] = sum as u8;
         carry = sum >> 8;
     }
@@ -137,11 +137,11 @@ fn v_add_u64(v: &mut [u8], val: u64) {
     for i in (0..len).rev() {
         let offset = i as isize - (len as isize - 8);
         let a = if offset >= 0 {
-            bytes[offset as usize] as u16
+            u16::from(bytes[offset as usize])
         } else {
             0
         };
-        let sum = v[i] as u16 + a + carry;
+        let sum = u16::from(v[i]) + a + carry;
         v[i] = sum as u8;
         carry = sum >> 8;
     }

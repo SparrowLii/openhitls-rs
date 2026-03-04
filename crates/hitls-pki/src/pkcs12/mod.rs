@@ -94,7 +94,7 @@ fn pkcs12_kdf(
             for j in (0..i_buf.len()).step_by(block_size) {
                 let mut carry: u16 = 1;
                 for k in (0..block_size).rev() {
-                    let sum = i_buf[j + k] as u16 + b[k] as u16 + carry;
+                    let sum = u16::from(i_buf[j + k]) + u16::from(b[k]) + carry;
                     i_buf[j + k] = sum as u8;
                     carry = sum >> 8;
                 }

@@ -172,7 +172,7 @@ impl XmssKeyPair {
         let tree_sig = &signature[4 + n..];
 
         // Compute message digest
-        let msg_hash = hasher.h_msg(r, pk_root, idx as u64, message)?;
+        let msg_hash = hasher.h_msg(r, pk_root, u64::from(idx), message)?;
 
         // Verify: recover root from signature
         let mut adrs = XmssAdrs::new();

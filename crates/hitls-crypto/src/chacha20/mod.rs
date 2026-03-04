@@ -261,11 +261,11 @@ impl Poly1305 {
 
     /// Compute r² = r * r in radix-2^26 representation.
     fn mul_r_squared(r: [u32; 5]) -> [u32; 5] {
-        let r0 = r[0] as u64;
-        let r1 = r[1] as u64;
-        let r2 = r[2] as u64;
-        let r3 = r[3] as u64;
-        let r4 = r[4] as u64;
+        let r0 = u64::from(r[0]);
+        let r1 = u64::from(r[1]);
+        let r2 = u64::from(r[2]);
+        let r3 = u64::from(r[3]);
+        let r4 = u64::from(r[4]);
         let s1 = r1 * 5;
         let s2 = r2 * 5;
         let s3 = r3 * 5;
@@ -293,7 +293,7 @@ impl Poly1305 {
         let mut o4 = (d4 & 0x03ff_ffff) as u32;
         c = d4 >> 26;
         let mut o0 = o0.wrapping_add((c * 5) as u32);
-        c = (o0 >> 26) as u64;
+        c = u64::from(o0 >> 26);
         o0 &= 0x03ff_ffff;
         let o1 = o1.wrapping_add(c as u32);
         // Limb carry may leave o4 slightly above 2^26, acceptable for precompute
@@ -316,21 +316,21 @@ impl Poly1305 {
         self.acc[4] = self.acc[4].wrapping_add((t3 >> 8) | hibit);
 
         // Multiply accumulator by r
-        let r0 = self.r[0] as u64;
-        let r1 = self.r[1] as u64;
-        let r2 = self.r[2] as u64;
-        let r3 = self.r[3] as u64;
-        let r4 = self.r[4] as u64;
+        let r0 = u64::from(self.r[0]);
+        let r1 = u64::from(self.r[1]);
+        let r2 = u64::from(self.r[2]);
+        let r3 = u64::from(self.r[3]);
+        let r4 = u64::from(self.r[4]);
         let s1 = r1 * 5;
         let s2 = r2 * 5;
         let s3 = r3 * 5;
         let s4 = r4 * 5;
 
-        let a0 = self.acc[0] as u64;
-        let a1 = self.acc[1] as u64;
-        let a2 = self.acc[2] as u64;
-        let a3 = self.acc[3] as u64;
-        let a4 = self.acc[4] as u64;
+        let a0 = u64::from(self.acc[0]);
+        let a1 = u64::from(self.acc[1]);
+        let a2 = u64::from(self.acc[2]);
+        let a3 = u64::from(self.acc[3]);
+        let a4 = u64::from(self.acc[4]);
 
         let d0 = a0 * r0 + a1 * s4 + a2 * s3 + a3 * s2 + a4 * s1;
         let mut d1 = a0 * r1 + a1 * r0 + a2 * s4 + a3 * s3 + a4 * s2;
@@ -355,7 +355,7 @@ impl Poly1305 {
         c = d4 >> 26;
         self.acc[4] = (d4 & 0x03ff_ffff) as u32;
         self.acc[0] = self.acc[0].wrapping_add((c * 5) as u32);
-        c = (self.acc[0] >> 26) as u64;
+        c = u64::from(self.acc[0] >> 26);
         self.acc[0] &= 0x03ff_ffff;
         self.acc[1] = self.acc[1].wrapping_add(c as u32);
     }
@@ -371,18 +371,18 @@ impl Poly1305 {
         let t2_0 = u32::from_le_bytes(b0[8..12].try_into().unwrap());
         let t3_0 = u32::from_le_bytes(b0[12..16].try_into().unwrap());
 
-        let a0 = (self.acc[0] + (t0_0 & 0x03ff_ffff)) as u64;
-        let a1 = (self.acc[1] + (((t0_0 >> 26) | (t1_0 << 6)) & 0x03ff_ffff)) as u64;
-        let a2 = (self.acc[2] + (((t1_0 >> 20) | (t2_0 << 12)) & 0x03ff_ffff)) as u64;
-        let a3 = (self.acc[3] + (((t2_0 >> 14) | (t3_0 << 18)) & 0x03ff_ffff)) as u64;
-        let a4 = (self.acc[4] + ((t3_0 >> 8) | (1 << 24))) as u64;
+        let a0 = u64::from(self.acc[0] + (t0_0 & 0x03ff_ffff));
+        let a1 = u64::from(self.acc[1] + (((t0_0 >> 26) | (t1_0 << 6)) & 0x03ff_ffff));
+        let a2 = u64::from(self.acc[2] + (((t1_0 >> 20) | (t2_0 << 12)) & 0x03ff_ffff));
+        let a3 = u64::from(self.acc[3] + (((t2_0 >> 14) | (t3_0 << 18)) & 0x03ff_ffff));
+        let a4 = u64::from(self.acc[4] + ((t3_0 >> 8) | (1 << 24)));
 
         // Compute (acc + b0) * r²
-        let r20 = self.r2[0] as u64;
-        let r21 = self.r2[1] as u64;
-        let r22 = self.r2[2] as u64;
-        let r23 = self.r2[3] as u64;
-        let r24 = self.r2[4] as u64;
+        let r20 = u64::from(self.r2[0]);
+        let r21 = u64::from(self.r2[1]);
+        let r22 = u64::from(self.r2[2]);
+        let r23 = u64::from(self.r2[3]);
+        let r24 = u64::from(self.r2[4]);
         let s21 = r21 * 5;
         let s22 = r22 * 5;
         let s23 = r23 * 5;
@@ -400,18 +400,18 @@ impl Poly1305 {
         let t2_1 = u32::from_le_bytes(b1[8..12].try_into().unwrap());
         let t3_1 = u32::from_le_bytes(b1[12..16].try_into().unwrap());
 
-        let b0v = (t0_1 & 0x03ff_ffff) as u64;
-        let b1v = (((t0_1 >> 26) | (t1_1 << 6)) & 0x03ff_ffff) as u64;
-        let b2v = (((t1_1 >> 20) | (t2_1 << 12)) & 0x03ff_ffff) as u64;
-        let b3v = (((t2_1 >> 14) | (t3_1 << 18)) & 0x03ff_ffff) as u64;
-        let b4v = ((t3_1 >> 8) | (1 << 24)) as u64;
+        let b0v = u64::from(t0_1 & 0x03ff_ffff);
+        let b1v = u64::from(((t0_1 >> 26) | (t1_1 << 6)) & 0x03ff_ffff);
+        let b2v = u64::from(((t1_1 >> 20) | (t2_1 << 12)) & 0x03ff_ffff);
+        let b3v = u64::from(((t2_1 >> 14) | (t3_1 << 18)) & 0x03ff_ffff);
+        let b4v = u64::from((t3_1 >> 8) | (1 << 24));
 
         // Compute b1 * r and add to d0..d4
-        let r0 = self.r[0] as u64;
-        let r1 = self.r[1] as u64;
-        let rr2 = self.r[2] as u64;
-        let r3 = self.r[3] as u64;
-        let r4 = self.r[4] as u64;
+        let r0 = u64::from(self.r[0]);
+        let r1 = u64::from(self.r[1]);
+        let rr2 = u64::from(self.r[2]);
+        let r3 = u64::from(self.r[3]);
+        let r4 = u64::from(self.r[4]);
         let sr1 = r1 * 5;
         let sr2 = rr2 * 5;
         let sr3 = r3 * 5;
@@ -440,7 +440,7 @@ impl Poly1305 {
         c = d4 >> 26;
         self.acc[4] = (d4 & 0x03ff_ffff) as u32;
         self.acc[0] = self.acc[0].wrapping_add((c * 5) as u32);
-        c = (self.acc[0] >> 26) as u64;
+        c = u64::from(self.acc[0] >> 26);
         self.acc[0] &= 0x03ff_ffff;
         self.acc[1] = self.acc[1].wrapping_add(c as u32);
     }
@@ -544,16 +544,16 @@ impl Poly1305 {
 
         // Add s
         let mut f: u64;
-        f = h0 as u64 + self.s[0] as u64;
+        f = u64::from(h0) + u64::from(self.s[0]);
         let t0 = f as u32;
         f >>= 32;
-        f += h1 as u64 + self.s[1] as u64;
+        f += u64::from(h1) + u64::from(self.s[1]);
         let t1 = f as u32;
         f >>= 32;
-        f += h2 as u64 + self.s[2] as u64;
+        f += u64::from(h2) + u64::from(self.s[2]);
         let t2 = f as u32;
         f >>= 32;
-        f += h3 as u64 + self.s[3] as u64;
+        f += u64::from(h3) + u64::from(self.s[3]);
         let t3 = f as u32;
 
         let mut tag = [0u8; 16];
