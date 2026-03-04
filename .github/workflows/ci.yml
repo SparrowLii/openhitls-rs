@@ -236,8 +236,7 @@ jobs:
         with:
           files: coverage/codecov.json
           fail_ci_if_error: true
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+          token: ${{ secrets.CODECOV_TOKEN }}
 
   deny:
     name: Supply Chain Check
@@ -281,8 +280,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       # Slow keygen + zeroize verification (skip timing and flaky tests)
       # Skip test_elgamal_generate: flaky safe-prime generation (BnRandGenFail)
-      # Skip constant_time: timing tests require --release and quiet hardware
-      - run: cargo test -p hitls-crypto --all-features -- --ignored --skip test_openssl --skip test_s_client --skip test_elgamal_generate --skip constant_time
+      # Skip constant_time/ct_verify: timing tests require --release and quiet hardware
+      - run: cargo test -p hitls-crypto --all-features -- --ignored --skip test_openssl --skip test_s_client --skip test_elgamal_generate --skip constant_time --skip ct_verify
 
   bench:
     name: Benchmark Check
