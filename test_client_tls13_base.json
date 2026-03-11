@@ -1,0 +1,76 @@
+{
+    "socket" : {
+        "host" : "client",
+        "transport_type" : "tcp",
+        "server_ip" : "127.0.0.1",
+        "server_port" : 8888
+    },
+    "sslCtx" : ["default_config"],
+    "ssl" : ["default_ssl"],
+    "cert" : [
+        {
+            "name" : "ed25519",
+            "root" : "../certificates/ed25519/root.pem",
+            "chain" : "../certificates/ed25519/intca.pem",
+            "dev" : "../certificates/ed25519/server.pem",
+            "key" : "../certificates/ed25519/server.key.pem"
+        },
+        {
+            "name" : "rsa_sha256",
+            "root" : "../certificates/rsa_sha256/root.pem",
+            "chain" : "../certificates/rsa_sha256/intca.pem",
+            "dev" : "../certificates/rsa_sha256/server.pem",
+            "key" : "../certificates/rsa_sha256/server.key.pem"
+        },
+        {
+            "name" : "ecdsa_sha256",
+            "root" : "../certificates/ecdsa_sha256/root.pem",
+            "chain" : "../certificates/ecdsa_sha256/intca.pem",
+            "dev" : "../certificates/ecdsa_sha256/server.pem",
+            "key" : "../certificates/ecdsa_sha256/server.key.pem"
+        },
+        {
+            "name" : "tls13_sm2",
+            "root" : "../LBT/tlcpCert/sm2_root.pem",
+            "chain" : 0,
+            "dev" : "../LBT/tlcpCert/sm2_sig.pem",
+            "key" : "../LBT/tlcpCert/sm2_sig.key"
+        }
+    ],
+    "default_ssl" : {
+        "from" : "default_config"
+    },
+    "default_config" : {
+        "version" : "tls1_3",
+        "certs" :["ed25519", "rsa_sha256", "ecdsa_sha256"]
+    },
+    "action" : [
+        {
+            "cmd" : "create_ssl",
+            "obj" : "default_ssl"
+        },
+        {
+            "cmd" : "connect",
+            "obj" : "default_ssl",
+            "loop" : "true",
+            "time_out" : 10
+        },
+        {
+            "cmd" : "write",
+            "obj" : "default_ssl"
+        },
+        {
+            "cmd" : "read",
+            "obj" : "default_ssl",
+            "loop" : "true",
+            "time_out" : 10
+        },
+        {
+            "cmd" : "close",
+            "obj" : "default_ssl"
+        },
+        {
+            "cmd" : "end_loop"
+        }
+    ]
+}
